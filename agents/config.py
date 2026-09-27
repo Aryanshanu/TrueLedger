@@ -44,4 +44,4 @@ TREND_STABLE_BAND_PCT = 7.0  # |pct change| below this => "stable"
 DECLARED_VS_ACTUAL_GAP_PCT = 15.0
 INSURANCE_COVERAGE_MIN_RATIO = 0.5  # coverage below 50% of loan => risk flag
 
-APP_NAME = "outliers-underwriting"
+APP_NAME = "trueledger"
