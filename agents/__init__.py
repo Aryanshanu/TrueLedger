@@ -1,1 +1,1 @@
-"""Outliers underwriting agent pipeline: specialist sub-agents + orchestrator."""
+"""TrueLedger agent pipeline: specialist sub-agents + orchestrator."""

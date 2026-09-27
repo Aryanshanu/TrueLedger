@@ -16,7 +16,7 @@ from agents.consent import build_consent_status
 from agents.firestore_gateway import get_consent, get_decision, get_ledger
 from backend.runner import evaluate_borrower
 
-app = FastAPI(title="Outliers Underwriting API")
+app = FastAPI(title="TrueLedger API")
 
 # Cloud Run frontend and agent backend are separate services with separate
 # URLs; wide open for the hackathon demo, tighten to the frontend's own

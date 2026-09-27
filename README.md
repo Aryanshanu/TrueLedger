@@ -1,6 +1,8 @@
-# The Outliers - Agentic Credit Underwriting
+# TrueLedger
 
-Google Cloud AI Builder Cup 2026 (APAC) - BFSI track.
+Agentic credit underwriting by **The Outliers**, for the Google Cloud AI
+Builder Cup 2026 (APAC) - BFSI track. The audit trail is the product, not a
+feature bolted on.
 
 An agentic credit-underwriting system built against India's Account
 Aggregator (AA) data model. A borrower's financial data - bank, GST/tax,
@@ -21,7 +23,9 @@ point that fed it, not just a score.
 See `docs/ARCHITECTURE.md` for the full architecture map, the JAPAC
 reframe, and the roadmap; `docs/DATA_SCHEMA.md` for the data contracts,
 the contradiction-rule table, and the consent-decay formula;
-`docs/NON_GOALS.md` for what this project deliberately does not build.
+`docs/NON_GOALS.md` for what this project deliberately does not build;
+`docs/DEPLOYMENT.md` for the step-by-step GCP setup and Cloud Run
+deployment runbook.
 
 ## Repo structure
 
@@ -79,7 +83,7 @@ Then open `http://localhost:8080`, pick a borrower, and click Evaluate.
 ```bash
 export GOOGLE_CLOUD_PROJECT=<your-project>
 ./infra/deploy_backend.sh
-BACKEND_URL=$(gcloud run services describe outliers-backend --region asia-south1 --format 'value(status.url)') \
+BACKEND_URL=$(gcloud run services describe trueledger-backend --region asia-south1 --format 'value(status.url)') \
   ./infra/deploy_frontend.sh
 ```
 

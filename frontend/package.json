@@ -1,5 +1,5 @@
 {
-  "name": "outliers-underwriting-frontend",
+  "name": "trueledger-frontend",
   "version": "0.1.0",
   "private": true,
   "description": "Cloud Run UI service: borrower list, decision view, replay stepper.",

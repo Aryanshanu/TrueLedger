@@ -16,5 +16,5 @@ app.get("/config.js", (_req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {
-  console.log(`Outliers frontend listening on :${PORT}, BACKEND_URL=${BACKEND_URL}`);
+  console.log(`TrueLedger frontend listening on :${PORT}, BACKEND_URL=${BACKEND_URL}`);
 });
