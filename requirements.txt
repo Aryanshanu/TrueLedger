@@ -1,0 +1,5 @@
+# Local dev / test environment. Cloud Run services use their own
+# backend/requirements.txt (agents/ + backend/) - frontend/ is Node, see
+# frontend/package.json.
+-r backend/requirements.txt
+pytest==9.1.1

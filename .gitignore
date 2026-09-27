@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env / secrets
+.env
+*-service-account*.json
+*.key.json
+
+# Generated synthetic data output (regenerate with `python -m data.synthetic.generate`)
+data/synthetic/output/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
