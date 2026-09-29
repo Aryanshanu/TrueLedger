@@ -34,16 +34,31 @@ GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "asia-south1")
 VERTEX_AI_LOCATION = os.environ.get("VERTEX_AI_LOCATION", "global")
 
 # --- Gemini model IDs ---
-# SPECIALIST_MODEL: CONFIRMED against the live Vertex AI Model Garden page
-# for Gemini 3.8 Flash (Sept 2026) - "Model name: gemini-3.8-flash" is the
-# documented Resource ID, matching what was already a placeholder here.
+# SPECIALIST_MODEL: CONFIRMED directly against the live Vertex AI Model
+# Garden console page for Gemini 3.8 Flash (Sept 2026, read and pasted back
+# by the team) - "Model name: gemini-3.8-flash" is the documented Resource
+# ID, matching what was already a placeholder here.
 #
-# ORCHESTRATOR_MODEL: STILL FLAGGED, NOT YET CONFIRMED. "gemini-3.1-pro" is
-# still only the best-guess placeholder derived from the "Gemini 3.1 Pro"
-# marketing name in the build brief - check its Model Garden page the same
-# way (Resource ID under "Model details") before relying on it.
+# ORCHESTRATOR_MODEL: CONFIRMED via web search cross-referenced across the
+# official Vertex AI docs, Google's own blog post, and multiple developer
+# forum threads (Sept 2026) - NOT eyeballed directly against the console
+# the way SPECIALIST_MODEL was, since this sandbox's network proxy blocks
+# docs.cloud.google.com/ai.google.dev/deepmind.google outright. Do one
+# quick personal check in Model Garden to be certain, the same way you did
+# for Flash. Two things this correction changed:
+#   1. The Resource ID carries a "-preview" suffix: "gemini-3.1-pro-preview",
+#      not the bare "gemini-3.1-pro" this was previously guessed as.
+#   2. This preview model is GLOBAL-ENDPOINT-ONLY - not just "available at"
+#      VERTEX_AI_LOCATION="global" by our choice, but with no regional
+#      endpoint offered at all (confirmed by a forum thread of people
+#      explicitly asking for regional/data-residency access and being told
+#      it isn't available for this preview version). Firestore/Cloud Run
+#      correctly stay in asia-south1; be ready to explain in the demo/docs
+#      that the orchestrator's Gemini call itself necessarily goes through
+#      Google's global endpoint, since that's this preview model's only
+#      option, not a regional trade-off we chose.
 SPECIALIST_MODEL = os.environ.get("SPECIALIST_MODEL", "gemini-3.8-flash")
-ORCHESTRATOR_MODEL = os.environ.get("ORCHESTRATOR_MODEL", "gemini-3.1-pro")
+ORCHESTRATOR_MODEL = os.environ.get("ORCHESTRATOR_MODEL", "gemini-3.1-pro-preview")
 
 # --- Firestore collections ---
 # Layout:
