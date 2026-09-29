@@ -77,23 +77,45 @@ alone can't catch.
 | Frontend | Cloud Run (Express, static) | `frontend/server.js` |
 | Region | `asia-south1` (Mumbai) | Latency + regulatory optics for India-specific data model |
 
-## Flagged, not silently assumed: exact Gemini model IDs
+## Flagged, not silently assumed: exact Gemini model IDs and call location
 
 The build brief names the intended tiers as **Gemini 3.8 Flash** (the three
 specialist sub-agents) and **Gemini 3.1 Pro** (the orchestrator's
 reasoning pass), and explicitly says the exact Vertex AI model ID string
 needs to be confirmed against the live model list at build time, since
-marketing names and API IDs can diverge. This sandbox had no Vertex AI
-credentials to check that list, so `agents/config.py` ships
-`gemini-3.8-flash` / `gemini-3.1-pro` as best-guess placeholders, not
-verified API IDs. **Before Phase 2, run:**
+marketing names and API IDs can diverge.
 
-```bash
-gcloud ai models list --region=asia-south1
-```
+- **`SPECIALIST_MODEL` = `gemini-3.8-flash` is now CONFIRMED**, checked
+  against the live Model Garden page (Sept 2026): "Model name:
+  gemini-3.8-flash" under Model details - matches the placeholder exactly.
+- **`ORCHESTRATOR_MODEL` = `gemini-3.1-pro` is still UNCONFIRMED.** Check
+  its own Model Garden page the same way before relying on it:
+  `https://console.cloud.google.com/vertex-ai/model-garden?project=<PROJECT_ID>`,
+  search "Gemini", find the Pro-tier card, read the Resource ID.
+- **`gcloud ai models list --region=...` is the wrong command** for this -
+  it lists your own project's custom Model Registry entries, not Google's
+  publisher/foundation models, and will correctly show `Listed 0 items`
+  even when Gemini access is fine. Use the Model Garden console instead.
+- **The Vertex AI call location is `"global"`, not `asia-south1`,** despite
+  Cloud Run/Firestore staying in `asia-south1`. Confirmed from Google's own
+  Gemini 3.8 Flash sample code (`client = genai.Client(enterprise=True,
+  project=..., location="global")`, and the curl sample's endpoint host
+  drops the region prefix entirely for global) - and ADK's own `Gemini`
+  model wrapper documents the identical pattern. See `VERTEX_AI_LOCATION`
+  and the `build_specialist_model()`/`build_orchestrator_model()` helpers
+  in `agents/config.py`, which pass this explicitly via `client_kwargs`
+  rather than through an environment variable.
+- **The env var name for enabling Vertex/enterprise mode changed.** The
+  installed `google-genai==2.25.0` SDK's `Client` only documents
+  `GOOGLE_GENAI_USE_ENTERPRISE` - the older `GOOGLE_GENAI_USE_VERTEXAI`
+  name (used in an earlier draft of this config) doesn't appear anywhere in
+  its source. This is exactly why the fix above passes `enterprise=True`
+  explicitly in code instead of trusting an SDK-read env var name that has
+  already drifted once.
 
-and correct `SPECIALIST_MODEL` / `ORCHESTRATOR_MODEL` (env vars, see
-`.env.example`) if they don't match.
+If a future model tier isn't available at `location="global"`, override
+`VERTEX_AI_LOCATION` (env var, see `.env.example`) to whichever region
+Model Garden shows it in.
 
 ## The JAPAC reframe (say this explicitly, don't leave it implicit)
 

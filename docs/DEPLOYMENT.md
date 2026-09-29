@@ -35,15 +35,28 @@ gcloud projects add-iam-policy-binding <PROJECT_ID> \
 
 ## 3. Confirm the real Gemini model IDs
 
-Replaces the two placeholders flagged in `agents/config.py` - don't guess
-here, this was deliberately left unverified for exactly this step:
+`SPECIALIST_MODEL` is now confirmed (`gemini-3.8-flash`, matches the
+placeholder). `ORCHESTRATOR_MODEL` is still not - check it the same way:
 
-```bash
-gcloud ai models list --region=asia-south1
+**Don't use `gcloud ai models list --region=...`** - that lists your own
+project's custom Model Registry, not Google's Gemini models, and will show
+`Listed 0 items` even when everything is fine (learned this the hard way -
+see `docs/ARCHITECTURE.md` "Flagged: exact Gemini model IDs and call
+location"). Instead, use the console:
+
+```
+https://console.cloud.google.com/vertex-ai/model-garden?project=<PROJECT_ID>
 ```
 
-Update `SPECIALIST_MODEL` / `ORCHESTRATOR_MODEL` in `agents/config.py` (or
-set the env vars of the same name) with whatever exact IDs come back.
+Search "Gemini", open the Pro-tier card, and read its Resource ID under
+"Model details". Update `ORCHESTRATOR_MODEL` in `agents/config.py` (or the
+env var of the same name) if it differs from `gemini-3.1-pro`.
+
+While you're there, also note whether either tier is unavailable at
+`location="global"` (the confirmed-correct Vertex AI call location for
+Gemini 3.8 Flash - not `asia-south1`, see `agents/config.py`'s
+`VERTEX_AI_LOCATION`). If one is missing from `global`, set
+`VERTEX_AI_LOCATION` to whichever region it does show.
 
 ## 4. Firestore
 

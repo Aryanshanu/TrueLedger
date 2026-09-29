@@ -68,7 +68,7 @@ def investment_tool(tool_context: ToolContext) -> dict:
 def build_investment_agent() -> LlmAgent:
     return LlmAgent(
         name="investment_agent",
-        model=config.SPECIALIST_MODEL,
+        model=config.build_specialist_model(),
         description="Analyzes MUTUAL_FUNDS and INSURANCE_POLICIES data for asset cushion and coverage adequacy.",
         instruction=INVESTMENT_INSTRUCTION,
         tools=[investment_tool],

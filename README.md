@@ -62,7 +62,8 @@ a Firestore project to read/write FI data, consent, and the ledger:
 ```bash
 gcloud auth application-default login
 export GOOGLE_CLOUD_PROJECT=<your-project>
-export GOOGLE_CLOUD_LOCATION=asia-south1
+export GOOGLE_CLOUD_LOCATION=asia-south1  # Cloud Run/Firestore region only
+export VERTEX_AI_LOCATION=global          # Gemini call location - see agents/config.py
 python -m infra.seed_firestore        # seeds b_clean, b_contradiction, b_stale_consent
 
 PYTHONPATH=. uvicorn backend.main:app --reload --port 8081
