@@ -27,7 +27,13 @@ DEPLOY_ARGS=(
   --image "$IMAGE"
   --platform managed
   --allow-unauthenticated
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_LOCATION=${REGION},GOOGLE_GENAI_USE_VERTEXAI=TRUE"
+  # GOOGLE_CLOUD_PROJECT is the only Gemini-relevant env var the container
+  # needs: each agent passes enterprise=True and location=VERTEX_AI_LOCATION
+  # explicitly in code (agents/config.py), rather than relying on an SDK
+  # environment variable whose name has already changed once
+  # (GOOGLE_GENAI_USE_VERTEXAI -> GOOGLE_GENAI_USE_ENTERPRISE). Set
+  # VERTEX_AI_LOCATION below only to override the "global" default.
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_LOCATION=${REGION}${VERTEX_AI_LOCATION:+,VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}}"
 )
 if [[ -n "${SERVICE_ACCOUNT:-}" ]]; then
   DEPLOY_ARGS+=(--service-account "$SERVICE_ACCOUNT")

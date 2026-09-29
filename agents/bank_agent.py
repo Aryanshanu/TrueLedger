@@ -74,7 +74,7 @@ def bank_statement_tool(tool_context: ToolContext) -> dict:
 def build_bank_statement_agent() -> LlmAgent:
     return LlmAgent(
         name="bank_statement_agent",
-        model=config.SPECIALIST_MODEL,
+        model=config.build_specialist_model(),
         description="Analyzes DEPOSIT (bank account) data for income stability and cash-flow trend.",
         instruction=BANK_STATEMENT_INSTRUCTION,
         tools=[bank_statement_tool],

@@ -68,7 +68,7 @@ def gst_tax_tool(tool_context: ToolContext) -> dict:
 def build_gst_tax_agent() -> LlmAgent:
     return LlmAgent(
         name="gst_tax_agent",
-        model=config.SPECIALIST_MODEL,
+        model=config.build_specialist_model(),
         description="Analyzes GSTR1_3B (GST return) data for revenue trend and filing consistency.",
         instruction=GST_TAX_INSTRUCTION,
         tools=[gst_tax_tool],

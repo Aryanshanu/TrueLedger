@@ -59,7 +59,7 @@ Do not invent a number that is not present in the findings above."""
 def build_subtler_reasoning_agent() -> LlmAgent:
     return LlmAgent(
         name="orchestrator_subtler_reasoning",
-        model=config.ORCHESTRATOR_MODEL,
+        model=config.build_orchestrator_model(),
         description="Second-pass LLM reasoning for cross-source contradictions the fixed rule table misses.",
         instruction=SUBTLER_REASONING_INSTRUCTION,
         output_key="orchestrator_subtler_findings",

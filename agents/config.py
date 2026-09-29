@@ -6,23 +6,42 @@ runs locally (Firestore emulator, no Vertex AI creds) and on Cloud Run.
 
 import os
 
-# --- Google Cloud / Vertex AI ---
+# --- Google Cloud project / Cloud Run region ---
+# GOOGLE_CLOUD_PROJECT is used both by the Firestore client and (as a
+# fallback) by the Gemini client below. GOOGLE_CLOUD_LOCATION is the Cloud
+# Run / Artifact Registry deploy region only (see infra/deploy_*.sh) - it is
+# NOT the Vertex AI call location; see VERTEX_AI_LOCATION for that.
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "asia-south1")
-GOOGLE_GENAI_USE_VERTEXAI = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
+
+# --- Vertex AI ("Gemini Enterprise Agent Platform") call location ---
+# Confirmed against the live model docs (Sept 2026), not guessed: Google's
+# own sample code for gemini-3.8-flash uses `location="global"`, and the
+# curl sample's endpoint host drops the region prefix entirely
+# (`aiplatform.googleapis.com`, not `asia-south1-aiplatform.googleapis.com`)
+# specifically for the global location. ADK's own Gemini model wrapper
+# documents the identical pattern (`client_kwargs={"enterprise": True,
+# "location": "global"}`). So this is deliberately decoupled from
+# GOOGLE_CLOUD_LOCATION above (asia-south1 is still right for Cloud
+# Run/Firestore; it is not necessarily where every Gemini tier is served).
+# Each agent passes this explicitly via `client_kwargs`, not via an
+# environment variable the SDK reads implicitly - see agents/bank_agent.py
+# etc. Note also: as of google-genai 2.25.0, the enterprise/Vertex client
+# reads `GOOGLE_GENAI_USE_ENTERPRISE` (its own docstring never mentions the
+# older `GOOGLE_GENAI_USE_VERTEXAI` name from earlier SDK versions), which
+# is exactly why this is now passed explicitly per agent instead of relying
+# on an environment variable whose name could drift again.
+VERTEX_AI_LOCATION = os.environ.get("VERTEX_AI_LOCATION", "global")
 
 # --- Gemini model IDs ---
-# FLAGGED, NOT SILENTLY ASSUMED: the build brief names the intended tiers as
-# "Gemini 3.8 Flash" (specialist sub-agents) and "Gemini 3.1 Pro"
-# (orchestrator's reasoning pass), but explicitly says the exact Vertex AI
-# model ID string must be confirmed against the live model list at build
-# time, since marketing names and API IDs can diverge. This sandbox has no
-# Vertex AI credentials to check that list, so the strings below are a
-# best-guess placeholder derived from the marketing names, not a verified
-# API ID. Before Phase 2, confirm with:
-#   gcloud ai models list --region=$GOOGLE_CLOUD_LOCATION
-# (or the Vertex AI Model Garden UI) and correct these two env vars/defaults
-# if they don't match the live ID.
+# SPECIALIST_MODEL: CONFIRMED against the live Vertex AI Model Garden page
+# for Gemini 3.8 Flash (Sept 2026) - "Model name: gemini-3.8-flash" is the
+# documented Resource ID, matching what was already a placeholder here.
+#
+# ORCHESTRATOR_MODEL: STILL FLAGGED, NOT YET CONFIRMED. "gemini-3.1-pro" is
+# still only the best-guess placeholder derived from the "Gemini 3.1 Pro"
+# marketing name in the build brief - check its Model Garden page the same
+# way (Resource ID under "Model details") before relying on it.
 SPECIALIST_MODEL = os.environ.get("SPECIALIST_MODEL", "gemini-3.8-flash")
 ORCHESTRATOR_MODEL = os.environ.get("ORCHESTRATOR_MODEL", "gemini-3.1-pro")
 
@@ -45,3 +64,21 @@ DECLARED_VS_ACTUAL_GAP_PCT = 15.0
 INSURANCE_COVERAGE_MIN_RATIO = 0.5  # coverage below 50% of loan => risk flag
 
 APP_NAME = "trueledger"
+
+
+def build_specialist_model():
+    """A Gemini model object pinned to VERTEX_AI_LOCATION, for the three
+    specialist sub-agents. See the VERTEX_AI_LOCATION comment above for why
+    this is passed explicitly via client_kwargs rather than left to an
+    environment variable the SDK might read differently.
+    """
+    from google.adk.models import Gemini
+
+    return Gemini(model=SPECIALIST_MODEL, client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION})
+
+
+def build_orchestrator_model():
+    """Same as build_specialist_model, for the orchestrator's own model tier."""
+    from google.adk.models import Gemini
+
+    return Gemini(model=ORCHESTRATOR_MODEL, client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION})
