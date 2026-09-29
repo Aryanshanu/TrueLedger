@@ -85,13 +85,28 @@ reasoning pass), and explicitly says the exact Vertex AI model ID string
 needs to be confirmed against the live model list at build time, since
 marketing names and API IDs can diverge.
 
-- **`SPECIALIST_MODEL` = `gemini-3.8-flash` is now CONFIRMED**, checked
-  against the live Model Garden page (Sept 2026): "Model name:
-  gemini-3.8-flash" under Model details - matches the placeholder exactly.
-- **`ORCHESTRATOR_MODEL` = `gemini-3.1-pro` is still UNCONFIRMED.** Check
-  its own Model Garden page the same way before relying on it:
-  `https://console.cloud.google.com/vertex-ai/model-garden?project=<PROJECT_ID>`,
-  search "Gemini", find the Pro-tier card, read the Resource ID.
+- **`SPECIALIST_MODEL` = `gemini-3.8-flash` is CONFIRMED**, checked directly
+  against the live Model Garden console page (Sept 2026, read and pasted
+  back by the team): "Model name: gemini-3.8-flash" under Model details -
+  matches the placeholder exactly.
+- **`ORCHESTRATOR_MODEL` = `gemini-3.1-pro-preview` is CONFIRMED, but by web
+  search rather than a direct console read** (this sandbox's network proxy
+  blocks `docs.cloud.google.com`/`ai.google.dev`/`deepmind.google`
+  outright, so the page itself couldn't be fetched here - cross-referenced
+  instead across the official Vertex AI docs, Google's blog post, and
+  multiple developer forum threads, all agreeing). Two corrections from the
+  original placeholder:
+  1. The Resource ID carries a **`-preview`** suffix - `gemini-3.1-pro`
+     alone is wrong and will fail.
+  2. This preview model is **global-endpoint-only**, full stop - not one
+     option among several we picked "global" for. A forum thread of people
+     explicitly requesting regional/data-residency access for it were told
+     it isn't offered. Firestore/Cloud Run correctly stay in `asia-south1`;
+     be ready to explain that the orchestrator's Gemini call itself
+     necessarily goes through Google's global endpoint, since that's this
+     model's only option, not a trade-off this team chose. Do one quick
+     personal console check to be fully certain, the same way you did for
+     Flash.
 - **`gcloud ai models list --region=...` is the wrong command** for this -
   it lists your own project's custom Model Registry entries, not Google's
   publisher/foundation models, and will correctly show `Listed 0 items`
