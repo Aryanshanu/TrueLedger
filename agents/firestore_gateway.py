@@ -66,13 +66,22 @@ def append_ledger_entry(entry: dict[str, Any]) -> None:
 
 
 def get_ledger(borrower_id: str) -> list[dict[str, Any]]:
-    query = (
-        _client()
-        .collection(config.FIRESTORE_LEDGER_COLLECTION)
-        .where("borrower_id", "==", borrower_id)
-        .order_by("timestamp")
+    # A single-field equality filter is auto-indexed by Firestore; adding
+    # .order_by() on a *different* field turns this into a composite query
+    # that needs a manually-created index (Firestore returns a
+    # FailedPrecondition error with a console link to create one on first
+    # use - confirmed live against a real project). A borrower's ledger is
+    # small (dozens of steps, not millions), so sorting in Python after the
+    # fetch avoids that index dependency entirely rather than asking every
+    # judge/demo environment to pre-create one.
+    from google.cloud import firestore
+
+    query = _client().collection(config.FIRESTORE_LEDGER_COLLECTION).where(
+        filter=firestore.FieldFilter("borrower_id", "==", borrower_id)
     )
-    return [d.to_dict() for d in query.stream()]
+    entries = [d.to_dict() for d in query.stream()]
+    entries.sort(key=lambda e: e["timestamp"])
+    return entries
 
 
 def set_decision(borrower_id: str, decision: dict[str, Any]) -> None:
