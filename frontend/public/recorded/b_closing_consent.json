@@ -1,51 +1,19 @@
 {
-  "capturedAt": "2026-10-03T16:27:56Z",
+  "capturedAt": "2026-10-03T16:29:02Z",
   "decision": {
-    "borrower_id": "b_stale_consent",
+    "borrower_id": "b_closing_consent",
     "outcome": "manual_review",
-    "final_confidence": 0.1429,
-    "model_confidence": 1.0,
+    "final_confidence": 0.2714,
+    "model_confidence": 0.95,
     "weakest_consent_source": "bank_findings",
     "contradictions": [],
     "risk_factors": [],
     "ledger_step_ids": [
-      "stp_00009"
+      "stp_00008"
     ],
-    "generated_at": "2026-10-03T16:27:56Z"
+    "generated_at": "2026-10-03T16:29:02Z"
   },
   "ledgerSteps": [
-    {
-      "claim": {
-        "evidence": [
-          {
-            "field": null,
-            "source": null,
-            "period": "2026-08",
-            "transaction_ids": null
-          },
-          {
-            "field": null,
-            "source": null,
-            "period": "2026-09",
-            "transaction_ids": null
-          }
-        ],
-        "metric": "revenue_trend",
-        "magnitude_pct": 5.06,
-        "value": "stable",
-        "confidence": 1.0
-      },
-      "step_id": "stp_00017",
-      "borrower_id": "b_stale_consent",
-      "input_refs": [
-        "fi_data/b_stale_consent"
-      ],
-      "timestamp": "2026-10-03T07:08:53Z",
-      "agent": "gst_tax_agent",
-      "action": "record_claim",
-      "notes": "gst_tax_agent claim: revenue_trend",
-      "confidence": 1.0
-    },
     {
       "claim": {
         "evidence": [
@@ -64,12 +32,12 @@
         "value": "high",
         "confidence": 1.0
       },
-      "step_id": "stp_00002",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00001",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "fi_data/b_stale_consent"
+        "fi_data/b_closing_consent"
       ],
-      "timestamp": "2026-10-03T16:27:38Z",
+      "timestamp": "2026-10-03T16:28:55Z",
       "agent": "investment_agent",
       "action": "record_claim",
       "notes": "investment_agent claim: liquid_assets",
@@ -83,7 +51,7 @@
             "source": "INSURANCE_POLICIES",
             "period": null,
             "transaction_ids": [
-              "pol_s01"
+              "pol_cc01"
             ]
           }
         ],
@@ -92,70 +60,15 @@
         "value": "adequate",
         "confidence": 1.0
       },
-      "step_id": "stp_00003",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00002",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "fi_data/b_stale_consent"
+        "fi_data/b_closing_consent"
       ],
-      "timestamp": "2026-10-03T16:27:38Z",
+      "timestamp": "2026-10-03T16:28:56Z",
       "agent": "investment_agent",
       "action": "record_claim",
       "notes": "investment_agent claim: insurance_coverage",
-      "confidence": 1.0
-    },
-    {
-      "claim": {
-        "evidence": [
-          {
-            "field": null,
-            "source": null,
-            "period": "2026-06 to 2026-09",
-            "transaction_ids": [
-              "txn_s105",
-              "txn_s107"
-            ]
-          }
-        ],
-        "metric": "income_trend",
-        "magnitude_pct": 7.39,
-        "value": "rising",
-        "confidence": 1.0
-      },
-      "step_id": "stp_00004",
-      "borrower_id": "b_stale_consent",
-      "input_refs": [
-        "fi_data/b_stale_consent"
-      ],
-      "timestamp": "2026-10-03T16:27:39Z",
-      "agent": "bank_statement_agent",
-      "action": "record_claim",
-      "notes": "bank_statement_agent claim: income_trend",
-      "confidence": 1.0
-    },
-    {
-      "claim": {
-        "evidence": [
-          {
-            "field": null,
-            "source": null,
-            "period": "2026-06 to 2026-09",
-            "transaction_ids": null
-          }
-        ],
-        "metric": "cash_flow_volatility",
-        "magnitude_pct": null,
-        "value": "low",
-        "confidence": 1.0
-      },
-      "step_id": "stp_00005",
-      "borrower_id": "b_stale_consent",
-      "input_refs": [
-        "fi_data/b_stale_consent"
-      ],
-      "timestamp": "2026-10-03T16:27:39Z",
-      "agent": "bank_statement_agent",
-      "action": "record_claim",
-      "notes": "bank_statement_agent claim: cash_flow_volatility",
       "confidence": 1.0
     },
     {
@@ -179,12 +92,12 @@
         "value": "stable",
         "confidence": 1.0
       },
-      "step_id": "stp_00006",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00003",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "fi_data/b_stale_consent"
+        "fi_data/b_closing_consent"
       ],
-      "timestamp": "2026-10-03T16:27:41Z",
+      "timestamp": "2026-10-03T16:28:56Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: revenue_trend",
@@ -223,12 +136,12 @@
         "value": "consistent",
         "confidence": 1.0
       },
-      "step_id": "stp_00007",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00004",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "fi_data/b_stale_consent"
+        "fi_data/b_closing_consent"
       ],
-      "timestamp": "2026-10-03T16:27:41Z",
+      "timestamp": "2026-10-03T16:28:56Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: filing_consistency",
@@ -236,70 +149,125 @@
     },
     {
       "claim": {
-        "weakest_days_remaining": 1,
-        "weakest_source": "bank_findings",
-        "final_confidence": 0.1429,
-        "model_confidence": 1.0,
-        "confidence_multiplier": 0.1429
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": [
+              "txn_cc105",
+              "txn_cc107"
+            ]
+          }
+        ],
+        "metric": "income_trend",
+        "magnitude_pct": 7.39,
+        "value": "rising",
+        "confidence": 0.95
       },
-      "step_id": "stp_00008",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00005",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "consent/b_stale_consent"
+        "fi_data/b_closing_consent"
       ],
-      "timestamp": "2026-10-03T16:27:56Z",
+      "timestamp": "2026-10-03T16:28:57Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: income_trend",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "cash_flow_volatility",
+        "magnitude_pct": null,
+        "value": "low",
+        "confidence": 0.95
+      },
+      "step_id": "stp_00006",
+      "borrower_id": "b_closing_consent",
+      "input_refs": [
+        "fi_data/b_closing_consent"
+      ],
+      "timestamp": "2026-10-03T16:28:57Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: cash_flow_volatility",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "weakest_days_remaining": 2,
+        "weakest_source": "bank_findings",
+        "final_confidence": 0.2714,
+        "model_confidence": 0.95,
+        "confidence_multiplier": 0.2857
+      },
+      "step_id": "stp_00007",
+      "borrower_id": "b_closing_consent",
+      "input_refs": [
+        "consent/b_closing_consent"
+      ],
+      "timestamp": "2026-10-03T16:29:02Z",
       "agent": "orchestrator_agent",
       "action": "apply_consent_decay",
       "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
-      "confidence": 0.1429
+      "confidence": 0.2714
     },
     {
       "claim": {
         "weakest_consent_source": "bank_findings",
-        "final_confidence": 0.1429,
+        "final_confidence": 0.2714,
         "outcome": "manual_review",
         "contradictions": [],
-        "model_confidence": 1.0,
-        "borrower_id": "b_stale_consent",
+        "model_confidence": 0.95,
+        "borrower_id": "b_closing_consent",
         "ledger_step_ids": [],
         "risk_factors": [],
-        "generated_at": "2026-10-03T16:27:56Z"
+        "generated_at": "2026-10-03T16:29:02Z"
       },
-      "step_id": "stp_00009",
-      "borrower_id": "b_stale_consent",
+      "step_id": "stp_00008",
+      "borrower_id": "b_closing_consent",
       "input_refs": [
-        "claims/b_stale_consent/bank_findings",
-        "claims/b_stale_consent/gst_findings",
-        "claims/b_stale_consent/investment_findings"
+        "claims/b_closing_consent/bank_findings",
+        "claims/b_closing_consent/gst_findings",
+        "claims/b_closing_consent/investment_findings"
       ],
-      "timestamp": "2026-10-03T16:27:56Z",
+      "timestamp": "2026-10-03T16:29:02Z",
       "agent": "orchestrator_agent",
       "action": "final_decision",
       "notes": "outcome=manual_review",
-      "confidence": 0.1429
+      "confidence": 0.2714
     }
   ],
   "consentSources": [
     {
       "source": "gst_findings",
       "fi_type": "GSTR1_3B",
-      "expires_at": "2026-11-02T16:23:49Z",
+      "expires_at": "2026-11-02T16:23:50Z",
       "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "investment_findings",
       "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
-      "expires_at": "2026-11-02T16:23:49Z",
+      "expires_at": "2026-11-02T16:23:50Z",
       "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "bank_findings",
       "fi_type": "DEPOSIT",
-      "expires_at": "2026-10-05T16:23:49Z",
-      "days_remaining": 1,
-      "confidence_multiplier": 0.1429
+      "expires_at": "2026-10-06T16:23:50Z",
+      "days_remaining": 2,
+      "confidence_multiplier": 0.2857
     }
   ]
 }

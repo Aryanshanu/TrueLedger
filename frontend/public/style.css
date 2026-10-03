@@ -83,6 +83,18 @@ body {
   background: var(--surface);
 }
 
+.back-link {
+  color: var(--muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--text);
+}
+
 .brand {
   display: flex;
   align-items: baseline;
@@ -179,11 +191,40 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* 8 cases (3 core + 5 edge) don't fit above the fold at 1280x720 the way
+     3 did - cap the rail to the same height the pipeline/decision columns
+     already occupy and let it scroll internally, rather than stretching
+     the whole 3-column grid row (which is sized to its tallest item) and
+     reintroducing page-level scroll for every column. */
+  max-height: 560px;
+  overflow-y: auto;
 }
 
 .rail-label {
   margin: 2px 0 2px;
   font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted-dim);
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+}
+
+.case-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.case-group + .case-group {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.case-group-label {
+  margin: 0;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--muted-dim);

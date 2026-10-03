@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T15:31:03Z",
+  "capturedAt": "2026-10-03T16:27:31Z",
   "decision": {
     "borrower_id": "b_contradiction",
     "outcome": "manual_review",
@@ -32,7 +32,7 @@
     "ledger_step_ids": [
       "stp_00023"
     ],
-    "generated_at": "2026-10-03T15:31:03Z"
+    "generated_at": "2026-10-03T16:27:31Z"
   },
   "ledgerSteps": [
     {
@@ -722,7 +722,7 @@
         "borrower_id": "b_contradiction",
         "ledger_step_ids": [],
         "risk_factors": [],
-        "generated_at": "2026-10-03T15:31:03Z"
+        "generated_at": "2026-10-03T16:27:31Z"
       },
       "step_id": "stp_00023",
       "borrower_id": "b_contradiction",
@@ -731,7 +731,7 @@
         "claims/b_contradiction/gst_findings",
         "claims/b_contradiction/investment_findings"
       ],
-      "timestamp": "2026-10-03T15:31:03Z",
+      "timestamp": "2026-10-03T16:27:31Z",
       "agent": "orchestrator_agent",
       "action": "final_decision",
       "notes": "outcome=manual_review",
@@ -742,22 +742,22 @@
     {
       "source": "gst_findings",
       "fi_type": "GSTR1_3B",
-      "expires_at": "2026-10-29T05:46:03Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "investment_findings",
       "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
-      "expires_at": "2026-10-29T05:46:03Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "bank_findings",
       "fi_type": "DEPOSIT",
-      "expires_at": "2026-10-29T05:46:03Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     }
   ]

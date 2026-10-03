@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TrueLedger - Underwriting Desk</title>
+  <title>TrueLedger</title>
+  <meta name="description" content="A consent-aware underwriting pipeline: three specialist agents and an orchestrator, replayed from real recorded runs." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -11,64 +12,122 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/landing.css" />
 </head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <h1 class="brand-name">TrueLedger</h1>
-      <span class="brand-tag">Consent-aware underwriting</span>
-    </div>
-    <div class="topbar-badges">
-      <span class="badge">AA / DEPA</span>
-      <span class="badge">BFSI</span>
-    </div>
-    <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
-  </header>
+<body class="landing-body">
+  <a href="/desk" class="skip-to-desk">Skip to the desk</a>
 
-  <p class="disclosure">
-    Synthetic demo data, built against the real Account Aggregator / Setu FI-schema data model - no live AA, Sahamati, or FIP integration.
-    See <code>docs/DATA_SCHEMA.md</code> for the disclosure.
-  </p>
+  <main class="landing" id="landing">
 
-  <main class="desk">
-    <aside class="case-rail" id="case-rail" aria-label="Cases">
-      <h2 class="rail-label">Cases</h2>
-      <!-- populated by app.js; three scenarios, never results pre-claimed -->
-    </aside>
+    <!-- 0: Cold open -->
+    <section class="chapter chapter-cold-open" id="ch0" data-chapter="0" aria-label="Opening">
+      <p class="cold-open-line">One number.<br />No reasons.</p>
+      <p class="cold-open-hint">Scroll</p>
+    </section>
 
-    <section class="pipeline-panel" aria-label="Pipeline">
-      <h2 class="rail-label">Pipeline</h2>
-      <div class="pipeline-status-line" id="pipeline-status" role="status" aria-live="polite">Loading…</div>
-      <div class="pipeline-canvas" id="pipeline-canvas"></div>
+    <!-- 1: Teaser -->
+    <section class="chapter chapter-teaser" id="ch1" data-chapter="1" aria-label="Teaser">
+      <p class="chapter-kicker">TrueLedger</p>
+      <h2 class="chapter-lead">What if the system had to argue with itself?</h2>
+      <div class="agent-trio" id="agent-trio">
+        <div class="agent-pill reveal-item"><span class="agent-pill-dot bank"></span>Bank agent</div>
+        <div class="agent-pill reveal-item"><span class="agent-pill-dot gst"></span>GST/Tax agent</div>
+        <div class="agent-pill reveal-item"><span class="agent-pill-dot invest"></span>MF/Insurance agent</div>
+      </div>
+      <p class="chapter-sub">Three specialists read the same borrower independently. An orchestrator cross-checks what they each find - deterministic rules first, a second LLM reasoning pass for what the rules miss.</p>
+    </section>
 
-      <div class="divergence-panel">
-        <div class="divergence-title" id="divergence-title">Income vs. revenue signal</div>
-        <div class="divergence-chart" id="divergence-chart"></div>
+    <!-- 2: Act I -->
+    <section class="chapter chapter-act1" id="ch2" data-chapter="2" aria-label="Act one">
+      <p class="chapter-kicker">Act I</p>
+      <h2 class="chapter-lead">Three specialists, three slices of the same borrower.</h2>
+      <div class="specialist-grid">
+        <div class="specialist-card reveal-item">
+          <div class="specialist-name">Bank agent</div>
+          <div class="specialist-source mono">DEPOSIT</div>
+          <p class="specialist-desc">Income trend and cash-flow volatility, computed from the borrower's own bank transactions.</p>
+        </div>
+        <div class="specialist-card reveal-item">
+          <div class="specialist-name">GST/Tax agent</div>
+          <div class="specialist-source mono">GSTR1_3B</div>
+          <p class="specialist-desc">Declared-revenue trend and filing consistency, computed from the borrower's own GST returns.</p>
+        </div>
+        <div class="specialist-card reveal-item">
+          <div class="specialist-name">MF/Insurance agent</div>
+          <div class="specialist-source mono">MUTUAL_FUNDS + INSURANCE_POLICIES</div>
+          <p class="specialist-desc">Liquid-asset cushion and insurance coverage against the loan size requested.</p>
+        </div>
+      </div>
+      <p class="chapter-sub">Every number a specialist cites comes from a deterministic tool function - never from a model guessing. The model's only job is to translate an already-computed metric into a cited claim.</p>
+    </section>
+
+    <!-- 3: Act II - b_contradiction, real recorded data -->
+    <section class="chapter chapter-act2" id="ch3" data-chapter="3" aria-label="Act two">
+      <p class="chapter-kicker">Act II</p>
+      <h2 class="chapter-lead">b_contradiction, replayed from a real recorded run.</h2>
+      <div class="landing-chart-card reveal-item">
+        <div class="divergence-title" id="landing-chart-title">Loading the recorded run…</div>
+        <div class="divergence-chart" id="landing-chart"></div>
         <div class="chart-legend">
           <span><span class="legend-swatch bank"></span> Bank income (agent 1)</span>
           <span><span class="legend-swatch gst"></span> GST revenue (agent 2)</span>
         </div>
       </div>
+      <p class="chapter-sub" id="landing-chart-sub"></p>
     </section>
 
-    <aside class="decision-card" aria-label="Decision">
-      <h2 class="rail-label">Decision</h2>
-      <div id="decision-body">
-        <div class="decision-empty">Running the pipeline...</div>
+    <!-- 4: Climax - b_stale_consent, real recorded data -->
+    <section class="chapter chapter-climax" id="ch4" data-chapter="4" aria-label="Climax">
+      <p class="chapter-kicker">Climax</p>
+      <h2 class="chapter-lead">b_stale_consent - the bank source's consent is running out.</h2>
+      <div class="climax-card reveal-item">
+        <div class="climax-gauge-block">
+          <div class="mini-gauge-head">
+            <span class="mini-gauge-source">Bank consent</span>
+            <span class="mini-gauge-days mono" id="climax-days">—</span>
+          </div>
+          <div class="gauge-track climax-gauge-track"><div class="gauge-fill" id="climax-gauge-fill" style="width:0%"></div></div>
+        </div>
+        <div class="climax-confidence-block">
+          <div class="confidence-label">Final confidence</div>
+          <div class="confidence-number tabular climax-number" id="climax-confidence-number">—</div>
+          <div class="confidence-sub" id="climax-model-confidence"></div>
+          <div class="outcome-badge" id="climax-outcome"></div>
+        </div>
       </div>
-    </aside>
+      <p class="chapter-sub" id="climax-sub"></p>
+    </section>
+
+    <!-- 5: Casebook - all 8 real recorded cases -->
+    <section class="chapter chapter-casebook" id="ch5" data-chapter="5" aria-label="Casebook">
+      <p class="chapter-kicker">Casebook</p>
+      <h2 class="chapter-lead">Eight real runs. Click any card to open it on the Desk.</h2>
+      <div class="casebook-grid" id="casebook-grid">
+        <p class="casebook-loading">Loading recorded runs…</p>
+      </div>
+    </section>
+
+    <!-- 6: Credits -->
+    <section class="chapter chapter-credits" id="ch6" data-chapter="6" aria-label="Credits">
+      <p class="chapter-kicker">Credits</p>
+      <a href="/desk" class="run-live-cta reveal-item">Run it live →</a>
+      <p class="disclosure landing-disclosure reveal-item">
+        Synthetic demo data, built against the real Account Aggregator / Setu FI-schema data model - no live AA, Sahamati, or FIP integration.
+        See <code>docs/DATA_SCHEMA.md</code> for the disclosure.
+      </p>
+      <div class="stack-list reveal-item">
+        <span class="badge">Vertex AI</span>
+        <span class="badge">Google ADK</span>
+        <span class="badge">Cloud Run</span>
+        <span class="badge">Firestore</span>
+      </div>
+      <p class="team-placeholder reveal-item">[Team names - to be filled in]</p>
+    </section>
+
   </main>
 
-  <details class="ledger-panel" id="ledger-panel">
-    <summary>Explainability ledger <span id="ledger-count"></span></summary>
-    <div class="ledger-list" id="ledger-list"></div>
-  </details>
+  <div class="sr-only" id="chapter-announcer" role="status" aria-live="polite"></div>
 
-  <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
-  <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
-  <div class="toast" id="toast" aria-hidden="true"></div>
-
-  <script src="/config.js"></script>
-  <script src="/app.js"></script>
+  <script src="/landing.js"></script>
 </body>
 </html>

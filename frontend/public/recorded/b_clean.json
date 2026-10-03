@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T15:30:47Z",
+  "capturedAt": "2026-10-03T16:27:09Z",
   "decision": {
     "borrower_id": "b_clean",
     "outcome": "approve",
@@ -11,7 +11,7 @@
     "ledger_step_ids": [
       "stp_00016"
     ],
-    "generated_at": "2026-10-03T15:30:47Z"
+    "generated_at": "2026-10-03T16:27:09Z"
   },
   "ledgerSteps": [
     {
@@ -47,6 +47,35 @@
       "claim": {
         "evidence": [
           {
+            "field": "total_current_value",
+            "source": "MUTUAL_FUNDS",
+            "period": null,
+            "transaction_ids": [
+              "Synthetic Flexicap Fund",
+              "Synthetic Liquid Fund"
+            ]
+          }
+        ],
+        "metric": "liquid_assets",
+        "magnitude_pct": null,
+        "value": "high",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00002",
+      "borrower_id": "b_clean",
+      "input_refs": [
+        "fi_data/b_clean"
+      ],
+      "timestamp": "2026-10-03T16:19:57Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
             "field": "total_sum_assured",
             "source": "INSURANCE_POLICIES",
             "period": null,
@@ -60,12 +89,12 @@
         "value": "adequate",
         "confidence": 1.0
       },
-      "step_id": "stp_00002",
+      "step_id": "stp_00003",
       "borrower_id": "b_clean",
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:14Z",
+      "timestamp": "2026-10-03T16:19:57Z",
       "agent": "investment_agent",
       "action": "record_claim",
       "notes": "investment_agent claim: insurance_coverage",
@@ -89,12 +118,12 @@
         "value": "rising",
         "confidence": 0.95
       },
-      "step_id": "stp_00003",
+      "step_id": "stp_00004",
       "borrower_id": "b_clean",
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:17Z",
+      "timestamp": "2026-10-03T16:19:58Z",
       "agent": "bank_statement_agent",
       "action": "record_claim",
       "notes": "bank_statement_agent claim: income_trend",
@@ -115,12 +144,12 @@
         "value": "low",
         "confidence": 0.95
       },
-      "step_id": "stp_00004",
+      "step_id": "stp_00005",
       "borrower_id": "b_clean",
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:17Z",
+      "timestamp": "2026-10-03T16:19:58Z",
       "agent": "bank_statement_agent",
       "action": "record_claim",
       "notes": "bank_statement_agent claim: cash_flow_volatility",
@@ -147,12 +176,12 @@
         "value": "stable",
         "confidence": 1.0
       },
-      "step_id": "stp_00005",
+      "step_id": "stp_00006",
       "borrower_id": "b_clean",
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:18Z",
+      "timestamp": "2026-10-03T16:20:02Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: revenue_trend",
@@ -191,12 +220,12 @@
         "value": "consistent",
         "confidence": 1.0
       },
-      "step_id": "stp_00006",
+      "step_id": "stp_00007",
       "borrower_id": "b_clean",
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:18Z",
+      "timestamp": "2026-10-03T16:20:02Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: filing_consistency",
@@ -210,40 +239,15 @@
         "model_confidence": 0.95,
         "confidence_multiplier": 1.0
       },
-      "step_id": "stp_00007",
+      "step_id": "stp_00008",
       "borrower_id": "b_clean",
       "input_refs": [
         "consent/b_clean"
       ],
-      "timestamp": "2026-10-03T14:33:23Z",
+      "timestamp": "2026-10-03T16:20:07Z",
       "agent": "orchestrator_agent",
       "action": "apply_consent_decay",
       "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
-      "confidence": 0.95
-    },
-    {
-      "claim": {
-        "weakest_consent_source": "gst_findings",
-        "final_confidence": 0.95,
-        "outcome": "approve",
-        "contradictions": [],
-        "model_confidence": 0.95,
-        "borrower_id": "b_clean",
-        "ledger_step_ids": [],
-        "risk_factors": [],
-        "generated_at": "2026-10-03T14:33:23Z"
-      },
-      "step_id": "stp_00008",
-      "borrower_id": "b_clean",
-      "input_refs": [
-        "claims/b_clean/bank_findings",
-        "claims/b_clean/gst_findings",
-        "claims/b_clean/investment_findings"
-      ],
-      "timestamp": "2026-10-03T14:33:23Z",
-      "agent": "orchestrator_agent",
-      "action": "final_decision",
-      "notes": "outcome=approve",
       "confidence": 0.95
     },
     {
@@ -269,7 +273,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:31Z",
+      "timestamp": "2026-10-03T16:26:55Z",
       "agent": "investment_agent",
       "action": "record_claim",
       "notes": "investment_agent claim: liquid_assets",
@@ -297,7 +301,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:31Z",
+      "timestamp": "2026-10-03T16:26:55Z",
       "agent": "investment_agent",
       "action": "record_claim",
       "notes": "investment_agent claim: insurance_coverage",
@@ -326,7 +330,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:33Z",
+      "timestamp": "2026-10-03T16:26:56Z",
       "agent": "bank_statement_agent",
       "action": "record_claim",
       "notes": "bank_statement_agent claim: income_trend",
@@ -352,7 +356,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:33Z",
+      "timestamp": "2026-10-03T16:26:56Z",
       "agent": "bank_statement_agent",
       "action": "record_claim",
       "notes": "bank_statement_agent claim: cash_flow_volatility",
@@ -384,7 +388,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:41Z",
+      "timestamp": "2026-10-03T16:27:03Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: revenue_trend",
@@ -428,7 +432,7 @@
       "input_refs": [
         "fi_data/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:41Z",
+      "timestamp": "2026-10-03T16:27:04Z",
       "agent": "gst_tax_agent",
       "action": "record_claim",
       "notes": "gst_tax_agent claim: filing_consistency",
@@ -436,7 +440,7 @@
     },
     {
       "claim": {
-        "weakest_days_remaining": 25,
+        "weakest_days_remaining": 29,
         "weakest_source": "gst_findings",
         "final_confidence": 1.0,
         "model_confidence": 1.0,
@@ -447,7 +451,7 @@
       "input_refs": [
         "consent/b_clean"
       ],
-      "timestamp": "2026-10-03T15:30:47Z",
+      "timestamp": "2026-10-03T16:27:09Z",
       "agent": "orchestrator_agent",
       "action": "apply_consent_decay",
       "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
@@ -463,7 +467,7 @@
         "borrower_id": "b_clean",
         "ledger_step_ids": [],
         "risk_factors": [],
-        "generated_at": "2026-10-03T15:30:47Z"
+        "generated_at": "2026-10-03T16:27:09Z"
       },
       "step_id": "stp_00016",
       "borrower_id": "b_clean",
@@ -472,7 +476,7 @@
         "claims/b_clean/gst_findings",
         "claims/b_clean/investment_findings"
       ],
-      "timestamp": "2026-10-03T15:30:47Z",
+      "timestamp": "2026-10-03T16:27:09Z",
       "agent": "orchestrator_agent",
       "action": "final_decision",
       "notes": "outcome=approve",
@@ -483,22 +487,22 @@
     {
       "source": "gst_findings",
       "fi_type": "GSTR1_3B",
-      "expires_at": "2026-10-29T05:45:49Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:08Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "investment_findings",
       "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
-      "expires_at": "2026-10-29T05:45:49Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:08Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     },
     {
       "source": "bank_findings",
       "fi_type": "DEPOSIT",
-      "expires_at": "2026-10-29T05:45:49Z",
-      "days_remaining": 25,
+      "expires_at": "2026-11-02T16:23:08Z",
+      "days_remaining": 29,
       "confidence_multiplier": 1.0
     }
   ]

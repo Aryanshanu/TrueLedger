@@ -17,9 +17,19 @@ const BACKEND_URL = (window.__CONFIG__ && window.__CONFIG__.BACKEND_URL) || "htt
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const CASES = [
-  { id: "b_clean", scenario: "All sources agree", note: "Healthy, straightforward case" },
-  { id: "b_contradiction", scenario: "Bank vs. GST disagree", note: "The centerpiece contradiction" },
-  { id: "b_stale_consent", scenario: "Bank consent expiring", note: "Confidence decay in action" },
+  { id: "b_clean", scenario: "All sources agree", note: "Healthy, straightforward case", group: "core" },
+  { id: "b_contradiction", scenario: "Bank vs. GST disagree", note: "The centerpiece contradiction", group: "core" },
+  { id: "b_stale_consent", scenario: "Bank consent expiring", note: "Confidence decay in action", group: "core" },
+  { id: "b_freelancer", scenario: "Freelancer, thin file", note: "Small SIP, all sources agree", group: "edge" },
+  { id: "b_roundtrip", scenario: "Deposits surge, GST flat", note: "Declared-vs-actual mismatch", group: "edge" },
+  { id: "b_closing_consent", scenario: "Consent closing in days", note: "Linear decay zone, not yet expired", group: "edge" },
+  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", note: "GST low season vs. stable bank", group: "edge" },
+  { id: "b_double_flag", scenario: "Divergence + consent closing", note: "Two flags stacking together", group: "edge" },
+];
+
+const CASE_GROUPS = [
+  { key: "core", label: "Core" },
+  { key: "edge", label: "Edge cases" },
 ];
 
 const DEFAULT_CASE = "b_contradiction";
@@ -143,30 +153,36 @@ async function loadRecorded(id) {
 
 // ---------- Case rail ----------
 
-function renderCaseRail() {
-  const rail = $("case-rail");
-  rail.querySelectorAll(".case-card").forEach((n) => n.remove());
-
-  CASES.forEach((c) => {
-    const btn = document.createElement("button");
-    const isActive = c.id === currentBorrowerId;
-    btn.className = "case-card" + (isActive ? " active" : "");
-    btn.dataset.borrowerId = c.id;
-    btn.setAttribute("aria-pressed", String(isActive));
-
-    const cached = cache.get(c.id);
-    const statusClass = cached ? `result-${cached.decision.outcome}` : "";
-    const statusText = cached
-      ? `${OUTCOME_META[cached.decision.outcome].icon} ${OUTCOME_META[cached.decision.outcome].label} (${cached.decision.final_confidence.toFixed(2)})`
-      : "Not yet run";
-
-    btn.innerHTML = `
+function caseCardHtml(c) {
+  const isActive = c.id === currentBorrowerId;
+  const cached = cache.get(c.id);
+  const statusClass = cached ? `result-${cached.decision.outcome}` : "";
+  const statusText = cached
+    ? `${OUTCOME_META[cached.decision.outcome].icon} ${OUTCOME_META[cached.decision.outcome].label} (${cached.decision.final_confidence.toFixed(2)})`
+    : "Not yet run";
+  return `
+    <button type="button" class="case-card${isActive ? " active" : ""}" data-borrower-id="${c.id}" aria-pressed="${isActive}">
       <div class="case-card-id mono">${c.id}${isActive ? '<span class="case-card-viewing"> · viewing</span>' : ""}</div>
       <div class="case-card-scenario">${c.scenario}</div>
       <div class="case-card-status ${statusClass}"><span class="status-dot"></span>${statusText}</div>
-    `;
-    btn.onclick = () => loadBorrower(c.id, { forceRefetch: false });
-    rail.appendChild(btn);
+    </button>`;
+}
+
+function renderCaseRail() {
+  const rail = $("case-rail");
+  rail.querySelectorAll(".case-group").forEach((n) => n.remove());
+
+  CASE_GROUPS.forEach((group) => {
+    const cases = CASES.filter((c) => c.group === group.key);
+    if (!cases.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "case-group";
+    wrap.innerHTML = `<h3 class="case-group-label">${group.label}</h3>` + cases.map(caseCardHtml).join("");
+    rail.appendChild(wrap);
+  });
+
+  rail.querySelectorAll(".case-card").forEach((btn) => {
+    btn.onclick = () => loadBorrower(btn.dataset.borrowerId, { forceRefetch: false });
   });
 }
 
@@ -787,26 +803,35 @@ $("replay-btn").addEventListener("click", () => {
   if (currentBorrowerId) playReveal(currentBorrowerId);
 });
 
+// Deep link: /desk?case=b_seasonal opens that case instead of the usual
+// default. Falls back to DEFAULT_CASE for a missing/unknown id - never
+// trusts the query string blindly.
+function bootCaseFromURL() {
+  const requested = new URLSearchParams(window.location.search).get("case");
+  return requested && CASES.some((c) => c.id === requested) ? requested : DEFAULT_CASE;
+}
+
 (async function boot() {
-  const defaultRecorded = await loadRecorded(DEFAULT_CASE);
+  const bootCase = bootCaseFromURL();
+  const defaultRecorded = await loadRecorded(bootCase);
   if (defaultRecorded) {
-    cache.set(DEFAULT_CASE, defaultRecorded);
-    currentBorrowerId = DEFAULT_CASE;
-    setStatus(`${DEFAULT_CASE} · showing a recorded run · click "Run live" for a real Vertex AI call.`);
-    playReveal(DEFAULT_CASE);
+    cache.set(bootCase, defaultRecorded);
+    currentBorrowerId = bootCase;
+    setStatus(`${bootCase} · showing a recorded run · click "Run live" for a real Vertex AI call.`);
+    playReveal(bootCase);
   } else {
     // No recorded capture on disk yet (e.g. before public/recorded/*.json
     // is populated) - an honest "ready to run" state, never a fabricated
     // result standing in for one.
-    currentBorrowerId = DEFAULT_CASE;
+    currentBorrowerId = bootCase;
     renderCaseRail();
-    resetDeskUI(`${DEFAULT_CASE} · no recorded run captured yet`);
-    $("decision-body").innerHTML = `<div class="decision-empty">No recorded run for ${DEFAULT_CASE} yet. Click a case or wait for "Run live" to call the real backend.</div>`;
+    resetDeskUI(`${bootCase} · no recorded run captured yet`);
+    $("decision-body").innerHTML = `<div class="decision-empty">No recorded run for ${bootCase} yet. Click a case or wait for "Run live" to call the real backend.</div>`;
   }
 
-  // Prefetch the other two cases' recorded captures in the background so
-  // switching to them is instant too, same as the default case.
-  CASES.filter((c) => c.id !== DEFAULT_CASE).forEach(async (c) => {
+  // Prefetch every other case's recorded capture in the background so
+  // switching to them is instant too, same as the boot case.
+  CASES.filter((c) => c.id !== bootCase).forEach(async (c) => {
     const data = await loadRecorded(c.id);
     if (data && !cache.has(c.id)) {
       cache.set(c.id, data);
