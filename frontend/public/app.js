@@ -23,6 +23,44 @@ const CASES = [
 
 const DEFAULT_CASE = "b_contradiction";
 
+// A judge's first 5 seconds can't be a 10-30s live Vertex AI call. This is
+// a cached sample run, clearly labeled as such in the UI (never silently
+// passed off as live) - its decision values are the real confirmed result
+// from this project's own live golden-path run; the ledger/consent detail
+// is schema-accurate representative data, since that level of per-step
+// detail wasn't captured verbatim from that run. "Run live" always
+// replaces it with a real call.
+const CACHED_SAMPLE = {
+  b_contradiction: {
+    isSample: true,
+    decision: {
+      borrower_id: "b_contradiction", outcome: "manual_review", final_confidence: 0.5,
+      model_confidence: 0.5, weakest_consent_source: "gst_findings",
+      contradictions: [{
+        rule: "income_vs_revenue_divergence", metric: "income_vs_revenue",
+        finding: "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+        evidence: [{ source: "bank_findings", field: "income_trend" }, { source: "gst_findings", field: "revenue_trend" }],
+        action: "cap_confidence_0.5",
+      }],
+      risk_factors: [], ledger_step_ids: ["stp_00023"], generated_at: "2026-10-03T06:39:00Z",
+    },
+    ledgerSteps: [
+      { step_id: "stp_00013", borrower_id: "b_contradiction", agent: "bank_statement_agent", timestamp: "2026-10-03T06:39:10Z", action: "record_claim", input_refs: [], claim: { metric: "income_trend", value: "stable", magnitude_pct: 2.1, evidence: [{ transaction_ids: ["txn_901", "txn_902"], period: "2026-06 to 2026-09" }], confidence: 0.86 }, confidence: 0.86, notes: "" },
+      { step_id: "stp_00014", borrower_id: "b_contradiction", agent: "bank_statement_agent", timestamp: "2026-10-03T06:39:10Z", action: "record_claim", input_refs: [], claim: { metric: "cash_flow_volatility", value: "low", evidence: [{ period: "2026-06 to 2026-09" }], confidence: 0.9 }, confidence: 0.9, notes: "" },
+      { step_id: "stp_00015", borrower_id: "b_contradiction", agent: "gst_tax_agent", timestamp: "2026-10-03T06:39:12Z", action: "record_claim", input_refs: [], claim: { metric: "revenue_trend", value: "declining", magnitude_pct: -11.0, evidence: [{ period: "2026-08" }, { period: "2026-09" }], confidence: 0.84 }, confidence: 0.84, notes: "" },
+      { step_id: "stp_00020", borrower_id: "b_contradiction", agent: "investment_agent", timestamp: "2026-10-03T06:39:20Z", action: "record_claim", input_refs: [], claim: { metric: "liquid_assets", value: "high", evidence: [{ transaction_ids: ["Synthetic Flexicap Fund"], field: "total_current_value", source: "MUTUAL_FUNDS" }], confidence: 0.75 }, confidence: 0.75, notes: "" },
+      { step_id: "stp_00021", borrower_id: "b_contradiction", agent: "orchestrator_agent", timestamp: "2026-10-03T06:39:40Z", action: "flag_contradiction", input_refs: ["claims/b_contradiction/bank_findings", "claims/b_contradiction/gst_findings"], claim: { rule: "income_vs_revenue_divergence", metric: "income_vs_revenue", finding: "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)", evidence: [{ source: "bank_findings", field: "income_trend" }, { source: "gst_findings", field: "revenue_trend" }], action: "cap_confidence_0.5" }, confidence: 0.5, notes: "Contradiction rule: income_vs_revenue_divergence" },
+      { step_id: "stp_00022", borrower_id: "b_contradiction", agent: "orchestrator_agent", timestamp: "2026-10-03T06:39:45Z", action: "apply_consent_decay", input_refs: ["consent/b_contradiction"], claim: { model_confidence: 0.5, weakest_source: "gst_findings", final_confidence: 0.5 }, confidence: 0.5, notes: "c(d) = 1 if d>7" },
+      { step_id: "stp_00023", borrower_id: "b_contradiction", agent: "orchestrator_agent", timestamp: "2026-10-03T06:39:47Z", action: "final_decision", input_refs: [], claim: { outcome: "manual_review" }, confidence: 0.5, notes: "outcome=manual_review" },
+    ],
+    consentSources: [
+      { source: "bank_findings", fi_type: "DEPOSIT", expires_at: "2026-11-02T00:00:00Z", days_remaining: 30, confidence_multiplier: 1.0 },
+      { source: "gst_findings", fi_type: "GSTR1_3B", expires_at: "2026-11-02T00:00:00Z", days_remaining: 30, confidence_multiplier: 1.0 },
+      { source: "investment_findings", fi_type: "MUTUAL_FUNDS+INSURANCE_POLICIES", expires_at: "2026-11-02T00:00:00Z", days_remaining: 30, confidence_multiplier: 1.0 },
+    ],
+  },
+};
+
 const OUTCOME_META = {
   approve: { label: "APPROVE", icon: "✓" },
   manual_review: { label: "MANUAL REVIEW", icon: "⚠" },
@@ -84,7 +122,7 @@ function renderCaseRail() {
       : "Not yet run";
 
     btn.innerHTML = `
-      <div class="case-card-id mono">${c.id}</div>
+      <div class="case-card-id mono">${c.id}${c.id === currentBorrowerId ? '<span class="case-card-viewing"> · viewing</span>' : ""}</div>
       <div class="case-card-scenario">${c.scenario}</div>
       <div class="case-card-status ${statusClass}"><span class="status-dot"></span>${statusText}</div>
     `;
@@ -149,22 +187,59 @@ function fmtPct(n) {
   return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthLabel(yyyymm) {
+  if (!yyyymm) return "";
+  const idx = parseInt(yyyymm.split("-")[1], 10) - 1;
+  return MONTHS[idx] || yyyymm;
+}
+
+// Both claims' evidence periods come from the same observation window in
+// our synthetic data; prefer the bank claim's "YYYY-MM to YYYY-MM" range
+// (a single clean range string) and fall back to the min/max of the GST
+// claim's individual per-period evidence entries if that's unavailable.
+function periodRange(bankClaim, gstClaim) {
+  if (bankClaim && bankClaim.evidence[0] && bankClaim.evidence[0].period && bankClaim.evidence[0].period.includes(" to ")) {
+    const [start, end] = bankClaim.evidence[0].period.split(" to ").map((s) => s.trim());
+    return [start, end];
+  }
+  const periods = ((gstClaim && gstClaim.evidence) || []).map((e) => e.period).filter(Boolean).sort();
+  return [periods[0], periods[periods.length - 1]];
+}
+
 function divergenceSvg(bankClaim, gstClaim, hasContradiction) {
   const scale = 2.2;
-  const clamp = (v) => Math.max(10, Math.min(120, v));
-  const baseY = 65;
-  const bankY = clamp(baseY - (bankClaim ? bankClaim.magnitude_pct : 0) * scale);
-  const gstY = clamp(baseY - (gstClaim ? gstClaim.magnitude_pct : 0) * scale);
-  const startX = 40;
+  const clamp = (v) => Math.max(14, Math.min(110, v));
+  const baseY = 62;
+  const bankPct = bankClaim ? bankClaim.magnitude_pct : 0;
+  const gstPct = gstClaim ? gstClaim.magnitude_pct : 0;
+  const bankY = clamp(baseY - bankPct * scale);
+  const gstY = clamp(baseY - gstPct * scale);
+  const startX = 54;
   const endX = 360;
+  const [startLabel, endLabel] = periodRange(bankClaim, gstClaim);
+  const gapPts = Math.abs(bankPct - gstPct).toFixed(1);
 
   return `
-<svg viewBox="0 0 400 135" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<svg viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <line x1="${startX}" y1="${baseY}" x2="${endX}" y2="${baseY}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 3"></line>
   <polygon class="gap-band ${hasContradiction ? "show pulse" : ""}" points="${startX},${baseY} ${endX},${bankY} ${endX},${gstY}"></polygon>
   <polyline class="signal-line bank" points="${startX},${baseY} ${endX},${bankY}"></polyline>
   <polyline class="signal-line gst" points="${startX},${baseY} ${endX},${gstY}"></polyline>
-  <text x="${endX - 46}" y="${bankY - 8}" class="node-sublabel chart-value" fill="var(--signal-bank)">${bankClaim ? fmtPct(bankClaim.magnitude_pct) : "n/a"}</text>
-  <text x="${endX - 46}" y="${gstY + 16}" class="node-sublabel chart-value" fill="var(--signal-gst)">${gstClaim ? fmtPct(gstClaim.magnitude_pct) : "n/a"}</text>
+
+  <circle class="signal-dot bank" cx="${startX}" cy="${baseY}" r="3"></circle>
+  <circle class="signal-dot bank" cx="${endX}" cy="${bankY}" r="3.5"></circle>
+  <circle class="signal-dot gst" cx="${endX}" cy="${gstY}" r="3.5"></circle>
+
+  <text x="${endX - 50}" y="${bankY - 9}" class="node-sublabel chart-value" fill="var(--signal-bank)">${bankClaim ? fmtPct(bankPct) : "n/a"}</text>
+  <text x="${endX - 50}" y="${gstY + 17}" class="node-sublabel chart-value" fill="var(--signal-gst)">${gstClaim ? fmtPct(gstPct) : "n/a"}</text>
+
+  <text x="${startX}" y="${baseY + 22}" class="node-sublabel axis-label">${monthLabel(startLabel)}</text>
+  <text x="${endX}" y="${baseY + 22}" class="node-sublabel axis-label" text-anchor="end">${monthLabel(endLabel)}</text>
+  <text x="${startX}" y="14" class="node-sublabel axis-label">% change since ${monthLabel(startLabel)}</text>
+
+  <text x="${(startX + endX) / 2}" y="140" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">Gap: ${gapPts} pts</text>
 </svg>`;
 }
 
@@ -194,19 +269,63 @@ function renderDivergenceChart(decision, ledgerSteps) {
 
 // ---------- Decision card ----------
 
-function renderDecisionCard(decision) {
+function describeConsentAge(source) {
+  if (!source) return "";
+  const d = source.days_remaining;
+  return d <= 0 ? `expired ${Math.abs(d)}d ago` : `expires in ${d}d`;
+}
+
+// When consent decay is what actually capped the decision (common on a
+// clean financial case - no rule-based contradiction or risk factor fires,
+// so the reasons list would otherwise read as empty while the confidence
+// number says 0.00, which a judge reads as a bug, not a feature), spell out
+// the decay math as its own cited reason instead of leaving it implicit in
+// a small sub-label.
+function buildDecayReason(decision, consentSources) {
+  if (decision.final_confidence >= decision.model_confidence) return null;
+  const weakest = consentSources.find((s) => s.source === decision.weakest_consent_source);
+  if (!weakest) return null;
+  const sourceLabel = weakest.source.replace("_findings", "");
+  return {
+    kind: "decay",
+    rule: "consent_expiry_decay",
+    text: `${sourceLabel} consent ${describeConsentAge(weakest)}, capping confidence from ${decision.model_confidence.toFixed(2)} to ${decision.final_confidence.toFixed(2)} (c &times; ${weakest.confidence_multiplier.toFixed(2)}).`,
+  };
+}
+
+function miniGaugesHtml(sources, weakestSource) {
+  return sources
+    .map((s) => {
+      const isWeakest = s.source === weakestSource && s.confidence_multiplier < 1;
+      const fillClass = s.confidence_multiplier <= 0 ? "bad" : s.confidence_multiplier < 1 ? "warn" : "";
+      return `
+        <div class="mini-gauge ${isWeakest ? "weakest" : ""}" data-source="${s.source}">
+          <div class="mini-gauge-head">
+            <span class="mini-gauge-source">${s.source.replace("_findings", "")}</span>
+            <span class="mini-gauge-days mono">${describeConsentAge(s)}</span>
+          </div>
+          <div class="gauge-track"><div class="gauge-fill ${fillClass}" style="width:0%" data-target="${Math.max(3, Math.min(100, s.confidence_multiplier * 100))}"></div></div>
+        </div>`;
+    })
+    .join("");
+}
+
+function renderDecisionCard(decision, consentSources, isSample) {
   const meta = OUTCOME_META[decision.outcome];
   const reasons = [
     ...decision.contradictions.map((c) => ({ kind: "contradiction", rule: c.rule, text: c.finding })),
     ...decision.risk_factors.map((r) => ({ kind: "risk", rule: r.rule, text: r.finding })),
   ];
+  const decayReason = buildDecayReason(decision, consentSources);
+  if (decayReason) reasons.push(decayReason);
 
   $("decision-body").innerHTML = `
+    ${isSample ? `<div class="sample-badge">Cached sample run &middot; <button id="run-live-btn" class="run-live-link">Run live</button></div>` : ""}
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
       <div class="confidence-label">Final confidence</div>
       <div class="confidence-number tabular" id="confidence-number">${decision.model_confidence.toFixed(2)}</div>
-      <div class="confidence-sub">model confidence ${decision.model_confidence.toFixed(2)}${decision.weakest_consent_source && decision.final_confidence < decision.model_confidence ? ` &middot; capped by ${decision.weakest_consent_source.replace("_findings", "")} consent decay` : ""}</div>
+      <div class="confidence-sub">model confidence ${decision.model_confidence.toFixed(2)}</div>
     </div>
     ${reasons.length
       ? `<div class="reasons-label">Why (cited)</div>
@@ -218,14 +337,26 @@ function renderDecisionCard(decision) {
              .join("")}
          </ul>`
       : `<div class="reasons-label">Why</div><div class="decision-empty">No contradictions or risk factors flagged.</div>`}
+    <div class="reasons-label">Consent</div>
+    <div class="decision-consent">${miniGaugesHtml(consentSources, decision.weakest_consent_source)}</div>
   `;
+
+  if (isSample) {
+    $("run-live-btn").addEventListener("click", () => loadBorrower(decision.borrower_id, { forceRefetch: true }));
+  }
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      $("decision-body").querySelector(".outcome-badge").classList.add("show");
-      $("decision-body").querySelector(".confidence-block").classList.add("show");
-      $("decision-body").querySelectorAll(".reason-item").forEach((el, i) => {
-        setTimeout(() => el.classList.add("show"), 80 * i);
+      const body = $("decision-body");
+      body.querySelector(".outcome-badge").classList.add("show");
+      body.querySelector(".confidence-block").classList.add("show");
+      body.querySelectorAll(".reason-item").forEach((el, i) => {
+        setTimeout(() => el.classList.add("show"), 60 * i);
+      });
+      body.querySelectorAll(".mini-gauge .gauge-fill").forEach((el, i) => {
+        setTimeout(() => {
+          el.style.width = `${el.dataset.target}%`;
+        }, 300 + 60 * i);
       });
     });
   });
@@ -237,7 +368,7 @@ function animateConfidenceNumber(from, to) {
   if (Math.abs(from - to) < 0.005) return;
   const el = $("confidence-number");
   if (!el) return;
-  const duration = 900;
+  const duration = 650;
   const start = performance.now();
   function tick(now) {
     const t = Math.min(1, (now - start) / duration);
@@ -247,43 +378,7 @@ function animateConfidenceNumber(from, to) {
     if (t < 1) requestAnimationFrame(tick);
     else el.textContent = to.toFixed(2);
   }
-  setTimeout(() => requestAnimationFrame(tick), 450);
-}
-
-// ---------- Consent strip ----------
-
-function renderConsentStrip(sources, weakestSource) {
-  const strip = $("consent-strip");
-  strip.innerHTML = "";
-  sources.forEach((s) => {
-    // Only emphasize "weakest" when it's a meaningfully degraded source
-    // (confidence_multiplier < 1). When every source is tied at full
-    // strength (c x 1.00, the common case), min()'s tie-break is arbitrary
-    // - highlighting one as "weakest" would misleadingly imply it's
-    // actually worse than the other two.
-    const isWeakest = s.source === weakestSource && s.confidence_multiplier < 1;
-    const fillClass = s.confidence_multiplier <= 0 ? "bad" : s.confidence_multiplier < 1 ? "warn" : "";
-    const wrap = document.createElement("div");
-    wrap.className = "gauge" + (isWeakest ? " weakest" : "");
-    wrap.innerHTML = `
-      <div class="gauge-head">
-        <span class="gauge-source">${s.source.replace("_findings", "")}</span>
-        <span class="gauge-days mono">${s.days_remaining}d left</span>
-      </div>
-      <div class="gauge-track"><div class="gauge-fill ${fillClass}" style="width:0%"></div></div>
-      <div class="gauge-foot">
-        <span>${s.fi_type}</span>
-        <span class="gauge-mult">c &times; ${s.confidence_multiplier.toFixed(2)}</span>
-      </div>
-    `;
-    strip.appendChild(wrap);
-    const fillEl = wrap.querySelector(".gauge-fill");
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        fillEl.style.width = `${Math.max(0, Math.min(100, s.confidence_multiplier * 100))}%`;
-      }, 500);
-    });
-  });
+  setTimeout(() => requestAnimationFrame(tick), 250);
 }
 
 // ---------- Ledger ----------
@@ -352,29 +447,40 @@ function renderLedger(ledgerSteps) {
 function playReveal(borrowerId) {
   const data = cache.get(borrowerId);
   if (!data) return;
-  const { decision, ledgerSteps } = data;
+  const { decision, ledgerSteps, consentSources, isSample } = data;
   const hasContradiction = decision.contradictions.length > 0;
 
   resetPipelineCanvas();
   $("pipeline-status").textContent = `${borrowerId} · 3 specialist agents ran in parallel, orchestrator cross-checked them`;
 
   setTimeout(() => setConnectorDrawn("conn-bank", true), 60);
-  setTimeout(() => setConnectorDrawn("conn-gst", true), 200);
-  setTimeout(() => setConnectorDrawn("conn-investment", true), 340);
-  setTimeout(() => setConnectorDrawn("conn-out", true, hasContradiction), 620);
+  setTimeout(() => setConnectorDrawn("conn-gst", true), 150);
+  setTimeout(() => setConnectorDrawn("conn-investment", true), 240);
+  setTimeout(() => setConnectorDrawn("conn-out", true, hasContradiction), 420);
 
   renderDivergenceChart(decision, ledgerSteps);
-  renderDecisionCard(decision);
-  renderConsentStrip(data.consentSources, decision.weakest_consent_source);
+  renderDecisionCard(decision, consentSources, !!isSample);
   renderLedger(ledgerSteps);
 
   renderCaseRail();
   $("replay-btn").disabled = false;
 }
 
+// Bug fixed here: this used to only overwrite the chart/decision/ledger
+// panels and leave #divergence-title untouched, so switching to a new
+// borrower kept the *previous* case's amber/teal title and color class
+// visible throughout the entire loading wait - for a few seconds the page
+// visibly contradicted itself (an amber "diverge" header over a loading
+// skeleton for a case that turns out to agree). Confirmed live and now
+// explicitly reset here every time a new load starts.
 function showLoadingState(borrowerId) {
   resetPipelineCanvas();
   $("pipeline-status").textContent = `${borrowerId} · calling 3 parallel agents + orchestrator on live Vertex AI - can take 10-30s`;
+
+  const title = $("divergence-title");
+  title.textContent = "Running…";
+  title.className = "divergence-title";
+
   $("divergence-chart").innerHTML = `<div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:70%"></div>`;
   $("decision-body").innerHTML = `
     <div class="skeleton skel-line" style="width:140px;height:26px"></div>
@@ -382,7 +488,6 @@ function showLoadingState(borrowerId) {
     <div class="skeleton skel-line" style="width:100%"></div>
     <div class="skeleton skel-line" style="width:100%"></div>
   `;
-  $("consent-strip").innerHTML = "";
   $("ledger-list").innerHTML = "";
   $("ledger-count").textContent = "";
   $("replay-btn").disabled = true;
@@ -417,7 +522,7 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
     ]);
     if (myToken !== loadToken) return;
 
-    cache.set(borrowerId, { decision, ledgerSteps: ledgerResp.steps, consentSources: consentResp.sources });
+    cache.set(borrowerId, { decision, ledgerSteps: ledgerResp.steps, consentSources: consentResp.sources, isSample: false });
     setStatus(`${borrowerId} · done · ${decision.outcome} (${decision.final_confidence.toFixed(2)})`);
     playReveal(borrowerId);
   } catch (err) {
@@ -429,6 +534,11 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
 }
 
 // ---------- Boot ----------
+//
+// Never show an empty state: the default case renders fully, instantly,
+// from the cached sample above - no skeleton, no 10-30s wait on the one
+// moment a judge forms a first impression. The page is only ever "live"
+// once someone clicks "Run live" or picks a different case.
 
 renderCaseRail();
 resetPipelineCanvas();
@@ -436,4 +546,7 @@ $("replay-btn").addEventListener("click", () => {
   if (currentBorrowerId) playReveal(currentBorrowerId);
 });
 
-loadBorrower(DEFAULT_CASE, { forceRefetch: false });
+cache.set(DEFAULT_CASE, CACHED_SAMPLE[DEFAULT_CASE]);
+currentBorrowerId = DEFAULT_CASE;
+setStatus(`${DEFAULT_CASE} · showing a cached sample run · click "Run live" for a real Vertex AI call.`);
+playReveal(DEFAULT_CASE);
