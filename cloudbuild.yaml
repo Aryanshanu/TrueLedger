@@ -1,0 +1,10 @@
+# Used by infra/deploy_backend.sh. `gcloud builds submit --tag ... -f
+# backend/Dockerfile .` (the original approach) doesn't work - confirmed
+# live: `gcloud builds submit --tag` has no flag to point at a non-default
+# Dockerfile path, regardless of gcloud CLI version. A build config is the
+# correct way to build from a Dockerfile that isn't at the source root.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_IMAGE', '-f', 'backend/Dockerfile', '.']
+images:
+  - '$_IMAGE'

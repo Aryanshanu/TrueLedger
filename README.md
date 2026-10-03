@@ -90,11 +90,22 @@ BACKEND_URL=$(gcloud run services describe trueledger-backend --region asia-sout
 
 ## Status
 
-Phase 1 (architecture and setup) scaffold: agent pipeline, backend API,
-replay-UI frontend, synthetic data, and deploy scripts are all in place and
-individually verified (pipeline construction, backend routes, frontend
-serving, and the deterministic rule/consent-decay logic all have passing
-tests/smoke checks). **Not yet verified end-to-end against live Vertex AI +
-Firestore** - that requires GCP credentials this environment didn't have.
-See `docs/ARCHITECTURE.md` for the one flagged open item (exact Gemini
-model ID strings) to confirm before Phase 2.
+**Phases 1 and 2 are done. Both model IDs are confirmed, and all three
+planted borrowers run live end-to-end** against real Vertex AI + Firestore
+(both locally and deployed to Cloud Run):
+
+| Borrower | Outcome | Confidence | Key signal |
+|---|---|---|---|
+| `b_clean` | approve | 0.95 | No contradictions, all consents fresh |
+| `b_contradiction` | manual_review | 0.50 | `income_vs_revenue_divergence` flagged (bank +2.1% vs GST -11%) |
+| `b_stale_consent` | decline | 0.00 | Expired bank consent -> confidence multiplier 0.0 -> final confidence 0 |
+
+Both services are deployed to Cloud Run (`asia-south1`) with
+`min-instances=1` set on both to avoid cold starts. `docs/DEPLOYMENT.md`
+has the runbook, including two real bugs it took to get here (a Firestore
+composite-index requirement, and `gcloud builds submit --tag` not
+supporting a non-default Dockerfile path - fixed via `cloudbuild.yaml`).
+
+Still open: the replay UI has not yet been exercised against live data in
+an actual browser - see `docs/ARCHITECTURE.md`'s roadmap section for what's
+left (Phase 3 polish, Phase 4 submission artifacts).
