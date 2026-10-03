@@ -545,9 +545,32 @@ function ledgerEntryHtml(entry, groupIndex) {
     </div>`;
 }
 
-function renderLedger(ledgerSteps) {
-  const steps = ledgerSteps || [];
-  $("ledger-count").textContent = `(${steps.length} steps)`;
+// The ledger endpoint returns the FULL append-only history across every
+// past /evaluate call for a borrower - this project's own test cases have
+// been run many times during development, so the raw response can contain
+// several superseded copies of the same claim. This keeps only the latest
+// (newest-timestamp) entry per (agent, metric) for a record_claim step, or
+// per (agent, action) for anything else (flag_contradiction,
+// apply_consent_decay, final_decision). Every field on every kept entry is
+// still exactly what the API returned - this only decides which duplicate
+// to keep, never alters one. Applied identically to a recorded capture and
+// a live run, so the two can never show a different ledger shape for the
+// same underlying data.
+function dedupLedgerSteps(steps) {
+  const latestByKey = new Map();
+  steps.forEach((step) => {
+    const key = step.action === "record_claim" ? `${step.agent}::${step.claim.metric}` : `${step.agent}::${step.action}`;
+    const prev = latestByKey.get(key);
+    if (!prev || step.timestamp > prev.timestamp) latestByKey.set(key, step);
+  });
+  return [...latestByKey.values()].sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
+}
+
+function renderLedger(rawLedgerSteps) {
+  const rawSteps = rawLedgerSteps || [];
+  const steps = dedupLedgerSteps(rawSteps);
+  $("ledger-count").textContent =
+    rawSteps.length === steps.length ? `(${steps.length} steps)` : `(${rawSteps.length} recorded, ${steps.length} unique claims shown)`;
   const list = $("ledger-list");
   list.innerHTML = "";
 
@@ -647,7 +670,10 @@ function playReveal(borrowerId) {
   const outcomeEl = $("orchestrator-outcome");
   if (outcomeEl) outcomeEl.textContent = orchestratorSummaryText(decision);
 
-  renderDivergenceChart(decision, ledgerSteps);
+  // The chart reads the latest known value of each claim, same as the
+  // ledger panel does internally - a raw multi-run history could otherwise
+  // let findClaim() pick a superseded (older) occurrence of a metric.
+  renderDivergenceChart(decision, dedupLedgerSteps(ledgerSteps));
   renderDecisionCard(decision, consentSources, isSample ? { capturedAt } : null);
   renderLedger(ledgerSteps);
 

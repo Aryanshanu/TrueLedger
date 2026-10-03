@@ -18,6 +18,38 @@
       "claim": {
         "evidence": [
           {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "magnitude_pct": 5.06,
+        "value": "stable",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00017",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T07:08:53Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
             "field": "total_current_value",
             "source": "MUTUAL_FUNDS",
             "period": null,
