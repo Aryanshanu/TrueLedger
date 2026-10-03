@@ -1,0 +1,272 @@
+{
+  "capturedAt": "2026-10-03T16:28:22Z",
+  "decision": {
+    "borrower_id": "b_freelancer",
+    "outcome": "approve",
+    "final_confidence": 0.95,
+    "model_confidence": 0.95,
+    "weakest_consent_source": "gst_findings",
+    "contradictions": [],
+    "risk_factors": [],
+    "ledger_step_ids": [
+      "stp_00008"
+    ],
+    "generated_at": "2026-10-03T16:28:22Z"
+  },
+  "ledgerSteps": [
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "source": "MUTUAL_FUNDS",
+            "period": null,
+            "transaction_ids": [
+              "Synthetic SIP Growth Fund"
+            ]
+          }
+        ],
+        "metric": "liquid_assets",
+        "magnitude_pct": null,
+        "value": "low",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00001",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:04Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "source": "INSURANCE_POLICIES",
+            "period": null,
+            "transaction_ids": [
+              "pol_fl01"
+            ]
+          }
+        ],
+        "metric": "insurance_coverage",
+        "magnitude_pct": null,
+        "value": "adequate",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00002",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:04Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "magnitude_pct": 4.3,
+        "value": "stable",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00003",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:15Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-07",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "filing_consistency",
+        "magnitude_pct": null,
+        "value": "consistent",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00004",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:15Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: filing_consistency",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": [
+              "txn_fl105",
+              "txn_fl107"
+            ]
+          }
+        ],
+        "metric": "income_trend",
+        "magnitude_pct": 4.1,
+        "value": "stable",
+        "confidence": 0.95
+      },
+      "step_id": "stp_00005",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:16Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: income_trend",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "cash_flow_volatility",
+        "magnitude_pct": null,
+        "value": "low",
+        "confidence": 0.95
+      },
+      "step_id": "stp_00006",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "fi_data/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:16Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: cash_flow_volatility",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "weakest_days_remaining": 29,
+        "weakest_source": "gst_findings",
+        "final_confidence": 0.95,
+        "model_confidence": 0.95,
+        "confidence_multiplier": 1.0
+      },
+      "step_id": "stp_00007",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "consent/b_freelancer"
+      ],
+      "timestamp": "2026-10-03T16:28:22Z",
+      "agent": "orchestrator_agent",
+      "action": "apply_consent_decay",
+      "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "weakest_consent_source": "gst_findings",
+        "final_confidence": 0.95,
+        "outcome": "approve",
+        "contradictions": [],
+        "model_confidence": 0.95,
+        "borrower_id": "b_freelancer",
+        "ledger_step_ids": [],
+        "risk_factors": [],
+        "generated_at": "2026-10-03T16:28:22Z"
+      },
+      "step_id": "stp_00008",
+      "borrower_id": "b_freelancer",
+      "input_refs": [
+        "claims/b_freelancer/bank_findings",
+        "claims/b_freelancer/gst_findings",
+        "claims/b_freelancer/investment_findings"
+      ],
+      "timestamp": "2026-10-03T16:28:22Z",
+      "agent": "orchestrator_agent",
+      "action": "final_decision",
+      "notes": "outcome=approve",
+      "confidence": 0.95
+    }
+  ],
+  "consentSources": [
+    {
+      "source": "gst_findings",
+      "fi_type": "GSTR1_3B",
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "investment_findings",
+      "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "bank_findings",
+      "fi_type": "DEPOSIT",
+      "expires_at": "2026-11-02T16:23:49Z",
+      "days_remaining": 29,
+      "confidence_multiplier": 1.0
+    }
+  ]
+}
