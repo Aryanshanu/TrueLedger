@@ -193,7 +193,16 @@ body {
 
 .case-card.active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 18px -6px var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  box-shadow: 0 0 0 1.5px var(--accent), 0 0 18px -6px var(--accent);
+}
+
+.case-card-viewing {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
 .case-card-id {
@@ -292,7 +301,7 @@ body {
   stroke-width: 1.5;
   stroke-dasharray: 240;
   stroke-dashoffset: 240;
-  transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;
+  transition: stroke-dashoffset 0.4s ease, stroke 0.25s ease;
 }
 
 .connector.drawn {
@@ -349,7 +358,7 @@ body {
   stroke-linecap: round;
   stroke-dasharray: 300;
   stroke-dashoffset: 300;
-  transition: stroke-dashoffset 0.8s ease 0.1s;
+  transition: stroke-dashoffset 0.45s ease 0.05s;
 }
 
 .signal-line.drawn {
@@ -364,10 +373,39 @@ body {
   stroke: var(--signal-gst);
 }
 
+.signal-dot {
+  opacity: 0.9;
+}
+
+.signal-dot.bank {
+  fill: var(--signal-bank);
+}
+
+.signal-dot.gst {
+  fill: var(--signal-gst);
+}
+
+.axis-label {
+  fill: var(--muted-dim);
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+}
+
+.gap-pts-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+.gap-pts-label.contradiction {
+  fill: var(--warn);
+}
+
 .gap-band {
   fill: var(--warn);
   opacity: 0;
-  transition: opacity 0.4s ease 0.7s;
+  transition: opacity 0.3s ease 0.35s;
 }
 
 .gap-band.show {
@@ -375,7 +413,7 @@ body {
 }
 
 .gap-band.show.pulse {
-  animation: gap-pulse 0.9s ease 0.7s 1;
+  animation: gap-pulse 0.7s ease 0.35s 1;
 }
 
 @keyframes gap-pulse {
@@ -477,8 +515,9 @@ body {
 }
 
 .confidence-label {
-  font-size: 11px;
-  color: var(--muted-dim);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -581,45 +620,19 @@ body {
   margin: 6px 0;
 }
 
-/* ---------- Consent strip ---------- */
+/* ---------- Consent mini-gauges (now inside the decision card, next to
+   the confidence number - the design review's #3: "move consent next to
+   the decision" so the second differentiator isn't a below-the-fold
+   afterthought) ---------- */
 
-.consent-strip {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.gauge {
-  background: var(--surface);
-  padding: 12px 16px;
+.decision-consent {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.gauge-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 11.5px;
-}
-
-.gauge-source {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.gauge-days {
-  font-family: var(--font-mono);
-  color: var(--muted);
+  gap: 9px;
 }
 
 .gauge-track {
-  height: 7px;
+  height: 6px;
   border-radius: 4px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -631,7 +644,7 @@ body {
   width: 0%;
   border-radius: 4px;
   background: var(--ok);
-  transition: width 1s cubic-bezier(0.3, 0.8, 0.3, 1), background 0.3s ease;
+  transition: width 0.7s cubic-bezier(0.3, 0.8, 0.3, 1), background 0.3s ease;
 }
 
 .gauge-fill.warn {
@@ -642,23 +655,55 @@ body {
   background: var(--bad);
 }
 
-.gauge-foot {
+.mini-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mini-gauge-head {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--muted-dim);
 }
 
-.gauge-mult {
-  font-family: var(--font-mono);
+.mini-gauge-source {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
 }
 
-.gauge.weakest {
-  box-shadow: inset 0 0 0 1px var(--warn);
+.mini-gauge-days {
+  color: var(--muted);
 }
 
-.gauge.weakest .gauge-source {
+.mini-gauge.weakest .mini-gauge-source {
   color: var(--warn);
+}
+
+.mini-gauge.weakest .mini-gauge-days {
+  color: var(--warn);
+}
+
+/* ---------- Cached-sample badge / Run live ---------- */
+
+.sample-badge {
+  font-size: 11px;
+  color: var(--muted-dim);
+  margin-bottom: 2px;
+}
+
+.run-live-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ---------- Ledger ---------- */
@@ -728,7 +773,7 @@ body {
   align-items: baseline;
   font-family: var(--font-mono);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .ledger-entry-head .agent {
@@ -749,7 +794,7 @@ body {
 
 .evidence-chip {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   background: var(--surface-2);
   border: 1px solid var(--border);
