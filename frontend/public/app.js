@@ -61,6 +61,16 @@ function announceCopy(text) {
   if (el) el.textContent = text;
 }
 
+let toastTimer = null;
+function showToast(text) {
+  const el = $("toast");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), REDUCE_MOTION ? 600 : 1200);
+}
+
 async function copyToClipboard(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
@@ -509,7 +519,13 @@ function ledgerEntryHtml(entry, index) {
     .map((ev) => {
       const jump = isContradiction && ev.source;
       const copyText = evidenceCopyText(ev);
-      return `<button type="button" class="evidence-chip" data-copy="${copyText.replace(/"/g, "&quot;")}" ${
+      // Two distinct affordances, never both read as "this is a link":
+      // a copy-only chip is a plain tag (copy cursor, no navigation), the
+      // two contradiction-sourced chips that also jump to a ledger entry
+      // get a visibly different accent treatment plus an aria-label that
+      // says what Enter/click actually does.
+      return `<button type="button" class="evidence-chip${jump ? " jump" : ""}" data-copy="${copyText.replace(/"/g, "&quot;")}"
+        aria-label="${jump ? `Jump to source and copy: ${copyText}` : `Copy: ${copyText}`}" ${
         jump ? `data-jump-source="${ev.source}" data-jump-field="${ev.field || ""}"` : ""
       }>${copyText}</button>`;
     })
@@ -572,6 +588,7 @@ function renderLedger(ledgerSteps) {
     btn.addEventListener("click", async () => {
       const ok = await copyToClipboard(btn.dataset.copy);
       announceCopy(ok ? "Copied to clipboard" : "Copy failed");
+      showToast(ok ? "Copied" : "Copy failed");
       btn.classList.add("copied");
       setTimeout(() => btn.classList.remove("copied"), 900);
       if (btn.dataset.jumpSource) jumpToClaim(btn.dataset.jumpSource, btn.dataset.jumpField);

@@ -868,27 +868,72 @@ body {
   gap: 5px;
 }
 
+/* Copy-only chip: a tag, not a link - dashed border, pill shape, a
+   copy-glyph prefix and `cursor: copy` so it never reads as "this
+   navigates somewhere". */
 .evidence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 7px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.4s ease;
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: copy;
+  transition: border-color 0.15s ease, background 0.4s ease, color 0.15s ease;
+}
+
+.evidence-chip::before {
+  content: "⧉";
+  font-size: 10px;
+  opacity: 0.7;
 }
 
 .evidence-chip:hover {
-  border-color: var(--border-strong);
+  border-color: var(--muted);
   color: var(--text);
 }
 
 .evidence-chip.copied {
   background: color-mix(in srgb, var(--ok) 20%, var(--surface-2));
   border-color: var(--ok);
+  border-style: solid;
   color: var(--text);
+}
+
+/* Jump chip: the two contradiction-sourced chips that also navigate to a
+   ledger entry - solid accent border, square-ish shape, an arrow suffix,
+   `cursor: pointer` - visibly a different affordance from the copy-only
+   pill above, never confusable with it. */
+.evidence-chip.jump {
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  border-radius: 5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.evidence-chip.jump::before {
+  content: "";
+}
+
+.evidence-chip.jump::after {
+  content: "→";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.evidence-chip.jump:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+}
+
+.evidence-chip.jump.copied {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 20%, var(--surface-2));
 }
 
 .ledger-show-all {
@@ -923,6 +968,33 @@ body {
 
 .status-line.error {
   color: var(--bad);
+}
+
+/* ---------- Toast (visible "Copied" feedback; the sr-only #copy-announcer
+   carries the accessible announcement, this is the purely visual one) ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 7px;
+  box-shadow: 0 4px 18px -4px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 50;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .hidden {
