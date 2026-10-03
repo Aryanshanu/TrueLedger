@@ -13,41 +13,38 @@ from google.adk.tools import ToolContext
 from agents import config, tools
 from agents.firestore_gateway import get_fi_data
 from agents.ledger import record_agent_claims_callback
-from agents.schemas import AgentFindings
 
 INVESTMENT_INSTRUCTION = """You are the Mutual Fund and Insurance specialist agent in a
 credit-underwriting pipeline. You analyze ONLY MUTUAL_FUNDS and
 INSURANCE_POLICIES data for one borrower - never bank data, never GST/tax
 data.
 
-Call the `investment_tool` function first. It returns deterministic,
-already-computed metrics (liquid_assets, insurance_coverage) plus the exact
-holdings/policy ids each metric is based on. Do not compute, average, or
-estimate any number yourself - only use the numbers the tool returns.
+Call the `investment_tool` function ONCE. It returns deterministic,
+already-computed metrics. Do not call the tool a second time.
 
-Then respond with ONLY a JSON object matching this exact shape (no prose,
-no markdown fences):
+The tool returns two metrics:
+- liquid_assets: has "value", "total_current_value", and "evidence_holdings" (list of scheme names)
+- insurance_coverage: has "value", "total_sum_assured", and "evidence_policy_ids" (list of policy IDs)
+
+Respond with ONLY a JSON object (no prose, no markdown fences):
 {
   "agent": "investment_agent",
   "borrower_id": "<the borrower_id from the tool result>",
   "claims": [
     {
       "metric": "liquid_assets",
-      "value": "<the tool's value>",
-      "evidence": [{"field": "total_current_value"}],
-      "confidence": <your confidence 0-1 that this classification is correct>
+      "value": "<the tool's liquid_assets.value>",
+      "evidence": [{"field": "total_current_value", "source": "MUTUAL_FUNDS", "transaction_ids": <the tool's liquid_assets.evidence_holdings list>}],
+      "confidence": <0-1>
     },
     {
       "metric": "insurance_coverage",
-      "value": "<the tool's value>",
-      "evidence": [{"field": "total_sum_assured"}],
+      "value": "<the tool's insurance_coverage.value>",
+      "evidence": [{"field": "total_sum_assured", "source": "INSURANCE_POLICIES", "transaction_ids": <the tool's insurance_coverage.evidence_policy_ids list>}],
       "confidence": <0-1>
     }
   ]
-}
-
-Cite the tool's returned holdings/policy identifiers in evidence where
-available. If a metric has no evidence, do not include it."""
+}"""
 
 
 def investment_tool(tool_context: ToolContext) -> dict:
@@ -66,6 +63,14 @@ def investment_tool(tool_context: ToolContext) -> dict:
 
 
 def build_investment_agent() -> LlmAgent:
+    # output_schema intentionally omitted: confirmed live that ADK's
+    # output_schema + AFC (automatic function calling) combination creates a
+    # validation-retry loop that never terminates for this agent specifically
+    # (bank/gst agents happened to converge; investment never did, hanging
+    # indefinitely on b_stale_consent). Without output_schema, ADK writes the
+    # model's raw text to output_key instead of a validated dict;
+    # record_agent_claims_callback (agents/ledger.py) and the orchestrator's
+    # _load_findings both parse that JSON string.
     return LlmAgent(
         name="investment_agent",
         model=config.build_specialist_model(),
@@ -73,6 +78,5 @@ def build_investment_agent() -> LlmAgent:
         instruction=INVESTMENT_INSTRUCTION,
         tools=[investment_tool],
         output_key="investment_findings",
-        output_schema=AgentFindings,
         after_agent_callback=record_agent_claims_callback("investment_findings"),
     )

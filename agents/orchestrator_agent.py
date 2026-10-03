@@ -31,7 +31,7 @@ from google.genai import types
 from agents import config, tools
 from agents.consent import apply_decay, build_consent_status
 from agents.firestore_gateway import get_consent, get_fi_data, set_decision
-from agents.ledger import write_entry
+from agents.ledger import parse_findings_payload, write_entry
 from agents.rules import evaluate_rules
 from agents.schemas import AgentFindings, Decision
 
@@ -86,9 +86,15 @@ class OrchestratorAgent(BaseAgent):
     async def _run_async_impl(self, ctx) -> AsyncGenerator[Event, None]:
         borrower_id = ctx.session.state["borrower_id"]
 
-        bank_findings = AgentFindings.model_validate(ctx.session.state["bank_findings"])
-        gst_findings = AgentFindings.model_validate(ctx.session.state["gst_findings"])
-        investment_findings = AgentFindings.model_validate(ctx.session.state["investment_findings"])
+        # bank/gst agents have output_schema set so ADK hands back a validated
+        # dict; investment_agent doesn't (see its build function - output_schema
+        # + AFC never converged live for that one), so its state value is a raw
+        # JSON string. parse_findings_payload handles both uniformly.
+        bank_findings = AgentFindings.model_validate(parse_findings_payload(ctx.session.state["bank_findings"]))
+        gst_findings = AgentFindings.model_validate(parse_findings_payload(ctx.session.state["gst_findings"]))
+        investment_findings = AgentFindings.model_validate(
+            parse_findings_payload(ctx.session.state["investment_findings"])
+        )
 
         fi_data = get_fi_data(borrower_id)
         loan_amount_requested = fi_data["loan_amount_requested"]

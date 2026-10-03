@@ -14,6 +14,8 @@ application. Step 5 is the final decision entry.
 
 from __future__ import annotations
 
+import json
+import re
 from datetime import datetime, timezone
 
 from agents.firestore_gateway import append_ledger_entry, get_ledger
@@ -53,6 +55,24 @@ def write_entry(
     return entry
 
 
+def parse_findings_payload(raw: dict | str) -> dict:
+    """Normalizes a sub-agent's output_key state value into a dict.
+
+    ADK writes a validated dict when the agent has `output_schema` set
+    (bank/gst agents). It writes the model's raw text instead when
+    `output_schema` is omitted (investment_agent.py - see its build
+    function for why that's sometimes necessary), so this also handles a
+    JSON string, including one the model wrapped in markdown fences despite
+    being told not to.
+    """
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```[a-z]*\n?", "", text).rstrip("`").strip()
+        return json.loads(text)
+    return raw
+
+
 def record_findings(findings: AgentFindings) -> list[LedgerEntry]:
     """One ledger entry per claim a specialist sub-agent produced."""
     entries = []
@@ -80,7 +100,11 @@ def record_agent_claims_callback(output_key: str):
         raw = ctx.state.get(output_key)
         if not raw:
             return None
-        findings = AgentFindings.model_validate(raw)
+        try:
+            payload = parse_findings_payload(raw)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        findings = AgentFindings.model_validate(payload)
         record_findings(findings)
         return None
 
