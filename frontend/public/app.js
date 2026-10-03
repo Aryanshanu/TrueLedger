@@ -803,26 +803,35 @@ $("replay-btn").addEventListener("click", () => {
   if (currentBorrowerId) playReveal(currentBorrowerId);
 });
 
+// Deep link: /desk?case=b_seasonal opens that case instead of the usual
+// default. Falls back to DEFAULT_CASE for a missing/unknown id - never
+// trusts the query string blindly.
+function bootCaseFromURL() {
+  const requested = new URLSearchParams(window.location.search).get("case");
+  return requested && CASES.some((c) => c.id === requested) ? requested : DEFAULT_CASE;
+}
+
 (async function boot() {
-  const defaultRecorded = await loadRecorded(DEFAULT_CASE);
+  const bootCase = bootCaseFromURL();
+  const defaultRecorded = await loadRecorded(bootCase);
   if (defaultRecorded) {
-    cache.set(DEFAULT_CASE, defaultRecorded);
-    currentBorrowerId = DEFAULT_CASE;
-    setStatus(`${DEFAULT_CASE} · showing a recorded run · click "Run live" for a real Vertex AI call.`);
-    playReveal(DEFAULT_CASE);
+    cache.set(bootCase, defaultRecorded);
+    currentBorrowerId = bootCase;
+    setStatus(`${bootCase} · showing a recorded run · click "Run live" for a real Vertex AI call.`);
+    playReveal(bootCase);
   } else {
     // No recorded capture on disk yet (e.g. before public/recorded/*.json
     // is populated) - an honest "ready to run" state, never a fabricated
     // result standing in for one.
-    currentBorrowerId = DEFAULT_CASE;
+    currentBorrowerId = bootCase;
     renderCaseRail();
-    resetDeskUI(`${DEFAULT_CASE} · no recorded run captured yet`);
-    $("decision-body").innerHTML = `<div class="decision-empty">No recorded run for ${DEFAULT_CASE} yet. Click a case or wait for "Run live" to call the real backend.</div>`;
+    resetDeskUI(`${bootCase} · no recorded run captured yet`);
+    $("decision-body").innerHTML = `<div class="decision-empty">No recorded run for ${bootCase} yet. Click a case or wait for "Run live" to call the real backend.</div>`;
   }
 
-  // Prefetch the other two cases' recorded captures in the background so
-  // switching to them is instant too, same as the default case.
-  CASES.filter((c) => c.id !== DEFAULT_CASE).forEach(async (c) => {
+  // Prefetch every other case's recorded capture in the background so
+  // switching to them is instant too, same as the boot case.
+  CASES.filter((c) => c.id !== bootCase).forEach(async (c) => {
     const data = await loadRecorded(c.id);
     if (data && !cache.has(c.id)) {
       cache.set(c.id, data);

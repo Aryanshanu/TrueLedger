@@ -1,0 +1,394 @@
+/* TrueLedger landing page - same Credit Desk language as the Desk (ink
+   background, serif for big moments, Inter UI, mono for ids), laid out as
+   one scroll story instead of a dashboard. Loaded alongside style.css,
+   which already defines every data-visualization class this page reuses
+   (.divergence-title, .signal-line, .gap-band, .outcome-badge,
+   .gauge-track/.gauge-fill, .chart-legend, .badge, .disclosure, .sr-only,
+   :focus-visible rings) - this file only adds chapter layout. */
+
+/* style.css sets body { min-width: 1180px } - correct for the Desk (a
+   dense desktop dashboard, desktop-only by design), wrong for the landing
+   page, which should read fine down to a phone width. Override it here
+   rather than touching the Desk's own rule. */
+body.landing-body {
+  min-width: 0;
+}
+
+.landing {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Skip link ---------- */
+
+.skip-to-desk {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.skip-to-desk:hover,
+.skip-to-desk:focus-visible {
+  border-color: var(--accent);
+}
+
+/* ---------- Chapter shell ---------- */
+
+.chapter {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.chapter.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-item {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.reveal-item.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chapter-kicker {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+
+.chapter-lead {
+  margin: 0 0 28px;
+  max-width: 780px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4vw, 44px);
+  line-height: 1.25;
+}
+
+.chapter-sub {
+  margin: 28px 0 0;
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---------- Chapter 0: cold open ---------- */
+
+.chapter-cold-open {
+  background: var(--bg);
+}
+
+.cold-open-line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(36px, 7vw, 76px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.cold-open-hint {
+  margin: 36px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+  animation: cold-open-hint-bob 2s ease-in-out infinite;
+}
+
+@keyframes cold-open-hint-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* ---------- Chapter 1: teaser ---------- */
+
+.agent-trio {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.agent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.agent-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.agent-pill-dot.bank { background: var(--signal-bank); }
+.agent-pill-dot.gst { background: var(--signal-gst); }
+.agent-pill-dot.invest { background: var(--ok); }
+
+/* ---------- Chapter 2: Act I ---------- */
+
+.specialist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  max-width: 860px;
+  width: 100%;
+}
+
+.specialist-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: left;
+}
+
+.specialist-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.specialist-source {
+  font-size: 11px;
+  color: var(--muted-dim);
+  margin-bottom: 10px;
+}
+
+.specialist-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* ---------- Chapter 3: Act II chart ---------- */
+
+.landing-chart-card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  text-align: left;
+}
+
+.landing-chart-card .divergence-title {
+  margin-bottom: 10px;
+}
+
+/* ---------- Chapter 4: Climax ---------- */
+
+.climax-card {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  text-align: left;
+}
+
+.climax-gauge-block {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.climax-gauge-track {
+  height: 10px;
+}
+
+.climax-gauge-track .gauge-fill {
+  transition: width 1.4s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+
+.climax-confidence-block {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.climax-number {
+  font-size: 48px;
+}
+
+.climax-confidence-block .outcome-badge {
+  margin-top: 14px;
+}
+
+/* ---------- Chapter 5: Casebook ---------- */
+
+.casebook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  max-width: 980px;
+  width: 100%;
+}
+
+.casebook-loading {
+  color: var(--muted-dim);
+  font-size: 13px;
+}
+
+.casebook-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.casebook-card:hover,
+.casebook-card:focus-visible {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.casebook-group-tag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+
+.casebook-id {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.casebook-scenario {
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+.casebook-chip {
+  font-size: 11px;
+  padding: 4px 10px;
+  margin-top: 4px;
+}
+
+.casebook-confidence {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.casebook-card-missing {
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  padding: 16px;
+  color: var(--muted-dim);
+}
+
+/* ---------- Chapter 6: Credits ---------- */
+
+.run-live-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #0b0f14;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 13px 26px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 26px;
+}
+
+.run-live-cta:hover,
+.run-live-cta:focus-visible {
+  filter: brightness(1.08);
+}
+
+.landing-disclosure {
+  position: static;
+  max-width: 520px;
+  border-bottom: none;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.stack-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.team-placeholder {
+  color: var(--muted-dim);
+  font-size: 12.5px;
+}
+
+/* ---------- Reduced motion: identical content, no animated reveal ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter,
+  .reveal-item {
+    transition: none !important;
+  }
+  .cold-open-hint {
+    animation: none !important;
+  }
+}
+
+/* ---------- Narrow viewport: chapters still readable, no horizontal scroll ---------- */
+
+@media (max-width: 480px) {
+  .chapter {
+    padding: 56px 16px;
+  }
+  .climax-card {
+    padding: 20px;
+  }
+}

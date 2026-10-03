@@ -13,6 +13,13 @@ app.get("/config.js", (_req, res) => {
   res.send(`window.__CONFIG__ = ${JSON.stringify({ BACKEND_URL })};`);
 });
 
+// The Desk moved from "/" to "/desk" (the landing page now owns "/").
+// Query strings (e.g. /desk?case=b_seasonal) pass through untouched -
+// Express only matches the path, app.js reads location.search itself.
+app.get("/desk", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "desk.html"));
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrueLedger - Underwriting Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="back-link">← Landing</a>
+    <div class="brand">
+      <h1 class="brand-name">TrueLedger</h1>
+      <span class="brand-tag">Consent-aware underwriting</span>
+    </div>
+    <div class="topbar-badges">
+      <span class="badge">AA / DEPA</span>
+      <span class="badge">BFSI</span>
+    </div>
+    <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
+  </header>
+
+  <p class="disclosure">
+    Synthetic demo data, built against the real Account Aggregator / Setu FI-schema data model - no live AA, Sahamati, or FIP integration.
+    See <code>docs/DATA_SCHEMA.md</code> for the disclosure.
+  </p>
+
+  <main class="desk">
+    <aside class="case-rail" id="case-rail" aria-label="Cases">
+      <h2 class="rail-label">Cases</h2>
+      <!-- populated by app.js; three scenarios, never results pre-claimed -->
+    </aside>
+
+    <section class="pipeline-panel" aria-label="Pipeline">
+      <h2 class="rail-label">Pipeline</h2>
+      <div class="pipeline-status-line" id="pipeline-status" role="status" aria-live="polite">Loading…</div>
+      <div class="pipeline-canvas" id="pipeline-canvas"></div>
+
+      <div class="divergence-panel">
+        <div class="divergence-title" id="divergence-title">Income vs. revenue signal</div>
+        <div class="divergence-chart" id="divergence-chart"></div>
+        <div class="chart-legend">
+          <span><span class="legend-swatch bank"></span> Bank income (agent 1)</span>
+          <span><span class="legend-swatch gst"></span> GST revenue (agent 2)</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="decision-card" aria-label="Decision">
+      <h2 class="rail-label">Decision</h2>
+      <div id="decision-body">
+        <div class="decision-empty">Running the pipeline...</div>
+      </div>
+    </aside>
+  </main>
+
+  <details class="ledger-panel" id="ledger-panel">
+    <summary>Explainability ledger <span id="ledger-count"></span></summary>
+    <div class="ledger-list" id="ledger-list"></div>
+  </details>
+
+  <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" aria-hidden="true"></div>
+
+  <script src="/config.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
