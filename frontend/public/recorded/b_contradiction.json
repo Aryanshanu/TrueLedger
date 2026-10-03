@@ -1,0 +1,764 @@
+{
+  "capturedAt": "2026-10-03T15:31:03Z",
+  "decision": {
+    "borrower_id": "b_contradiction",
+    "outcome": "manual_review",
+    "final_confidence": 0.5,
+    "model_confidence": 0.5,
+    "weakest_consent_source": "gst_findings",
+    "contradictions": [
+      {
+        "rule": "income_vs_revenue_divergence",
+        "metric": "income_vs_revenue",
+        "finding": "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+        "evidence": [
+          {
+            "transaction_ids": null,
+            "period": null,
+            "field": "income_trend",
+            "source": "bank_findings"
+          },
+          {
+            "transaction_ids": null,
+            "period": null,
+            "field": "revenue_trend",
+            "source": "gst_findings"
+          }
+        ],
+        "action": "cap_confidence_0.5"
+      }
+    ],
+    "risk_factors": [],
+    "ledger_step_ids": [
+      "stp_00023"
+    ],
+    "generated_at": "2026-10-03T15:31:03Z"
+  },
+  "ledgerSteps": [
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-08",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-09",
+            "source": null,
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "value": "declining",
+        "magnitude_pct": -11.0,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:36:34Z",
+      "agent": "gst_tax_agent",
+      "step_id": "stp_00027",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-06",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-07",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-08",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-09",
+            "source": null,
+            "transaction_ids": null
+          }
+        ],
+        "metric": "filing_consistency",
+        "value": "consistent",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:36:35Z",
+      "agent": "gst_tax_agent",
+      "step_id": "stp_00028",
+      "notes": "gst_tax_agent claim: filing_consistency",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "period": null,
+            "source": "MUTUAL_FUNDS",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "liquid_assets",
+        "value": "high",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:36:38Z",
+      "agent": "investment_agent",
+      "step_id": "stp_00029",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "period": null,
+            "source": "INSURANCE_POLICIES",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "insurance_coverage",
+        "value": "adequate",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:36:39Z",
+      "agent": "investment_agent",
+      "step_id": "stp_00030",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-08",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-09",
+            "source": null,
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "value": "declining",
+        "magnitude_pct": -11.0,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:26Z",
+      "agent": "gst_tax_agent",
+      "step_id": "stp_00031",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-06",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-07",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-08",
+            "source": null,
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "period": "2026-09",
+            "source": null,
+            "transaction_ids": null
+          }
+        ],
+        "metric": "filing_consistency",
+        "value": "consistent",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:26Z",
+      "agent": "gst_tax_agent",
+      "step_id": "stp_00032",
+      "notes": "gst_tax_agent claim: filing_consistency",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-06 to 2026-09",
+            "source": null,
+            "transaction_ids": [
+              "txn_901",
+              "txn_902"
+            ]
+          }
+        ],
+        "metric": "income_trend",
+        "value": "stable",
+        "magnitude_pct": 2.1,
+        "confidence": 0.95
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:27Z",
+      "agent": "bank_statement_agent",
+      "step_id": "stp_00033",
+      "notes": "bank_statement_agent claim: income_trend",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "period": "2026-06 to 2026-09",
+            "source": null,
+            "transaction_ids": null
+          }
+        ],
+        "metric": "cash_flow_volatility",
+        "value": "low",
+        "magnitude_pct": null,
+        "confidence": 0.95
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:27Z",
+      "agent": "bank_statement_agent",
+      "step_id": "stp_00034",
+      "notes": "bank_statement_agent claim: cash_flow_volatility",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "period": null,
+            "source": "MUTUAL_FUNDS",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "liquid_assets",
+        "value": "high",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:41Z",
+      "agent": "investment_agent",
+      "step_id": "stp_00035",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "period": null,
+            "source": "INSURANCE_POLICIES",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "insurance_coverage",
+        "value": "adequate",
+        "magnitude_pct": null,
+        "confidence": 1.0
+      },
+      "action": "record_claim",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:41Z",
+      "agent": "investment_agent",
+      "step_id": "stp_00036",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "rule": "income_vs_revenue_divergence",
+        "finding": "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+        "metric": "income_vs_revenue",
+        "action": "cap_confidence_0.5",
+        "evidence": [
+          {
+            "field": "income_trend",
+            "period": null,
+            "source": "bank_findings",
+            "transaction_ids": null
+          },
+          {
+            "field": "revenue_trend",
+            "period": null,
+            "source": "gst_findings",
+            "transaction_ids": null
+          }
+        ]
+      },
+      "action": "flag_contradiction",
+      "input_refs": [
+        "claims/b_contradiction/bank_findings",
+        "claims/b_contradiction/gst_findings"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:41Z",
+      "agent": "orchestrator_agent",
+      "step_id": "stp_00037",
+      "notes": "Contradiction rule: income_vs_revenue_divergence",
+      "confidence": 0.5
+    },
+    {
+      "claim": {
+        "weakest_days_remaining": 26,
+        "weakest_source": "investment_findings",
+        "final_confidence": 0.5,
+        "model_confidence": 0.5,
+        "confidence_multiplier": 1.0
+      },
+      "action": "apply_consent_decay",
+      "input_refs": [
+        "consent/b_contradiction"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:55Z",
+      "agent": "orchestrator_agent",
+      "step_id": "stp_00038",
+      "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
+      "confidence": 0.5
+    },
+    {
+      "claim": {
+        "weakest_consent_source": "investment_findings",
+        "final_confidence": 0.5,
+        "outcome": "manual_review",
+        "contradictions": [
+          {
+            "rule": "income_vs_revenue_divergence",
+            "finding": "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+            "metric": "income_vs_revenue",
+            "action": "cap_confidence_0.5",
+            "evidence": [
+              {
+                "field": "income_trend",
+                "period": null,
+                "source": "bank_findings",
+                "transaction_ids": null
+              },
+              {
+                "field": "revenue_trend",
+                "period": null,
+                "source": "gst_findings",
+                "transaction_ids": null
+              }
+            ]
+          }
+        ],
+        "model_confidence": 0.5,
+        "borrower_id": "b_contradiction",
+        "ledger_step_ids": [],
+        "risk_factors": [],
+        "generated_at": "2026-10-03T05:38:55Z"
+      },
+      "action": "final_decision",
+      "input_refs": [
+        "claims/b_contradiction/bank_findings",
+        "claims/b_contradiction/gst_findings",
+        "claims/b_contradiction/investment_findings"
+      ],
+      "borrower_id": "b_contradiction",
+      "timestamp": "2026-10-03T05:38:55Z",
+      "agent": "orchestrator_agent",
+      "step_id": "stp_00039",
+      "notes": "outcome=manual_review",
+      "confidence": 0.5
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "source": "MUTUAL_FUNDS",
+            "period": null,
+            "transaction_ids": [
+              "Synthetic Flexicap Fund",
+              "Synthetic Liquid Fund"
+            ]
+          }
+        ],
+        "metric": "liquid_assets",
+        "magnitude_pct": null,
+        "value": "high",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00024",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T06:58:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "source": "INSURANCE_POLICIES",
+            "period": null,
+            "transaction_ids": [
+              "pol_x01"
+            ]
+          }
+        ],
+        "metric": "insurance_coverage",
+        "magnitude_pct": null,
+        "value": "adequate",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00025",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T06:58:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "weakest_consent_source": "gst_findings",
+        "final_confidence": 0.5,
+        "outcome": "manual_review",
+        "contradictions": [
+          {
+            "rule": "income_vs_revenue_divergence",
+            "finding": "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+            "metric": "income_vs_revenue",
+            "action": "cap_confidence_0.5",
+            "evidence": [
+              {
+                "field": "income_trend",
+                "period": null,
+                "source": "bank_findings",
+                "transaction_ids": null
+              },
+              {
+                "field": "revenue_trend",
+                "period": null,
+                "source": "gst_findings",
+                "transaction_ids": null
+              }
+            ]
+          }
+        ],
+        "model_confidence": 0.5,
+        "borrower_id": "b_contradiction",
+        "ledger_step_ids": [],
+        "risk_factors": [],
+        "generated_at": "2026-10-03T06:58:21Z"
+      },
+      "step_id": "stp_00026",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "claims/b_contradiction/bank_findings",
+        "claims/b_contradiction/gst_findings",
+        "claims/b_contradiction/investment_findings"
+      ],
+      "timestamp": "2026-10-03T06:58:22Z",
+      "agent": "orchestrator_agent",
+      "action": "final_decision",
+      "notes": "outcome=manual_review",
+      "confidence": 0.5
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "source": "MUTUAL_FUNDS",
+            "period": null,
+            "transaction_ids": [
+              "Synthetic Flexicap Fund",
+              "Synthetic Liquid Fund"
+            ]
+          }
+        ],
+        "metric": "liquid_assets",
+        "magnitude_pct": null,
+        "value": "high",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00018",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T14:33:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "source": "INSURANCE_POLICIES",
+            "period": null,
+            "transaction_ids": [
+              "pol_x01"
+            ]
+          }
+        ],
+        "metric": "insurance_coverage",
+        "magnitude_pct": null,
+        "value": "adequate",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00019",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T14:33:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": [
+              "txn_901",
+              "txn_902"
+            ]
+          }
+        ],
+        "metric": "income_trend",
+        "magnitude_pct": 2.1,
+        "value": "stable",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00020",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T14:33:12Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: income_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "cash_flow_volatility",
+        "magnitude_pct": null,
+        "value": "low",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00021",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T14:33:12Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: cash_flow_volatility",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "magnitude_pct": -11.0,
+        "value": "declining",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00022",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "fi_data/b_contradiction"
+      ],
+      "timestamp": "2026-10-03T14:33:14Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "weakest_consent_source": "gst_findings",
+        "final_confidence": 0.5,
+        "outcome": "manual_review",
+        "contradictions": [
+          {
+            "rule": "income_vs_revenue_divergence",
+            "finding": "Bank shows stable income (+2.1%); GST shows declining revenue (-11.0%)",
+            "metric": "income_vs_revenue",
+            "action": "cap_confidence_0.5",
+            "evidence": [
+              {
+                "field": "income_trend",
+                "period": null,
+                "source": "bank_findings",
+                "transaction_ids": null
+              },
+              {
+                "field": "revenue_trend",
+                "period": null,
+                "source": "gst_findings",
+                "transaction_ids": null
+              }
+            ]
+          }
+        ],
+        "model_confidence": 0.5,
+        "borrower_id": "b_contradiction",
+        "ledger_step_ids": [],
+        "risk_factors": [],
+        "generated_at": "2026-10-03T15:31:03Z"
+      },
+      "step_id": "stp_00023",
+      "borrower_id": "b_contradiction",
+      "input_refs": [
+        "claims/b_contradiction/bank_findings",
+        "claims/b_contradiction/gst_findings",
+        "claims/b_contradiction/investment_findings"
+      ],
+      "timestamp": "2026-10-03T15:31:03Z",
+      "agent": "orchestrator_agent",
+      "action": "final_decision",
+      "notes": "outcome=manual_review",
+      "confidence": 0.5
+    }
+  ],
+  "consentSources": [
+    {
+      "source": "gst_findings",
+      "fi_type": "GSTR1_3B",
+      "expires_at": "2026-10-29T05:46:03Z",
+      "days_remaining": 25,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "investment_findings",
+      "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
+      "expires_at": "2026-10-29T05:46:03Z",
+      "days_remaining": 25,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "bank_findings",
+      "fi_type": "DEPOSIT",
+      "expires_at": "2026-10-29T05:46:03Z",
+      "days_remaining": 25,
+      "confidence_multiplier": 1.0
+    }
+  ]
+}

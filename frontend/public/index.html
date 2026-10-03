@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/style.css" />
@@ -15,7 +15,7 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-name">TrueLedger</span>
+      <h1 class="brand-name">TrueLedger</h1>
       <span class="brand-tag">Consent-aware underwriting</span>
     </div>
     <div class="topbar-badges">
@@ -31,14 +31,14 @@
   </p>
 
   <main class="desk">
-    <aside class="case-rail" id="case-rail">
-      <div class="rail-label">Cases</div>
+    <aside class="case-rail" id="case-rail" aria-label="Cases">
+      <h2 class="rail-label">Cases</h2>
       <!-- populated by app.js; three scenarios, never results pre-claimed -->
     </aside>
 
-    <section class="pipeline-panel">
-      <div class="rail-label">Pipeline</div>
-      <div class="pipeline-status-line" id="pipeline-status">Loading b_contradiction...</div>
+    <section class="pipeline-panel" aria-label="Pipeline">
+      <h2 class="rail-label">Pipeline</h2>
+      <div class="pipeline-status-line" id="pipeline-status" role="status" aria-live="polite">Loading…</div>
       <div class="pipeline-canvas" id="pipeline-canvas"></div>
 
       <div class="divergence-panel">
@@ -51,8 +51,8 @@
       </div>
     </section>
 
-    <aside class="decision-card">
-      <div class="rail-label">Decision</div>
+    <aside class="decision-card" aria-label="Decision">
+      <h2 class="rail-label">Decision</h2>
       <div id="decision-body">
         <div class="decision-empty">Running the pipeline...</div>
       </div>
@@ -64,7 +64,9 @@
     <div class="ledger-list" id="ledger-list"></div>
   </details>
 
-  <div class="status-line" id="status-line"></div>
+  <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" aria-hidden="true"></div>
 
   <script src="/config.js"></script>
   <script src="/app.js"></script>

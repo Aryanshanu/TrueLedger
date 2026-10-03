@@ -1,0 +1,305 @@
+{
+  "capturedAt": "2026-10-03T15:31:56Z",
+  "decision": {
+    "borrower_id": "b_stale_consent",
+    "outcome": "decline",
+    "final_confidence": 0.0,
+    "model_confidence": 0.95,
+    "weakest_consent_source": "bank_findings",
+    "contradictions": [],
+    "risk_factors": [],
+    "ledger_step_ids": [
+      "stp_00009"
+    ],
+    "generated_at": "2026-10-03T15:31:56Z"
+  },
+  "ledgerSteps": [
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "magnitude_pct": 5.06,
+        "value": "stable",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00017",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T07:08:53Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_current_value",
+            "source": "MUTUAL_FUNDS",
+            "period": null,
+            "transaction_ids": [
+              "Synthetic Flexicap Fund",
+              "Synthetic Liquid Fund"
+            ]
+          }
+        ],
+        "metric": "liquid_assets",
+        "magnitude_pct": null,
+        "value": "high",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00002",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: liquid_assets",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": "total_sum_assured",
+            "source": "INSURANCE_POLICIES",
+            "period": null,
+            "transaction_ids": [
+              "pol_c01"
+            ]
+          }
+        ],
+        "metric": "insurance_coverage",
+        "magnitude_pct": null,
+        "value": "adequate",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00003",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:11Z",
+      "agent": "investment_agent",
+      "action": "record_claim",
+      "notes": "investment_agent claim: insurance_coverage",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "revenue_trend",
+        "magnitude_pct": 5.06,
+        "value": "stable",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00004",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:12Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: revenue_trend",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-07",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-08",
+            "transaction_ids": null
+          },
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "filing_consistency",
+        "magnitude_pct": null,
+        "value": "consistent",
+        "confidence": 1.0
+      },
+      "step_id": "stp_00005",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:12Z",
+      "agent": "gst_tax_agent",
+      "action": "record_claim",
+      "notes": "gst_tax_agent claim: filing_consistency",
+      "confidence": 1.0
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": [
+              "txn_s105",
+              "txn_s107"
+            ]
+          }
+        ],
+        "metric": "income_trend",
+        "magnitude_pct": 7.39,
+        "value": "rising",
+        "confidence": 0.95
+      },
+      "step_id": "stp_00006",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:18Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: income_trend",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "evidence": [
+          {
+            "field": null,
+            "source": null,
+            "period": "2026-06 to 2026-09",
+            "transaction_ids": null
+          }
+        ],
+        "metric": "cash_flow_volatility",
+        "magnitude_pct": null,
+        "value": "low",
+        "confidence": 0.95
+      },
+      "step_id": "stp_00007",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "fi_data/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:18Z",
+      "agent": "bank_statement_agent",
+      "action": "record_claim",
+      "notes": "bank_statement_agent claim: cash_flow_volatility",
+      "confidence": 0.95
+    },
+    {
+      "claim": {
+        "weakest_days_remaining": -3,
+        "weakest_source": "bank_findings",
+        "final_confidence": 0.0,
+        "model_confidence": 0.95,
+        "confidence_multiplier": 0.0
+      },
+      "step_id": "stp_00008",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "consent/b_stale_consent"
+      ],
+      "timestamp": "2026-10-03T15:31:56Z",
+      "agent": "orchestrator_agent",
+      "action": "apply_consent_decay",
+      "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
+      "confidence": 0.0
+    },
+    {
+      "claim": {
+        "weakest_consent_source": "bank_findings",
+        "final_confidence": 0.0,
+        "outcome": "decline",
+        "contradictions": [],
+        "model_confidence": 0.95,
+        "borrower_id": "b_stale_consent",
+        "ledger_step_ids": [],
+        "risk_factors": [],
+        "generated_at": "2026-10-03T15:31:56Z"
+      },
+      "step_id": "stp_00009",
+      "borrower_id": "b_stale_consent",
+      "input_refs": [
+        "claims/b_stale_consent/bank_findings",
+        "claims/b_stale_consent/gst_findings",
+        "claims/b_stale_consent/investment_findings"
+      ],
+      "timestamp": "2026-10-03T15:31:56Z",
+      "agent": "orchestrator_agent",
+      "action": "final_decision",
+      "notes": "outcome=decline",
+      "confidence": 0.0
+    }
+  ],
+  "consentSources": [
+    {
+      "source": "gst_findings",
+      "fi_type": "GSTR1_3B",
+      "expires_at": "2026-10-29T05:46:03Z",
+      "days_remaining": 25,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "investment_findings",
+      "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
+      "expires_at": "2026-10-29T05:46:03Z",
+      "days_remaining": 25,
+      "confidence_multiplier": 1.0
+    },
+    {
+      "source": "bank_findings",
+      "fi_type": "DEPOSIT",
+      "expires_at": "2026-10-01T05:46:03Z",
+      "days_remaining": -3,
+      "confidence_multiplier": 0.0
+    }
+  ]
+}
