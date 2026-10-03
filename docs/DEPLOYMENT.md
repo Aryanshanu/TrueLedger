@@ -94,8 +94,12 @@ it on Cloud Run costs a rebuild-and-redeploy cycle.
 `agents/` package (see the comment at the top of that Dockerfile); a
 `--source backend/` build only sees the `backend/` subtree, so the shared
 package would be missing and the build would fail. `infra/deploy_backend.sh`
-already builds with the correct root context via `gcloud builds submit -f
-backend/Dockerfile .`.
+already builds with the correct root context via a `cloudbuild.yaml`
+config (`gcloud builds submit --config cloudbuild.yaml ...`) - confirmed
+live that `gcloud builds submit --tag ... -f backend/Dockerfile` doesn't
+work at all, on any gcloud version: `--tag` mode has no flag to point at a
+non-default Dockerfile path, so a build config is the only correct way to
+build from `backend/Dockerfile` while keeping repo-root context.
 
 ```bash
 export GOOGLE_CLOUD_PROJECT=<PROJECT_ID>
@@ -113,6 +117,18 @@ the live frontend URL and click through the replay UI for
 `b_contradiction` in an actual browser. This is what closes the Phase 3
 gate ("multi-agent + explainability UI live on Cloud Run") - a passing
 local test is not the same claim.
+
+**Confirmed live** (`asia-south1`, `min-instances=1` on both services):
+`b_clean` -> approve (0.95), `b_contradiction` -> manual_review (0.50,
+`income_vs_revenue_divergence` flagged), `b_stale_consent` -> decline
+(0.00, consent decay). Vertex AI and Firestore both work correctly from
+Cloud Run itself, not just with local ADC credentials.
+
+One `curl`-specific gotcha, not a backend bug: Cloud Run's load balancer
+rejects a bodyless `POST` without an explicit `Content-Length: 0` header
+(`curl -X POST url` alone can get a `411 Length Required`). Use
+`curl -X POST -H "Content-Length: 0" url`. Browsers and the frontend's own
+`fetch()` calls already send this correctly, so it only bites `curl`.
 
 ## Cost and reliability guardrails - don't skip these
 

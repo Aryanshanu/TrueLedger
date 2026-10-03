@@ -1,0 +1,10 @@
+# Force LF line endings regardless of the checking-out machine's git
+# autocrlf setting. Confirmed live: infra/deploy_frontend.sh hit a shell
+# parse error on Windows that cleared up once run without CRLF corruption -
+# bash tolerates a stray \r on some lines but not reliably inside constructs
+# like the bash array in infra/deploy_backend.sh or a quoted --format string.
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf

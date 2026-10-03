@@ -18,7 +18,7 @@ REGION="${GOOGLE_CLOUD_LOCATION:-asia-south1}"
 SERVICE="trueledger-backend"
 IMAGE="${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/trueledger/${SERVICE}"
 
-gcloud builds submit --project "$GOOGLE_CLOUD_PROJECT" --tag "$IMAGE" -f backend/Dockerfile .
+gcloud builds submit --project "$GOOGLE_CLOUD_PROJECT" --config cloudbuild.yaml --substitutions "_IMAGE=${IMAGE}" .
 
 DEPLOY_ARGS=(
   "$SERVICE"
