@@ -3,48 +3,70 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TrueLedger - Replay</title>
+  <title>TrueLedger - Underwriting Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header>
-    <h1>TrueLedger</h1>
-    <p class="subtitle">
-      Agentic credit underwriting on Account Aggregator-schema data, by The Outliers.
-      <strong>Synthetic demo data only</strong> - see
-      <a href="https://github.com" target="_blank" rel="noopener">docs/DATA_SCHEMA.md</a>
-      for the disclosure.
-    </p>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">TrueLedger</span>
+      <span class="brand-tag">Consent-aware underwriting</span>
+    </div>
+    <div class="topbar-badges">
+      <span class="badge">AA / DEPA</span>
+      <span class="badge">BFSI</span>
+    </div>
+    <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
   </header>
 
-  <main>
-    <section class="controls">
-      <label for="borrower-select">Borrower</label>
-      <select id="borrower-select">
-        <option value="b_clean">b_clean - all sources agree</option>
-        <option value="b_contradiction">b_contradiction - bank vs GST disagree</option>
-        <option value="b_stale_consent">b_stale_consent - consent expiring in 2 days</option>
-      </select>
-      <button id="evaluate-btn">Evaluate</button>
-      <span id="status" class="status"></span>
-    </section>
+  <p class="disclosure">
+    Synthetic demo data, built against the real Account Aggregator / Setu FI-schema data model - no live AA, Sahamati, or FIP integration.
+    See <code>docs/DATA_SCHEMA.md</code> for the disclosure.
+  </p>
 
-    <section id="decision-summary" class="decision-summary hidden">
-      <div class="outcome-badge" id="outcome-badge"></div>
-      <div>
-        <div><strong>Final confidence:</strong> <span id="final-confidence"></span></div>
-        <div><strong>Model confidence (pre-decay):</strong> <span id="model-confidence"></span></div>
+  <main class="desk">
+    <aside class="case-rail" id="case-rail">
+      <div class="rail-label">Cases</div>
+      <!-- populated by app.js; three scenarios, never results pre-claimed -->
+    </aside>
+
+    <section class="pipeline-panel">
+      <div class="rail-label">Pipeline</div>
+      <div class="pipeline-status-line" id="pipeline-status">Loading b_contradiction...</div>
+      <div class="pipeline-canvas" id="pipeline-canvas"></div>
+
+      <div class="divergence-panel">
+        <div class="divergence-title" id="divergence-title">Income vs. revenue signal</div>
+        <div class="divergence-chart" id="divergence-chart"></div>
+        <div class="chart-legend">
+          <span><span class="legend-swatch bank"></span> Bank income (agent 1)</span>
+          <span><span class="legend-swatch gst"></span> GST revenue (agent 2)</span>
+        </div>
       </div>
     </section>
 
-    <section id="stepper" class="stepper hidden">
-      <div class="stepper-track" id="stepper-track"></div>
-      <div class="stepper-note">Steps 1-3 run in parallel; replay presents them in this fixed order for clarity.</div>
-      <div id="step-detail" class="step-detail"></div>
-    </section>
-
-    <footer id="consent-strip" class="consent-strip hidden"></footer>
+    <aside class="decision-card">
+      <div class="rail-label">Decision</div>
+      <div id="decision-body">
+        <div class="decision-empty">Running the pipeline...</div>
+      </div>
+    </aside>
   </main>
+
+  <footer class="consent-strip" id="consent-strip"></footer>
+
+  <details class="ledger-panel" id="ledger-panel">
+    <summary>Explainability ledger <span id="ledger-count"></span></summary>
+    <div class="ledger-list" id="ledger-list"></div>
+  </details>
+
+  <div class="status-line" id="status-line"></div>
 
   <script src="/config.js"></script>
   <script src="/app.js"></script>
