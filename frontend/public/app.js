@@ -512,7 +512,7 @@ function jumpToClaim(source, field) {
   }
 }
 
-function ledgerEntryHtml(entry, index) {
+function ledgerEntryHtml(entry, groupIndex) {
   const isContradiction = entry.action === "flag_contradiction" || entry.action === "flag_subtler_contradiction";
   const evidence = (entry.claim && entry.claim.evidence) || [];
   const evidenceHtml = evidence
@@ -532,7 +532,7 @@ function ledgerEntryHtml(entry, index) {
     .join("");
 
   return `
-    <div class="ledger-entry${isContradiction ? " contradiction" : ""}${index >= 4 ? " ledger-entry-extra hidden" : ""}"
+    <div class="ledger-entry${isContradiction ? " contradiction" : ""}${groupIndex >= 4 ? " ledger-entry-extra hidden" : ""}"
          data-agent="${entry.agent}" data-metric="${(entry.claim && entry.claim.metric) || ""}" tabindex="-1">
       <div class="ledger-entry-head">
         <span class="mono">${entry.step_id}</span>
@@ -552,25 +552,35 @@ function renderLedger(ledgerSteps) {
   list.innerHTML = "";
 
   const byAgent = new Map();
-  steps.forEach((entry, i) => {
-    const key = AGENT_ORDER.includes(entry.agent) ? entry.agent : entry.agent;
-    if (!byAgent.has(key)) byAgent.set(key, []);
-    byAgent.get(key).push({ entry, index: i });
+  steps.forEach((entry) => {
+    if (!byAgent.has(entry.agent)) byAgent.set(entry.agent, []);
+    byAgent.get(entry.agent).push(entry);
   });
 
   const orderedAgents = [...AGENT_ORDER.filter((a) => byAgent.has(a)), ...[...byAgent.keys()].filter((a) => !AGENT_ORDER.includes(a))];
 
+  // "First 4 expanded" is applied PER AGENT GROUP, not as one cutoff across
+  // the whole flat list. A global cutoff was tried first and broke against
+  // real captured data: a borrower's ledger steps aren't always in the same
+  // order as AGENT_ORDER (e.g. the orchestrator's own contradiction-flagging
+  // step can have an earlier timestamp than a specialist agent's claim, if
+  // that claim was last recomputed in an earlier run), so a global top-4
+  // could land entirely inside one or two groups and leave another agent's
+  // header rendered with zero visible rows until "Show all" is clicked -
+  // indistinguishable from a bug. Per-group truncation can't do that: every
+  // group with at least one entry always shows at least one entry.
+  let hiddenCount = 0;
   orderedAgents.forEach((agent) => {
     const group = document.createElement("div");
     group.className = "ledger-group";
     group.innerHTML = `<h3 class="ledger-group-label">${AGENT_LABEL[agent] || agent}</h3>`;
-    byAgent.get(agent).forEach(({ entry, index }) => {
-      group.insertAdjacentHTML("beforeend", ledgerEntryHtml(entry, index));
+    byAgent.get(agent).forEach((entry, groupIndex) => {
+      if (groupIndex >= 4) hiddenCount++;
+      group.insertAdjacentHTML("beforeend", ledgerEntryHtml(entry, groupIndex));
     });
     list.appendChild(group);
   });
 
-  const hiddenCount = steps.length - 4;
   if (hiddenCount > 0) {
     const btn = document.createElement("button");
     btn.type = "button";
