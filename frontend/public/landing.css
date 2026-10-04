@@ -78,7 +78,7 @@ body.landing-body {
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted-dim);
+  color: var(--accent);
 }
 
 .chapter-lead {
@@ -96,6 +96,16 @@ body.landing-body {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.credits-thesis {
+  margin: 0 0 28px;
+  max-width: 620px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(17px, 2.2vw, 21px);
+  line-height: 1.55;
+  color: var(--text);
 }
 
 /* ---------- Chapter 0: cold open ---------- */

@@ -35,6 +35,12 @@ const CASE_GROUPS = [
 const DEFAULT_CASE = "b_contradiction";
 const RECORDED_URL = (id) => `/recorded/${id}.json`;
 
+// Real uploads, filled in at runtime by the upload dialog below - never
+// pre-populated, never a recorded capture. Each entry is { id, scenario }
+// just like a CASES entry, so caseCardHtml/renderCaseRail render it
+// identically; it just has no /recorded/<id>.json to prefetch.
+const UPLOADED_CASES = [];
+
 const OUTCOME_META = {
   approve: { label: "APPROVE", icon: "✓" },
   manual_review: { label: "MANUAL REVIEW", icon: "⚠" },
@@ -181,9 +187,54 @@ function renderCaseRail() {
     rail.appendChild(wrap);
   });
 
+  if (UPLOADED_CASES.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "case-group";
+    wrap.innerHTML = `<h3 class="case-group-label">Your uploads</h3>` + UPLOADED_CASES.map(caseCardHtml).join("");
+    rail.appendChild(wrap);
+  }
+
   rail.querySelectorAll(".case-card").forEach((btn) => {
     btn.onclick = () => loadBorrower(btn.dataset.borrowerId, { forceRefetch: false });
   });
+
+  renderBookSummary();
+}
+
+// ---------- Book-level summary ----------
+//
+// Whole-of-book risk view, not single-loan: every case this session has
+// actually evaluated (recorded or live - cache holds both identically),
+// rolled up into one line. Purely a read of `cache`, which already only
+// ever holds real decision payloads - nothing here is computed from
+// anything but real API responses already rendered elsewhere on this page.
+function renderBookSummary() {
+  const el = $("book-summary");
+  if (!el) return; // not present on every page that includes this file
+
+  const entries = Array.from(cache.values()).filter((e) => e && e.decision);
+  if (!entries.length) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const counts = { approve: 0, manual_review: 0, decline: 0 };
+  let confidenceSum = 0;
+  entries.forEach((e) => {
+    counts[e.decision.outcome] = (counts[e.decision.outcome] || 0) + 1;
+    confidenceSum += e.decision.final_confidence;
+  });
+  const avgConfidence = (confidenceSum / entries.length).toFixed(2);
+
+  el.innerHTML = `
+    <span class="book-summary-label">Book</span>
+    <span class="book-summary-count">${entries.length} case${entries.length === 1 ? "" : "s"} evaluated this session</span>
+    <span class="book-summary-sep">&middot;</span>
+    <span class="book-summary-stat ok">${counts.approve || 0} approve</span>
+    <span class="book-summary-stat warn">${counts.manual_review || 0} manual review</span>
+    <span class="book-summary-stat bad">${counts.decline || 0} decline</span>
+    <span class="book-summary-sep">&middot;</span>
+    <span class="book-summary-avg">avg. final confidence ${avgConfidence}</span>`;
 }
 
 // ---------- Pipeline canvas (SVG) ----------
@@ -802,6 +853,52 @@ resetPipelineCanvas();
 $("replay-btn").addEventListener("click", () => {
   if (currentBorrowerId) playReveal(currentBorrowerId);
 });
+
+// ---------- Real-document upload ----------
+//
+// Extraction happens server-side (agents/extraction.py, via Gemini) and
+// hands back a brand new borrower_id already written to Firestore in the
+// same FI shape every other case uses - from here on it's just another
+// loadBorrower() call against the real, unmodified pipeline.
+(function setupUploadDialog() {
+  const dialog = $("upload-dialog");
+  const form = $("upload-form");
+  const statusEl = $("upload-status");
+  const submitBtn = $("upload-submit-btn");
+  if (!dialog || !form) return; // landing page includes neither
+
+  $("upload-open-btn").addEventListener("click", () => {
+    form.reset();
+    statusEl.textContent = "";
+    dialog.showModal();
+  });
+
+  $("upload-cancel-btn").addEventListener("click", () => dialog.close());
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    submitBtn.disabled = true;
+    statusEl.textContent = "Reading documents and extracting structured data via Gemini - this can take 10-30s...";
+
+    try {
+      const body = new FormData(form);
+      const res = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || `${res.status} ${res.statusText}`);
+      }
+      const { borrower_id } = await res.json();
+      UPLOADED_CASES.push({ id: borrower_id, scenario: "Your upload" });
+      dialog.close();
+      renderCaseRail();
+      loadBorrower(borrower_id, { forceRefetch: true });
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+})();
 
 // Deep link: /desk?case=b_seasonal opens that case instead of the usual
 // default. Falls back to DEFAULT_CASE for a missing/unknown id - never
