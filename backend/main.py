@@ -104,6 +104,21 @@ async def upload_documents(
             raise HTTPException(status_code=422, detail=f"The uploaded {doc_type} file was empty.")
         mime_type = upload.content_type or "application/pdf"
         try:
+            _name = (upload.filename or "").lower()
+            if _name.endswith((".xlsx", ".xlsm")) or "spreadsheetml" in (mime_type or ""):
+                import io
+                import openpyxl
+                _wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+                _lines = []
+                for _ws in _wb.worksheets:
+                    _lines.append("# Sheet: " + str(_ws.title))
+                    for _row in _ws.iter_rows(values_only=True):
+                        if any(c is not None for c in _row):
+                            _lines.append(",".join("" if c is None else str(c) for c in _row))
+                file_bytes = "\n".join(_lines).encode("utf-8")
+                mime_type = "text/plain"
+            elif _name.endswith(".csv") or mime_type in ("text/csv", "application/csv", "application/vnd.ms-excel"):
+                mime_type = "text/plain"
             extracted_by_source[doc_type] = extract_source(doc_type, file_bytes, mime_type)
         except Exception as exc:
             # Boundary of the system: an arbitrary user-supplied file read by
