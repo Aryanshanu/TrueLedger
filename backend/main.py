@@ -100,7 +100,10 @@ async def upload_documents(
             extracted_by_source[doc_type] = None
             continue
         file_bytes = await upload.read()
-        if not file_bytes:
+        if not file_bytes or not (upload.filename or "").strip():
+            if doc_type in ("MUTUAL_FUNDS", "INSURANCE_POLICIES"):
+                extracted_by_source[doc_type] = None
+                continue
             raise HTTPException(status_code=422, detail=f"The uploaded {doc_type} file was empty.")
         mime_type = upload.content_type or "application/pdf"
         try:
