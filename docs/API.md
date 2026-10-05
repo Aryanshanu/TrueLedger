@@ -9,6 +9,7 @@ container as `BACKEND_URL`, see `frontend/server.js`).
 | `GET` | `/borrowers/{id}/ledger` | Full ordered list of ledger steps for replay |
 | `GET` | `/borrowers/{id}/consent-status` | Per-source days-remaining and confidence multiplier |
 | `GET` | `/borrowers/{id}/decision` | The latest stored decision without re-running the pipeline |
+| `POST` | `/borrowers/upload` | Extracts real uploaded documents (via Gemini) into a brand new `borrower_id` |
 | `GET` | `/health` | Liveness check |
 
 ## `POST /borrowers/{id}/evaluate`
@@ -51,3 +52,27 @@ borrower and returns `agents.schemas.Decision` as JSON:
 
 Errors are plain FastAPI `HTTPException` JSON (`{"detail": "..."}`) with
 `404` when a borrower has no FI data / no ledger yet.
+
+## `POST /borrowers/upload`
+
+`multipart/form-data`, not JSON:
+
+| Field | Required | Notes |
+|---|---|---|
+| `loan_amount_requested` | yes | number, > 0 |
+| `bank_statement` | yes | PDF/PNG/JPEG |
+| `gst_return` | yes | PDF/PNG/JPEG |
+| `mutual_fund_statement` | no | PDF/PNG/JPEG |
+| `insurance_policy` | no | PDF/PNG/JPEG |
+
+```json
+{ "borrower_id": "upload_a1b2c3d4e5" }
+```
+
+The caller then runs the returned `borrower_id` through the exact same
+`POST /borrowers/{id}/evaluate` / `GET .../ledger` / `GET .../consent-status`
+calls as any other case - see `docs/DATA_SCHEMA.md` for what extraction does
+and does not do, and `agents/extraction.py` for the implementation. A `422`
+with `{"detail": "..."}` means either `loan_amount_requested` wasn't a
+positive number or a document could not be read (unreadable scan, wrong
+document type, malformed model response) - the detail names which one.

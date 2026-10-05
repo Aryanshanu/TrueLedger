@@ -49,6 +49,41 @@ filings we cannot access.
 **MUTUAL_FUNDS** / **INSURANCE_POLICIES**: see `data/synthetic/borrowers.py`
 for the exact shape (`holdings` / `policies` lists plus a `summary` total).
 
+## Real-document upload (`POST /borrowers/upload`)
+
+The three planted demo borrowers and the five edge cases below are synthetic
+(see the disclosure above). `POST /borrowers/upload` is the real-world path:
+it accepts an actual bank statement, GST return, and (optionally) a mutual
+fund statement / insurance policy - PDF or image - reads them live with
+Gemini (`agents/extraction.py`), and maps the extracted fields into the
+exact same FI-schema shape documented above. From that point on it is
+indistinguishable from any other case: the same `fi_data/{borrower_id}`
+Firestore document, the same three specialist agents, the same
+`agents/rules.py` table, the same consent-decay math, the same orchestrator.
+
+What the model is and is not allowed to do when reading an upload:
+- It extracts fields that are actually printed on the document (dates,
+  amounts, CREDIT/DEBIT, declared turnover, scheme/policy names, sums
+  assured) and is told to leave a field empty rather than guess one that
+  isn't legible.
+- It never invents a `txn_id` or `policy_id` - most real statements don't
+  print the kind of internal reference this system uses for ledger
+  citations, so `agents/extraction.py` assigns a local key
+  (`up_txn_001`, ...) after extraction. That key is a pointer this feature
+  creates, not a fact claimed about the document.
+- Bank statement + GST return are required (they drive the two core
+  cross-checked signals, income-vs-revenue divergence and
+  declared-vs-actual mismatch); mutual fund / insurance are optional and
+  simply leave that source empty - the same deterministic "low" / "gap"
+  classification a real borrower without those products would get.
+- Consent for an upload is freshly granted for 90 days at upload time
+  (`agents/extraction.py::build_consent_block`) - a real policy choice this
+  feature makes, not a claim about any borrower.
+
+An extraction failure (unreadable scan, wrong document type, a malformed
+model response) returns one honest `422` naming which document failed,
+never a fabricated result standing in for one.
+
 ## Sub-agent output contract
 
 Every specialist returns structured claims, never prose. Sums, averages,

@@ -35,6 +35,8 @@
     <aside class="case-rail" id="case-rail" aria-label="Cases">
       <h2 class="rail-label">Cases</h2>
       <!-- populated by app.js; three scenarios, never results pre-claimed -->
+      <button type="button" id="upload-open-btn" class="upload-open-btn">+ Upload real documents</button>
+      <div class="book-summary" id="book-summary" role="status" aria-live="polite"></div>
     </aside>
 
     <section class="pipeline-panel" aria-label="Pipeline">
@@ -68,6 +70,49 @@
   <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
   <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
   <div class="toast" id="toast" aria-hidden="true"></div>
+
+  <dialog id="upload-dialog" class="upload-dialog" aria-labelledby="upload-dialog-title">
+    <form id="upload-form">
+      <h2 id="upload-dialog-title">Upload real documents</h2>
+      <p class="upload-dialog-sub">
+        Real files, read live by Gemini, mapped into the same data shape as every other case on
+        this desk - then run through the unmodified pipeline: the same three specialist agents, the
+        same deterministic rules, the same orchestrator. Nothing here is a demo path.
+      </p>
+
+      <label class="upload-field">
+        <span>Loan amount requested (INR) <span class="req">required</span></span>
+        <input type="number" id="upload-loan-amount" name="loan_amount_requested" min="1" step="1" required />
+      </label>
+
+      <label class="upload-field">
+        <span>Bank statement <span class="req">required</span></span>
+        <input type="file" id="upload-bank" name="bank_statement" accept=".pdf,.png,.jpg,.jpeg" required />
+      </label>
+
+      <label class="upload-field">
+        <span>GST return (GSTR-1 / GSTR-3B) <span class="req">required</span></span>
+        <input type="file" id="upload-gst" name="gst_return" accept=".pdf,.png,.jpg,.jpeg" required />
+      </label>
+
+      <label class="upload-field">
+        <span>Mutual fund statement <span class="opt">optional</span></span>
+        <input type="file" id="upload-mf" name="mutual_fund_statement" accept=".pdf,.png,.jpg,.jpeg" />
+      </label>
+
+      <label class="upload-field">
+        <span>Insurance policy <span class="opt">optional</span></span>
+        <input type="file" id="upload-insurance" name="insurance_policy" accept=".pdf,.png,.jpg,.jpeg" />
+      </label>
+
+      <div class="upload-status" id="upload-status" role="status" aria-live="polite"></div>
+
+      <div class="upload-dialog-actions">
+        <button type="button" id="upload-cancel-btn" class="upload-cancel-btn">Cancel</button>
+        <button type="submit" id="upload-submit-btn" class="upload-submit-btn">Extract &amp; run</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="/config.js"></script>
   <script src="/app.js"></script>

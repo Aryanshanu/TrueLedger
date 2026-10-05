@@ -4,16 +4,20 @@ Endpoints (per the build brief's API contract sketch):
     POST /borrowers/{id}/evaluate        -> triggers the pipeline, returns final decision
     GET  /borrowers/{id}/ledger          -> full ordered list of ledger steps for replay
     GET  /borrowers/{id}/consent-status  -> per-source days-remaining and confidence multiplier
+    POST /borrowers/upload                -> extracts real uploaded documents into a new borrower_id
     GET  /health                         -> liveness check for Cloud Run
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+import uuid
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from agents.consent import build_consent_status
-from agents.firestore_gateway import get_consent, get_decision, get_ledger
+from agents.extraction import assemble_fi_data, build_consent_block, extract_source
+from agents.firestore_gateway import get_consent, get_decision, get_ledger, set_consent, set_fi_data
 from backend.runner import evaluate_borrower
 
 app = FastAPI(title="TrueLedger API")
@@ -62,6 +66,59 @@ def consent_status(borrower_id: str) -> dict:
         for source, meta in consent_data.items()
     ]
     return {"borrower_id": borrower_id, "sources": statuses}
+
+
+@app.post("/borrowers/upload")
+async def upload_documents(
+    loan_amount_requested: float = Form(...),
+    bank_statement: UploadFile = File(...),
+    gst_return: UploadFile = File(...),
+    mutual_fund_statement: UploadFile | None = File(None),
+    insurance_policy: UploadFile | None = File(None),
+) -> dict:
+    """Extracts real uploaded documents (via Gemini) into the same FI-schema
+    shape the planted demo borrowers use, writes them under a brand new
+    borrower_id, and returns that id - the caller then runs the existing
+    POST /borrowers/{id}/evaluate exactly as it would for any other case.
+    Bank statement + GST return are required (they drive the two core
+    cross-checked signals); mutual fund / insurance are optional and simply
+    leave that source empty, same as a real borrower who doesn't have one.
+    """
+    if loan_amount_requested <= 0:
+        raise HTTPException(status_code=422, detail="loan_amount_requested must be greater than 0.")
+
+    uploads: dict[str, UploadFile | None] = {
+        "DEPOSIT": bank_statement,
+        "GSTR1_3B": gst_return,
+        "MUTUAL_FUNDS": mutual_fund_statement,
+        "INSURANCE_POLICIES": insurance_policy,
+    }
+
+    extracted_by_source: dict[str, dict | None] = {}
+    for doc_type, upload in uploads.items():
+        if upload is None:
+            extracted_by_source[doc_type] = None
+            continue
+        file_bytes = await upload.read()
+        if not file_bytes:
+            raise HTTPException(status_code=422, detail=f"The uploaded {doc_type} file was empty.")
+        mime_type = upload.content_type or "application/pdf"
+        try:
+            extracted_by_source[doc_type] = extract_source(doc_type, file_bytes, mime_type)
+        except Exception as exc:
+            # Boundary of the system: an arbitrary user-supplied file read by
+            # an LLM can fail in ways we can't enumerate (unreadable scan,
+            # wrong document type, model returned malformed JSON) - turn
+            # any of them into one honest 4xx rather than a 500.
+            raise HTTPException(
+                status_code=422, detail=f"Could not read the uploaded {doc_type} document: {exc}"
+            ) from exc
+
+    fi_data = assemble_fi_data(extracted_by_source, loan_amount_requested)
+    borrower_id = f"upload_{uuid.uuid4().hex[:10]}"
+    set_fi_data(borrower_id, fi_data)
+    set_consent(borrower_id, build_consent_block())
+    return {"borrower_id": borrower_id}
 
 
 @app.get("/borrowers/{borrower_id}/decision")

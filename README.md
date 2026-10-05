@@ -20,6 +20,14 @@ point that fed it, not just a score.
 > cannot obtain on this timeline. See `docs/DATA_SCHEMA.md` for the full
 > reasoning.
 
+What's real on top of that synthetic base: `POST /borrowers/upload` (the
+"+ Upload real documents" option on the Desk) accepts an actual bank
+statement and GST return - PDF or image - reads them live with Gemini,
+maps the extracted fields into the same FI schema, and runs them through
+the unmodified pipeline. No synthetic case is substituted; see
+`docs/DATA_SCHEMA.md`'s "Real-document upload" section for exactly what
+the extraction step is and isn't allowed to do.
+
 See `docs/ARCHITECTURE.md` for the full architecture map, the JAPAC
 reframe, and the roadmap; `docs/DATA_SCHEMA.md` for the data contracts,
 the contradiction-rule table, and the consent-decay formula;
