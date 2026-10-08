@@ -117,7 +117,16 @@ async def upload_documents(
                             _lines.append(",".join("" if c is None else str(c) for c in _row))
                 file_bytes = "\n".join(_lines).encode("utf-8")
                 mime_type = "text/plain"
-            elif _name.endswith(".csv") or mime_type in ("text/csv", "application/csv", "application/vnd.ms-excel"):
+            elif _name.endswith(".xls"):
+                # openpyxl only reads the xlsx/xlsm zip-based format, not the
+                # legacy binary .xls format - and "application/vnd.ms-excel"
+                # is also the MIME type browsers legitimately send for a
+                # real .xls file (not just a CSV with an Excel file
+                # association), so it can't be used to route those bytes
+                # into the plain-text branch below without risking sending
+                # raw binary to Gemini mislabeled as text/plain.
+                raise ValueError("Legacy .xls files aren't supported - please re-save as .xlsx or .csv and re-upload.")
+            elif _name.endswith(".csv") or mime_type in ("text/csv", "application/csv"):
                 mime_type = "text/plain"
             extracted_by_source[doc_type] = extract_source(doc_type, file_bytes, mime_type)
         except Exception as exc:

@@ -60,10 +60,17 @@ Errors are plain FastAPI `HTTPException` JSON (`{"detail": "..."}`) with
 | Field | Required | Notes |
 |---|---|---|
 | `loan_amount_requested` | yes | number, > 0 |
-| `bank_statement` | yes | PDF/PNG/JPEG |
-| `gst_return` | yes | PDF/PNG/JPEG |
-| `mutual_fund_statement` | no | PDF/PNG/JPEG |
-| `insurance_policy` | no | PDF/PNG/JPEG |
+| `bank_statement` | yes | PDF/PNG/JPEG/XLSX/XLSM/CSV |
+| `gst_return` | yes | PDF/PNG/JPEG/XLSX/XLSM/CSV |
+| `mutual_fund_statement` | no | PDF/PNG/JPEG/XLSX/XLSM/CSV |
+| `insurance_policy` | no | PDF/PNG/JPEG/XLSX/XLSM/CSV |
+
+A spreadsheet upload (`.xlsx`/`.xlsm`) is flattened sheet-by-sheet into plain
+text before being sent to Gemini (`backend/main.py`); a `.csv` is sent as-is
+with its MIME type normalized to `text/plain`. Legacy binary `.xls` is not
+supported and returns a `422` asking for `.xlsx` or `.csv` instead - the
+`openpyxl` library used for the conversion only reads the xlsx/xlsm
+zip-based format.
 
 ```json
 { "borrower_id": "upload_a1b2c3d4e5" }
