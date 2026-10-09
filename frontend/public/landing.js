@@ -125,7 +125,7 @@ async function renderAct2() {
   const titleEl = $("landing-chart-title");
   const subEl = $("landing-chart-sub");
   if (!data) {
-    titleEl.textContent = "Recorded run not available.";
+    titleEl.textContent = "Case data not available.";
     return;
   }
   const steps = dedupLedgerSteps(data.ledgerSteps);
@@ -166,7 +166,7 @@ function climaxSummarySentence(decision, weakest) {
 async function renderClimax(onDone) {
   const data = await fetchRecorded("b_stale_consent");
   if (!data) {
-    $("climax-sub").textContent = "Recorded run not available.";
+    $("climax-sub").textContent = "Case data not available.";
     if (onDone) onDone();
     return;
   }
@@ -230,7 +230,7 @@ async function renderCasebook() {
   grid.innerHTML = CASEBOOK.map((c, i) => {
     const data = results[i];
     if (!data) {
-      return `<div class="casebook-card casebook-card-missing"><div class="casebook-id mono">${c.id}</div><div class="casebook-scenario">${c.scenario}</div><div class="casebook-status">Recorded run not available</div></div>`;
+      return `<div class="casebook-card casebook-card-missing"><div class="casebook-id mono">${c.id}</div><div class="casebook-scenario">${c.scenario}</div><div class="casebook-status">Case data not available</div></div>`;
     }
     const meta = OUTCOME_META[data.decision.outcome];
     return `
@@ -275,8 +275,8 @@ function setupReveal() {
         ch.querySelectorAll(".reveal-item").forEach((el, i) => {
           delay(() => el.classList.add("in-view"), 60 * i);
         });
-        if (ch.dataset.chapter === "3") renderAct2();
-        if (ch.dataset.chapter === "4") renderClimax();
+        if (ch.dataset.chapter === "4") renderAct2();
+        if (ch.dataset.chapter === "5") renderClimax();
         if (announcer) announcer.textContent = ch.getAttribute("aria-label") || "";
       });
     },

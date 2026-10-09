@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TrueLedger</title>
-  <meta name="description" content="A consent-aware underwriting pipeline: three specialist agents and an orchestrator, replayed from real recorded runs." />
+  <meta name="description" content="A consent-aware underwriting pipeline: three specialist agents and an orchestrator cross-check every decision, with a full citation trail back to the source." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -25,8 +25,40 @@
       <p class="cold-open-hint">Scroll</p>
     </section>
 
-    <!-- 1: Teaser -->
-    <section class="chapter chapter-teaser" id="ch1" data-chapter="1" aria-label="Teaser">
+    <!-- 1: The problem -->
+    <section class="chapter chapter-problem" id="ch1" data-chapter="1" aria-label="The problem">
+      <p class="chapter-kicker">The problem</p>
+      <h2 class="chapter-lead">Financial data proves everything on its own. Nobody proves it against everything else.</h2>
+      <p class="chapter-sub">
+        A borrower's bank statement, GST filings, and investment records usually get read in
+        isolation - by different reviewers, at different times, rarely cross-checked against each
+        other before a decision ships. That gap is exactly where risk hides: GST officers
+        uncovered
+        <a href="https://theunderwrittenbyperfios.substack.com/p/the-sme-gold-rush-that-runs-through" target="_blank" rel="noopener">₹15,851 crore in fake input-tax-credit claims across 3,558 shell firms in a single quarter</a>
+        - the kind of bank-vs-GST mismatch a cross-check catches automatically and a siloed review
+        can miss entirely.
+      </p>
+      <p class="chapter-sub">
+        The infrastructure to fix this already exists and is scaling fast: India's Account
+        Aggregator network has crossed
+        <a href="https://sahamati.org.in/media-article/account-aggregator-crosses-500-million-consents-as-india-marks-5th-aa-foundation-day/" target="_blank" rel="noopener">500 million fulfilled consents across 1,100+ regulated entities and 600+ crore data fetches</a>,
+        enabling ₹3.82 lakh crore in lending in FY26 alone. But every one of those consents
+        expires - and at that scale, nobody is tracking by hand which borrower's consent is about
+        to lapse mid-decision.
+      </p>
+      <h3 class="chapter-lead-sub">What this system does about it</h3>
+      <p class="chapter-sub">
+        Three specialist agents read bank, GST, and investment/insurance data independently; an
+        orchestrator cross-checks their findings against each other by rule, not by hoping a
+        reviewer remembers to; and a borrower's confidence score decays automatically as their
+        consent runs out, instead of silently staying valid past its window. Every claim carries a
+        citation back to the exact transaction or filing period it came from - the decision is
+        auditable the moment it's made, not reconstructed after a complaint.
+      </p>
+    </section>
+
+    <!-- 2: Teaser -->
+    <section class="chapter chapter-teaser" id="ch2" data-chapter="2" aria-label="Teaser">
       <p class="chapter-kicker">TrueLedger</p>
       <h2 class="chapter-lead">What if the system had to argue with itself?</h2>
       <div class="agent-trio" id="agent-trio">
@@ -37,8 +69,8 @@
       <p class="chapter-sub">Three specialists read the same borrower independently. An orchestrator cross-checks what they each find - deterministic rules first, a second LLM reasoning pass for what the rules miss.</p>
     </section>
 
-    <!-- 2: Act I -->
-    <section class="chapter chapter-act1" id="ch2" data-chapter="2" aria-label="Act one">
+    <!-- 3: Act I -->
+    <section class="chapter chapter-act1" id="ch3" data-chapter="3" aria-label="Act one">
       <p class="chapter-kicker">Act I</p>
       <h2 class="chapter-lead">Three specialists, three slices of the same borrower.</h2>
       <div class="specialist-grid">
@@ -61,12 +93,12 @@
       <p class="chapter-sub">Every number a specialist cites comes from a deterministic tool function - never from a model guessing. The model's only job is to translate an already-computed metric into a cited claim.</p>
     </section>
 
-    <!-- 3: Act II - b_contradiction, real recorded data -->
-    <section class="chapter chapter-act2" id="ch3" data-chapter="3" aria-label="Act two">
+    <!-- 4: Act II - b_contradiction -->
+    <section class="chapter chapter-act2" id="ch4" data-chapter="4" aria-label="Act two">
       <p class="chapter-kicker">Act II</p>
-      <h2 class="chapter-lead">b_contradiction, replayed from a real recorded run.</h2>
+      <h2 class="chapter-lead">A real contradiction, caught automatically.</h2>
       <div class="landing-chart-card reveal-item">
-        <div class="divergence-title" id="landing-chart-title">Loading the recorded run…</div>
+        <div class="divergence-title" id="landing-chart-title">Loading the case…</div>
         <div class="divergence-chart" id="landing-chart"></div>
         <div class="chart-legend">
           <span><span class="legend-swatch bank"></span> Bank income (agent 1)</span>
@@ -76,8 +108,8 @@
       <p class="chapter-sub" id="landing-chart-sub"></p>
     </section>
 
-    <!-- 4: Climax - b_stale_consent, real recorded data -->
-    <section class="chapter chapter-climax" id="ch4" data-chapter="4" aria-label="Climax">
+    <!-- 5: Climax - b_stale_consent -->
+    <section class="chapter chapter-climax" id="ch5" data-chapter="5" aria-label="Climax">
       <p class="chapter-kicker">Climax</p>
       <h2 class="chapter-lead">b_stale_consent - the bank source's consent is running out.</h2>
       <div class="climax-card reveal-item">
@@ -98,17 +130,39 @@
       <p class="chapter-sub" id="climax-sub"></p>
     </section>
 
-    <!-- 5: Casebook - all 8 real recorded cases -->
-    <section class="chapter chapter-casebook" id="ch5" data-chapter="5" aria-label="Casebook">
+    <!-- 6: Casebook -->
+    <section class="chapter chapter-casebook" id="ch6" data-chapter="6" aria-label="Casebook">
       <p class="chapter-kicker">Casebook</p>
       <h2 class="chapter-lead">Eight real runs. Click any card to open it on the Desk.</h2>
       <div class="casebook-grid" id="casebook-grid">
-        <p class="casebook-loading">Loading recorded runs…</p>
+        <p class="casebook-loading">Loading cases…</p>
       </div>
     </section>
 
-    <!-- 6: Credits -->
-    <section class="chapter chapter-credits" id="ch6" data-chapter="6" aria-label="Credits">
+    <!-- 7: Business case & what's next -->
+    <section class="chapter chapter-business" id="ch7" data-chapter="7" aria-label="Business case and roadmap">
+      <p class="chapter-kicker">Business case</p>
+      <h2 class="chapter-lead">Built for where lending is actually headed.</h2>
+      <p class="chapter-sub">
+        AA-enabled lending already accounts for 8.4% of retail and MSME lending by value and
+        11.8% by volume in India (FY26) - and Sahamati's own roadmap names GST, CBDT, and EPFO as
+        the next data sources joining the network. A pipeline built to cross-check bank data
+        against GST data today is positioned to cross-check against those sources the moment they
+        land, with no architecture change - each new FI type is just another specialist agent
+        reading from the same consent-aware model this system already runs on.
+      </p>
+      <h3 class="chapter-lead-sub">Where this goes next</h3>
+      <p class="chapter-sub">
+        Wiring this same pipeline to a live Account Aggregator sandbox once that regulatory path
+        is cleared; extending the rule table (<code>agents/rules.py</code>) as real underwriting
+        edge cases surface; and turning the Desk's book-level view into a true portfolio risk
+        dashboard - the same cross-checking discipline applied across a lender's entire book, not
+        just one borrower at a time.
+      </p>
+    </section>
+
+    <!-- 8: Credits -->
+    <section class="chapter chapter-credits" id="ch8" data-chapter="8" aria-label="Credits">
       <p class="chapter-kicker">Credits</p>
       <p class="credits-thesis reveal-item">
         A credit decision is a fiduciary act. Every number here is traceable to a source, every
@@ -117,8 +171,9 @@
       </p>
       <a href="/desk" class="run-live-cta reveal-item">Run it live →</a>
       <p class="disclosure landing-disclosure reveal-item">
-        Synthetic demo data, built against the real Account Aggregator / Setu FI-schema data model - no live AA, Sahamati, or FIP integration.
-        See <code>docs/DATA_SCHEMA.md</code> for the disclosure.
+        Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA
+        integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place.
+        See <code>docs/DATA_SCHEMA.md</code>.
       </p>
       <div class="stack-list reveal-item">
         <span class="badge">Vertex AI</span>

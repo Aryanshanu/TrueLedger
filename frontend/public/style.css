@@ -182,6 +182,11 @@ body {
   color: var(--muted);
 }
 
+.footer-disclosure {
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+}
+
 /* ---------- Book-level summary (whole-of-book, not single-loan) ----------
    Lives inside the scrollable case-rail (not a full-width bar) so it never
    adds to the page's own scrollHeight - the Desk is tuned to fit a judge's
