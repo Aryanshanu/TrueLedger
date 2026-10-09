@@ -19,14 +19,14 @@ const OUTCOME_META = {
 // deliberately: this is a separate static page with no shared module
 // system, and the scenario copy is static text, not data.
 const CASEBOOK = [
-  { id: "b_clean", scenario: "All sources agree", group: "Core" },
-  { id: "b_contradiction", scenario: "Bank vs. GST disagree", group: "Core" },
-  { id: "b_stale_consent", scenario: "Bank consent expiring", group: "Core" },
-  { id: "b_freelancer", scenario: "Freelancer, thin file", group: "Edge" },
-  { id: "b_roundtrip", scenario: "Deposits surge, GST flat", group: "Edge" },
-  { id: "b_closing_consent", scenario: "Consent closing in days", group: "Edge" },
-  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", group: "Edge" },
-  { id: "b_double_flag", scenario: "Divergence + consent closing", group: "Edge" },
+  { id: "b_clean", scenario: "Asha Traders · All sources verified", group: "Commercial" },
+  { id: "b_contradiction", scenario: "Varma Enterprises · Revenue divergence", group: "Audit Flag" },
+  { id: "b_stale_consent", scenario: "Priya Textiles · Lapsed consent window", group: "Compliance" },
+  { id: "b_freelancer", scenario: "Rahul Sharma · Digital consulting", group: "Commercial" },
+  { id: "b_roundtrip", scenario: "Zenith Logistics · Inflated bank deposits", group: "Forensic" },
+  { id: "b_closing_consent", scenario: "Krishna Foods · Approaching expiry", group: "Compliance" },
+  { id: "b_seasonal", scenario: "Royal Confectionery · Cyclical seasonal dip", group: "Commercial" },
+  { id: "b_double_flag", scenario: "Apex Infra · Compound risk exposure", group: "Forensic" },
 ];
 
 const $ = (id) => document.getElementById(id);
