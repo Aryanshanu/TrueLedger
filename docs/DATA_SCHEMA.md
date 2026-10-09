@@ -54,7 +54,7 @@ for the exact shape (`holdings` / `policies` lists plus a `summary` total).
 The three planted demo borrowers and the five edge cases below are synthetic
 (see the disclosure above). `POST /borrowers/upload` is the real-world path:
 it accepts an actual bank statement, GST return, and (optionally) a mutual
-fund statement / insurance policy - PDF or image - reads them live with
+fund statement / insurance policy - PDF, image, or spreadsheet (xlsx/xlsm/csv) - reads them live with
 Gemini (`agents/extraction.py`), and maps the extracted fields into the
 exact same FI-schema shape documented above. From that point on it is
 indistinguishable from any other case: the same `fi_data/{borrower_id}`

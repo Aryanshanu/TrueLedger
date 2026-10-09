@@ -98,6 +98,28 @@ body.landing-body {
   line-height: 1.6;
 }
 
+.chapter-sub a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 2px;
+}
+
+.chapter-sub a:hover,
+.chapter-sub a:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
+.chapter-lead-sub {
+  margin: 22px 0 0;
+  max-width: 560px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
 .credits-thesis {
   margin: 0 0 28px;
   max-width: 620px;
@@ -375,7 +397,7 @@ body.landing-body {
   margin-bottom: 20px;
 }
 
-.team-placeholder {
+.team-credit {
   color: var(--muted-dim);
   font-size: 12.5px;
 }

@@ -22,7 +22,7 @@ point that fed it, not just a score.
 
 What's real on top of that synthetic base: `POST /borrowers/upload` (the
 "+ Upload real documents" option on the Desk) accepts an actual bank
-statement and GST return - PDF or image - reads them live with Gemini,
+statement and GST return - PDF, image, or spreadsheet (xlsx/xlsm/csv) - reads them live with Gemini,
 maps the extracted fields into the same FI schema, and runs them through
 the unmodified pipeline. No synthetic case is substituted; see
 `docs/DATA_SCHEMA.md`'s "Real-document upload" section for exactly what

@@ -1,0 +1,40 @@
+# Cloud Build config for the GitHub trigger (push to main) - builds AND
+# deploys the frontend. Companion to cloudbuild.ci.backend.yaml; see that
+# file's header for why this is separate from infra/deploy_frontend.sh's
+# manual path.
+#
+# The frontend needs the backend's live Cloud Run URL at deploy time
+# (BACKEND_URL env var, read by frontend/server.js) - rather than hardcode
+# or predict that URL, this looks it up from the already-deployed backend
+# service in the same build step. `$$BACKEND_URL` (doubled `$`) is
+# deliberate: a single `$` would make Cloud Build's own substitution engine
+# try to resolve BACKEND_URL as one of ITS substitution variables (which
+# doesn't exist) rather than leaving it for bash to expand at run time.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA}'
+      - frontend/
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        BACKEND_URL=$(gcloud run services describe trueledger-backend \
+          --project=${PROJECT_ID} --region=${_REGION} --format='value(status.url)')
+        gcloud run deploy trueledger-frontend \
+          --project=${PROJECT_ID} \
+          --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --set-env-vars=BACKEND_URL=$$BACKEND_URL
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA}'
+substitutions:
+  _REGION: asia-south1
+options:
+  logging: CLOUD_LOGGING_ONLY

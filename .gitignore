@@ -18,6 +18,11 @@ npm-debug.log*
 # Generated synthetic data output (regenerate with `python -m data.synthetic.generate`)
 data/synthetic/output/
 
+# Raw output of scripts/capture_recorded.sh when run from the repo root -
+# the real served copy lives in frontend/public/recorded/*.json (one
+# combined, deduped file per case); this is scratch, not a release artifact.
+/recorded/
+
 # OS / editor
 .DS_Store
 .vscode/

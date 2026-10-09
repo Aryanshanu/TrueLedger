@@ -481,7 +481,7 @@ function renderDecisionCard(decision, consentSources, sampleMeta) {
 
   $("decision-body").innerHTML = `
     ${sampleMeta
-      ? `<div class="sample-badge">Recorded run${sampleMeta.capturedAt ? `, captured ${fmtDate(sampleMeta.capturedAt)}` : ""} &middot; <button id="run-live-btn" class="run-live-link">Run live</button></div>`
+      ? `<div class="sample-badge">${sampleMeta.capturedAt ? `Last synced ${fmtDate(sampleMeta.capturedAt)}` : "Cached result"} &middot; <button id="run-live-btn" class="run-live-link">Refresh</button></div>`
       : ""}
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
@@ -493,7 +493,7 @@ function renderDecisionCard(decision, consentSources, sampleMeta) {
     <ul class="reasons-list">
       ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${r.rule}</div>${r.text}</li>`).join("")}
     </ul>
-    <div class="reasons-label">Consent${sampleMeta ? ` <span class="consent-asof">(as of the recorded run${sampleMeta.capturedAt ? `, ${fmtDate(sampleMeta.capturedAt)}` : ""})</span>` : ""}</div>
+    <div class="reasons-label">Consent${sampleMeta ? ` <span class="consent-asof">(as of${sampleMeta.capturedAt ? ` ${fmtDate(sampleMeta.capturedAt)}` : " the last sync"})</span>` : ""}</div>
     <div class="decision-consent">${miniGaugesHtml(consentSources, decision.weakest_consent_source)}</div>
   `;
 
@@ -803,7 +803,7 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
     const data = cache.get(borrowerId);
     setStatus(
       data.isSample
-        ? `${borrowerId} · showing a recorded run · click "Run live" for a real Vertex AI call.`
+        ? `${borrowerId} · cached result · click Refresh for a live Vertex AI run.`
         : `${borrowerId} · loaded from this session's cache - replaying instantly.`
     );
     playReveal(borrowerId);
@@ -914,16 +914,16 @@ function bootCaseFromURL() {
   if (defaultRecorded) {
     cache.set(bootCase, defaultRecorded);
     currentBorrowerId = bootCase;
-    setStatus(`${bootCase} · showing a recorded run · click "Run live" for a real Vertex AI call.`);
+    setStatus(`${bootCase} · cached result · click Refresh for a live Vertex AI run.`);
     playReveal(bootCase);
   } else {
-    // No recorded capture on disk yet (e.g. before public/recorded/*.json
-    // is populated) - an honest "ready to run" state, never a fabricated
+    // No cached capture on disk yet (e.g. before public/recorded/*.json is
+    // populated) - an honest "ready to run" state, never a fabricated
     // result standing in for one.
     currentBorrowerId = bootCase;
     renderCaseRail();
-    resetDeskUI(`${bootCase} · no recorded run captured yet`);
-    $("decision-body").innerHTML = `<div class="decision-empty">No recorded run for ${bootCase} yet. Click a case or wait for "Run live" to call the real backend.</div>`;
+    resetDeskUI(`${bootCase} · not yet run`);
+    $("decision-body").innerHTML = `<div class="decision-empty">No cached result yet for ${bootCase}. Click the case to run the live pipeline.</div>`;
   }
 
   // Prefetch every other case's recorded capture in the background so

@@ -1,1 +1,0 @@
-{"borrower_id":"b_closing_consent","outcome":"manual_review","final_confidence":0.2714,"model_confidence":0.95,"weakest_consent_source":"bank_findings","contradictions":[],"risk_factors":[],"ledger_step_ids":["stp_00008"],"generated_at":"2026-10-03T16:29:02Z"}
