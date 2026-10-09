@@ -130,6 +130,77 @@ rejects a bodyless `POST` without an explicit `Content-Length: 0` header
 `curl -X POST -H "Content-Length: 0" url`. Browsers and the frontend's own
 `fetch()` calls already send this correctly, so it only bites `curl`.
 
+## 8. Continuous deployment from GitHub (optional)
+
+Connects this GCP project to the GitHub repo so every push to `main`
+rebuilds and redeploys both services automatically - no more running
+`infra/deploy_backend.sh` / `infra/deploy_frontend.sh` by hand. Uses
+`infra/cloudbuild.ci.backend.yaml` / `infra/cloudbuild.ci.frontend.yaml`
+(separate from the manual-deploy configs so this can never break the
+already-verified manual path).
+
+**One step here can't be scripted**: connecting Cloud Build to your GitHub
+account requires authorizing the Google Cloud Build GitHub App in a
+browser - `gcloud builds repositories create` prints a URL for this and
+waits for you to complete it there.
+
+```bash
+export GOOGLE_CLOUD_PROJECT=<PROJECT_ID>
+export GITHUB_OWNER=<your-github-username-or-org>
+export GITHUB_REPO=<your-repo-name>   # e.g. TrueLedger
+gcloud config set project "$GOOGLE_CLOUD_PROJECT"
+
+# One-time: let Cloud Build call Cloud Run on your behalf.
+PROJECT_NUMBER=$(gcloud projects describe "$GOOGLE_CLOUD_PROJECT" --format='value(projectNumber)')
+CLOUDBUILD_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+gcloud projects add-iam-policy-binding "$GOOGLE_CLOUD_PROJECT" \
+  --member "serviceAccount:${CLOUDBUILD_SA}" --role roles/run.admin
+gcloud projects add-iam-policy-binding "$GOOGLE_CLOUD_PROJECT" \
+  --member "serviceAccount:${CLOUDBUILD_SA}" --role roles/iam.serviceAccountUser
+
+# Connect this GCP project to your GitHub account (2nd-gen Cloud Build
+# GitHub integration). Opens a browser tab to authorize - complete that,
+# then come back to the terminal.
+gcloud builds connections create github trueledger-github \
+  --project "$GOOGLE_CLOUD_PROJECT" --region asia-south1
+
+# Link the specific repo through that connection.
+gcloud builds repositories create trueledger-repo \
+  --project "$GOOGLE_CLOUD_PROJECT" --region asia-south1 \
+  --connection trueledger-github \
+  --remote-uri "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+
+# Create the two triggers - push to main rebuilds+redeploys both services.
+gcloud builds triggers create github \
+  --project "$GOOGLE_CLOUD_PROJECT" --region asia-south1 \
+  --name trueledger-backend-ci \
+  --repository "projects/${GOOGLE_CLOUD_PROJECT}/locations/asia-south1/connections/trueledger-github/repositories/trueledger-repo" \
+  --branch-pattern '^main$' \
+  --build-config infra/cloudbuild.ci.backend.yaml
+
+gcloud builds triggers create github \
+  --project "$GOOGLE_CLOUD_PROJECT" --region asia-south1 \
+  --name trueledger-frontend-ci \
+  --repository "projects/${GOOGLE_CLOUD_PROJECT}/locations/asia-south1/connections/trueledger-github/repositories/trueledger-repo" \
+  --branch-pattern '^main$' \
+  --build-config infra/cloudbuild.ci.frontend.yaml
+```
+
+Verify: push anything to `main`, then watch it build at
+`https://console.cloud.google.com/cloud-build/builds?project=<PROJECT_ID>`,
+or tail it from the CLI:
+
+```bash
+gcloud builds list --project "$GOOGLE_CLOUD_PROJECT" --region asia-south1 --limit 5
+```
+
+The backend trigger must finish before the frontend trigger's build step
+(which looks up the live backend URL) makes sense to run - on the very
+first push after setup, give the backend build a minute's head start, or
+just push once, wait for backend to go green, then push again (an empty
+commit is fine) to let the frontend trigger pick up a backend URL that
+already exists.
+
 ## Cost and reliability guardrails - don't skip these
 
 - Set a budget alert on the GCP project before running anything against

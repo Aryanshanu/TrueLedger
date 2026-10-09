@@ -1,0 +1,42 @@
+# Cloud Build config for the GitHub trigger (push to main) - builds AND
+# deploys the backend, unlike the plain cloudbuild.yaml at the repo root
+# (which infra/deploy_backend.sh uses for a manual one-off build and only
+# builds, never deploys). Kept as a separate file so this trigger-only
+# path can never interfere with the already-verified manual deploy script.
+#
+# Self-contained: computes its own image tag from Cloud Build's built-in
+# $PROJECT_ID/$SHORT_SHA substitutions rather than requiring an external
+# caller to pass one in, since a GitHub trigger has no shell to compute it
+# for us the way deploy_backend.sh's `$GOOGLE_CLOUD_PROJECT` does.
+#
+# One-time setup this trigger depends on (see docs/DEPLOYMENT.md "Continuous
+# deployment from GitHub"): the Cloud Build service account needs
+# roles/run.admin + roles/iam.serviceAccountUser, and the `trueledger`
+# Artifact Registry repo must already exist (it does, from the manual
+# deploy in step 6 of this doc).
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-backend:${SHORT_SHA}'
+      - -f
+      - backend/Dockerfile
+      - .
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - trueledger-backend
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-backend:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - --platform=managed
+      - --allow-unauthenticated
+      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION}'
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-backend:${SHORT_SHA}'
+substitutions:
+  _REGION: asia-south1
+options:
+  logging: CLOUD_LOGGING_ONLY
