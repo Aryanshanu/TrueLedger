@@ -1025,10 +1025,23 @@ body {
 
 /* ---------- Recorded-run badge / Run live ---------- */
 
-.sample-badge {
+.audit-badge {
   font-size: 12px;
   color: var(--muted-dim);
   margin-bottom: 2px;
+}
+
+.audit-status-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 4px;
 }
 
 .run-live-link {

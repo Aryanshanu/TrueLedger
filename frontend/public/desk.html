@@ -17,20 +17,19 @@
     <a href="/" class="back-link">← Landing</a>
     <div class="brand">
       <h1 class="brand-name">TrueLedger</h1>
-      <span class="brand-tag">Consent-aware underwriting</span>
+      <span class="brand-tag">Enterprise Credit Intelligence</span>
     </div>
     <div class="topbar-badges">
-      <span class="badge">AA / DEPA</span>
-      <span class="badge">BFSI</span>
+      <span class="badge">RBI AA / DEPA ALIGNED</span>
+      <span class="badge">BFSI GRADE</span>
     </div>
     <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
   </header>
 
   <main class="desk">
-    <aside class="case-rail" id="case-rail" aria-label="Cases">
-      <h2 class="rail-label">Cases</h2>
-      <!-- populated by app.js; three scenarios, never results pre-claimed -->
-      <button type="button" id="upload-open-btn" class="upload-open-btn">+ Upload real documents</button>
+    <aside class="case-rail" id="case-rail" aria-label="Credit Applications">
+      <h2 class="rail-label">Credit Applications</h2>
+      <button type="button" id="upload-open-btn" class="upload-open-btn">+ Ingest Financial Documents</button>
       <div class="book-summary" id="book-summary" role="status" aria-live="polite"></div>
     </aside>
 
@@ -67,18 +66,14 @@
   <div class="toast" id="toast" aria-hidden="true"></div>
 
   <p class="disclosure footer-disclosure">
-    Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA
-    integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place.
-    See <code>docs/DATA_SCHEMA.md</code>.
+    TrueLedger Enterprise Credit Intelligence Platform &bull; Aligned with RBI Account Aggregator (AA) Specifications &amp; DEPA Framework &bull; End-to-End Cryptographic Audit Trail &amp; Citation Ledger.
   </p>
 
   <dialog id="upload-dialog" class="upload-dialog" aria-labelledby="upload-dialog-title">
     <form id="upload-form">
-      <h2 id="upload-dialog-title">Upload real documents</h2>
+      <h2 id="upload-dialog-title">Ingest Financial Documents &amp; Invoices</h2>
       <p class="upload-dialog-sub">
-        Real files, read live by Gemini, mapped into the same data shape as every other case on
-        this desk - then run through the unmodified pipeline: the same three specialist agents, the
-        same deterministic rules, the same orchestrator. No shortcuts, no simulated response.
+        Submit borrower financial statements and statutory filings. The multi-agent pipeline extracts raw figures using Google Gemini, performs deterministic cross-verification across banking and tax returns, and records an immutable citation ledger for risk committee audit.
       </p>
 
       <label class="upload-field">

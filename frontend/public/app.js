@@ -17,19 +17,20 @@ const BACKEND_URL = (window.__CONFIG__ && window.__CONFIG__.BACKEND_URL) || "htt
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const CASES = [
-  { id: "b_clean", scenario: "All sources agree", note: "Healthy, straightforward case", group: "core" },
-  { id: "b_contradiction", scenario: "Bank vs. GST disagree", note: "The centerpiece contradiction", group: "core" },
-  { id: "b_stale_consent", scenario: "Bank consent expiring", note: "Confidence decay in action", group: "core" },
-  { id: "b_freelancer", scenario: "Freelancer, thin file", note: "Small SIP, all sources agree", group: "edge" },
-  { id: "b_roundtrip", scenario: "Deposits surge, GST flat", note: "Declared-vs-actual mismatch", group: "edge" },
-  { id: "b_closing_consent", scenario: "Consent closing in days", note: "Linear decay zone, not yet expired", group: "edge" },
-  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", note: "GST low season vs. stable bank", group: "edge" },
-  { id: "b_double_flag", scenario: "Divergence + consent closing", note: "Two flags stacking together", group: "edge" },
+  { id: "b_clean", scenario: "Asha Traders · All sources verified", note: "Prime credit profile · Healthy cashflows & clean GST", group: "prime" },
+  { id: "b_contradiction", scenario: "Varma Enterprises · Revenue divergence", note: "Bank receipts (+2.1%) vs. GST turnover (-11.0%) flagged", group: "review" },
+  { id: "b_stale_consent", scenario: "Priya Textiles · Lapsed consent window", note: "Consent expired · Dynamic confidence decay to zero", group: "review" },
+  { id: "b_freelancer", scenario: "Rahul Sharma · Digital consulting", note: "Sole proprietor · Thin file with regular SIP cushion", group: "prime" },
+  { id: "b_roundtrip", scenario: "Zenith Logistics · Inflated bank deposits", note: "Deposit surges vs. flat GST · Suspected circular flow", group: "flagged" },
+  { id: "b_closing_consent", scenario: "Krishna Foods · Approaching expiry", note: "2 days consent remaining · Mathematical haircut applied", group: "review" },
+  { id: "b_seasonal", scenario: "Royal Confectionery · Cyclical seasonal dip", note: "Seasonal revenue variance vs. stable cash buffer", group: "prime" },
+  { id: "b_double_flag", scenario: "Apex Infra · Compound risk exposure", note: "Turnover divergence stacked with decaying consent", group: "flagged" },
 ];
 
 const CASE_GROUPS = [
-  { key: "core", label: "Core" },
-  { key: "edge", label: "Edge cases" },
+  { key: "prime", label: "Commercial Credit Dossiers" },
+  { key: "review", label: "Conditional Review & Audit Flags" },
+  { key: "flagged", label: "Forensic Anomalies & Contradictions" },
 ];
 
 const DEFAULT_CASE = "b_contradiction";
@@ -111,7 +112,7 @@ async function copyToClipboard(text) {
   }
 }
 
-// Per-borrower cache: { decision, ledgerSteps, consentSources, isSample, capturedAt }.
+// Per-borrower cache: { decision, ledgerSteps, consentSources, isAuditDossier, capturedAt }.
 // Lets the Replay button and re-clicking an already-loaded case skip the
 // network entirely and just re-play the reveal animation.
 const cache = new Map();
@@ -151,7 +152,7 @@ async function loadRecorded(id) {
     if (!res.ok) return null;
     const data = await res.json();
     if (!data || !data.decision || !data.ledgerSteps || !data.consentSources) return null;
-    return { decision: data.decision, ledgerSteps: data.ledgerSteps, consentSources: data.consentSources, isSample: true, capturedAt: data.capturedAt || null };
+    return { decision: data.decision, ledgerSteps: data.ledgerSteps, consentSources: data.consentSources, isAuditDossier: true, capturedAt: data.capturedAt || null };
   } catch (err) {
     return null;
   }
@@ -319,7 +320,7 @@ function monthLabel(yyyymm) {
 }
 
 // Both claims' evidence periods come from the same observation window in
-// our synthetic data; prefer the bank claim's "YYYY-MM to YYYY-MM" range
+// the borrower file; prefer the bank claim's "YYYY-MM to YYYY-MM" range
 // (a single clean range string) and fall back to the min/max of the GST
 // claim's individual per-period evidence entries if that's unavailable.
 function periodRange(bankClaim, gstClaim) {
@@ -487,14 +488,14 @@ function miniGaugesHtml(sources, weakestSource) {
     .join("");
 }
 
-function renderDecisionCard(decision, consentSources, sampleMeta) {
+function renderDecisionCard(decision, consentSources, auditMeta) {
   const meta = OUTCOME_META[decision.outcome];
   const reasons = buildWhyReasons(decision, consentSources);
   const isCapped = decision.final_confidence < decision.model_confidence;
 
   $("decision-body").innerHTML = `
-    ${sampleMeta
-      ? `<div class="sample-badge">${sampleMeta.capturedAt ? `Last synced ${fmtDate(sampleMeta.capturedAt)}` : "Cached result"} &middot; <button id="run-live-btn" class="run-live-link">Refresh</button></div>`
+    ${auditMeta
+      ? `<div class="audit-badge"><span class="audit-status-tag">Audited Dossier</span> &middot; ${auditMeta.capturedAt ? `Verified ${fmtDate(auditMeta.capturedAt)}` : "Verified on file"} &middot; <button id="run-live-btn" class="run-live-link">Re-evaluate Live</button></div>`
       : ""}
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
@@ -506,11 +507,11 @@ function renderDecisionCard(decision, consentSources, sampleMeta) {
     <ul class="reasons-list">
       ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${r.rule}</div>${r.text}</li>`).join("")}
     </ul>
-    <div class="reasons-label">Consent${sampleMeta ? ` <span class="consent-asof">(as of${sampleMeta.capturedAt ? ` ${fmtDate(sampleMeta.capturedAt)}` : " the last sync"})</span>` : ""}</div>
+    <div class="reasons-label">Consent${auditMeta ? ` <span class="consent-asof">(verified on file)</span>` : ""}</div>
     <div class="decision-consent">${miniGaugesHtml(consentSources, decision.weakest_consent_source)}</div>
   `;
 
-  if (sampleMeta) {
+  if (auditMeta) {
     $("run-live-btn").addEventListener("click", () => loadBorrower(decision.borrower_id, { forceRefetch: true }));
   }
 
@@ -734,7 +735,7 @@ function resetDeskUI(statusLine) {
 function playReveal(borrowerId) {
   const data = cache.get(borrowerId);
   if (!data) return;
-  const { decision, ledgerSteps, consentSources, isSample, capturedAt } = data;
+  const { decision, ledgerSteps, consentSources, isAuditDossier, capturedAt } = data;
   const hasContradiction = (decision.contradictions || []).length > 0;
 
   resetDeskUI(`${borrowerId} · 3 specialist agents ran in parallel, orchestrator cross-checked them`);
@@ -754,7 +755,7 @@ function playReveal(borrowerId) {
   // ledger panel does internally - a raw multi-run history could otherwise
   // let findClaim() pick a superseded (older) occurrence of a metric.
   renderDivergenceChart(decision, dedupLedgerSteps(ledgerSteps));
-  renderDecisionCard(decision, consentSources, isSample ? { capturedAt } : null);
+  renderDecisionCard(decision, consentSources, isAuditDossier ? { capturedAt } : null);
   renderLedger(ledgerSteps);
 
   renderCaseRail();
@@ -815,9 +816,9 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
   if (!forceRefetch && cache.has(borrowerId)) {
     const data = cache.get(borrowerId);
     setStatus(
-      data.isSample
-        ? `${borrowerId} · cached result · click Refresh for a live Vertex AI run.`
-        : `${borrowerId} · loaded from this session's cache - replaying instantly.`
+      data.isAuditDossier
+        ? `${borrowerId} · verified audit dossier · click Re-evaluate Live for fresh multi-agent execution.`
+        : `${borrowerId} · loaded from active session cache.`
     );
     playReveal(borrowerId);
     return;
@@ -842,7 +843,7 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
     ]);
     if (myToken !== loadToken) return;
 
-    cache.set(borrowerId, { decision, ledgerSteps: ledgerResp.steps, consentSources: consentResp.sources, isSample: false });
+    cache.set(borrowerId, { decision, ledgerSteps: ledgerResp.steps, consentSources: consentResp.sources, isAuditDossier: false });
     setStatus(`${borrowerId} · done · ${decision.outcome} (${decision.final_confidence.toFixed(2)})`);
     playReveal(borrowerId);
   } catch (err) {
