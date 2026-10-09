@@ -105,7 +105,11 @@ async def upload_documents(
         file_bytes = await upload.read()
         if not file_bytes or not (upload.filename or "").strip():
             if doc_type in ("MUTUAL_FUNDS", "INSURANCE_POLICIES"):
-                extracted_by_source[doc_type] = None
+                # Not extracted_by_source[doc_type] = None here - that dict
+                # doesn't exist yet (built after Pass 2 below). Simply never
+                # adding this doc_type to to_extract already makes it None
+                # there via its {doc_type: None for doc_type in uploads}
+                # default, same as the `upload is None` branch above.
                 continue
             raise HTTPException(status_code=422, detail=f"The uploaded {doc_type} file was empty.")
         mime_type = upload.content_type or "application/pdf"

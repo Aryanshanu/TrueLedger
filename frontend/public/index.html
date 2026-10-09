@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TrueLedger — Enterprise Credit Intelligence Platform</title>
-  <meta name="description" content="Autonomous consent-aware credit underwriting for commercial lending & BFSI. Specialized AI agents cross-examine banking, GST, and liquid asset filings with deterministic rules and dynamic DEPA consent decay." />
+  <meta name="description" content="Autonomous consent-aware credit underwriting for commercial lending & BFSI. Specialized AI agents cross-examine banking, GST, and liquid asset filings with deterministic rules and consent-expiry confidence decay, built on synthetic data pending live Account Aggregator integration." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="/landing.css" />
 </head>
 <body class="landing-body">
+
+  <a href="/desk" class="skip-to-desk">Skip to the desk</a>
 
   <!-- Fixed Institutional Navigation Bar -->
   <header class="landing-nav" role="banner">
@@ -41,7 +43,7 @@
     <section class="chapter chapter-cold-open" id="ch0" data-chapter="0" aria-label="Executive Overview">
       <p class="chapter-kicker reveal-item">AUTONOMOUS CONSENT-AWARE CREDIT UNDERWRITING PLATFORM</p>
       <h1 class="chapter-lead cold-open-line reveal-item">
-        The ₹1.8 Trillion Blind Spot in Commercial Credit: Financial Data Evaluated in Silos.
+        The Blind Spot in Commercial Credit: Financial Data Evaluated in Silos.
       </h1>
       <p class="chapter-sub reveal-item" style="max-width: 680px; font-size: 15px;">
         Banks and NBFCs review bank statements, GST filings, and liquid assets independently. Fraudsters and stressed borrowers exploit the uncoordinated space between them. TrueLedger deploys specialized AI agents that cross-examine financial truth in real time—with deterministic rules, dynamic consent decay, and complete transaction-level citations.
@@ -53,16 +55,16 @@
           <div class="hero-metric-label">Fake input-tax credit &amp; divergence uncovered across shell networks in a single quarter</div>
         </div>
         <div class="hero-metric-card">
-          <div class="hero-metric-number">85% Faster</div>
-          <div class="hero-metric-label">Underwriting turnaround time accelerated from 4 business days to under 60 seconds</div>
+          <div class="hero-metric-number">3 Agents, 1 Pass</div>
+          <div class="hero-metric-label">Bank, GST, and liquid-asset data cross-examined in parallel, not reviewed one at a time</div>
         </div>
         <div class="hero-metric-card">
           <div class="hero-metric-number">100% Citable</div>
           <div class="hero-metric-label">Every credit finding mathematically anchored to raw transactions and return periods</div>
         </div>
         <div class="hero-metric-card">
-          <div class="hero-metric-number">Zero Liability</div>
-          <div class="hero-metric-label">Automated confidence decay eliminates unauthorized lending on expired AA consents</div>
+          <div class="hero-metric-number">Consent-Bound</div>
+          <div class="hero-metric-label">Confidence decays automatically as a source's Account Aggregator consent runs out</div>
         </div>
       </div>
 
@@ -90,7 +92,7 @@
           <div class="problem-card-badge">Vulnerability 02</div>
           <div class="problem-card-title">The Silent Consent Decay Liability</div>
           <p class="problem-card-body">
-            India's Account Aggregator network has surpassed <a href="https://sahamati.org.in/media-article/account-aggregator-crosses-500-million-consents-as-india-marks-5th-aa-foundation-day/" target="_blank" rel="noopener">500 million consents enabling ₹3.82 lakh crore in lending</a>. But consents are legally time-bound. When credit approvals take 72 hours, loans are routinely disbursed on expired borrower consent—violating RBI DEPA directives.
+            India's Account Aggregator network has surpassed <a href="https://sahamati.org.in/media-article/account-aggregator-crosses-500-million-consents-as-india-marks-5th-aa-foundation-day/" target="_blank" rel="noopener">500 million consents enabling ₹3.82 lakh crore in lending</a>. But consents are legally time-bound, and at that scale, nobody is tracking by hand which borrower's consent is about to lapse mid-decision - a structural gap, not an edge case.
           </p>
         </div>
 
@@ -98,7 +100,7 @@
           <div class="problem-card-badge">Vulnerability 03</div>
           <div class="problem-card-title">Manual Forensic Triangulation Friction</div>
           <p class="problem-card-body">
-            Reconciling 12 months of bank deposits against 12 months of GSTR-3B filings consumes 15–25 analyst hours per commercial file. High turnaround times (TAT) increase origination costs by 30% and cause credit-worthy commercial borrowers to abandon loan applications.
+            Reconciling months of bank deposits against GSTR-3B filings by hand is slow, repetitive cross-referencing work - the kind that scales poorly as application volume grows, and that credit-worthy commercial borrowers feel as delay.
           </p>
         </div>
 
@@ -139,7 +141,7 @@
         <div class="pillar-card reveal-item">
           <div class="pillar-kicker">Regulatory Compliance</div>
           <div class="pillar-title">Dynamic Mathematical Consent Decay</div>
-          <p class="pillar-desc">Confidence score decays dynamically as Account Aggregator consent window runs out. If consent expires, confidence drops to 0.00, enforcing RBI DEPA legal compliance by design.</p>
+          <p class="pillar-desc">Confidence score decays dynamically as Account Aggregator consent window runs out. If consent expires, confidence drops to 0.00 - modeled on the consent-expiry principle at the heart of RBI's DEPA framework.</p>
         </div>
       </div>
     </section>
@@ -186,7 +188,7 @@
     <!-- 5: Climax - Dynamic Mathematical Consent Decay -->
     <section class="chapter chapter-climax" id="ch5" data-chapter="5" aria-label="Consent Decay Engine">
       <p class="chapter-kicker">Regulatory Safeguard</p>
-      <h2 class="chapter-lead">Dynamic consent decay: Confidence strictly bounded by legal authority.</h2>
+      <h2 class="chapter-lead">Dynamic consent decay: confidence strictly bounded by what the borrower actually authorized.</h2>
       <div class="climax-card reveal-item">
         <div class="climax-gauge-block">
           <div class="mini-gauge-head">
@@ -207,8 +209,8 @@
 
     <!-- 6: Active Credit Dossiers (Casebook) -->
     <section class="chapter chapter-casebook" id="ch6" data-chapter="6" aria-label="Credit Applications">
-      <p class="chapter-kicker">Active Credit Dossiers</p>
-      <h2 class="chapter-lead">Institutional loan files evaluated live. Click any dossier to audit on the Desk.</h2>
+      <p class="chapter-kicker">Credit Dossiers</p>
+      <h2 class="chapter-lead">Eight real pipeline runs across representative borrower profiles. Click any dossier to audit on the Desk.</h2>
       <div class="casebook-grid" id="casebook-grid">
         <p class="casebook-loading">Loading credit dossiers…</p>
       </div>
@@ -224,24 +226,24 @@
 
       <div class="roi-grid">
         <div class="roi-card reveal-item">
-          <div class="roi-value">85%</div>
-          <div class="roi-title">Turnaround Time Reduction</div>
-          <p class="roi-desc">Compresses commercial loan pre-qualification and forensic audit from 4 business days to under 60 seconds.</p>
+          <div class="roi-value">Parallel</div>
+          <div class="roi-title">Pre-Qualification &amp; Forensic Audit</div>
+          <p class="roi-desc">Bank, GST, and liquid-asset review run as one pipeline instead of sequential manual steps, compressing commercial loan pre-qualification from days of back-and-forth to one pass.</p>
         </div>
         <div class="roi-card reveal-item">
-          <div class="roi-value">42 bps</div>
-          <div class="roi-title">Gross NPA Compression</div>
-          <p class="roi-desc">Filters out circular transaction loops, fake invoice inflation, and masked liquidity stress before loan disbursement.</p>
+          <div class="roi-value">Cross-Checked</div>
+          <div class="roi-title">Circular-Flow &amp; Invoice-Inflation Detection</div>
+          <p class="roi-desc">Bank-vs-GST divergence rules catch circular transaction loops and fake invoice inflation before disbursement - the same pattern behind real, documented ITC fraud cases.</p>
         </div>
         <div class="roi-card reveal-item">
           <div class="roi-value">100%</div>
-          <div class="roi-title">Audit &amp; DEPA Compliance</div>
-          <p class="roi-desc">Eliminates regulatory penalties from stale-consent lending with automated mathematical confidence decay.</p>
+          <div class="roi-title">Claims Carry a Citation</div>
+          <p class="roi-desc">Every finding in the ledger traces back to a specific transaction or filing period - nothing in the decision is asserted without a pointer to its source.</p>
         </div>
         <div class="roi-card reveal-item">
-          <div class="roi-value">3.2x</div>
-          <div class="roi-title">Underwriter Throughput</div>
-          <p class="roi-desc">Credit officers review pre-verified, citation-backed dossiers with automated flag reconciliation rather than manual spreadsheets.</p>
+          <div class="roi-value">Automated</div>
+          <div class="roi-title">Flag Reconciliation</div>
+          <p class="roi-desc">Credit officers review pre-verified, citation-backed dossiers with contradictions already flagged, rather than reconciling bank and GST data by hand in a spreadsheet.</p>
         </div>
       </div>
     </section>
@@ -309,7 +311,9 @@
       </p>
       <a href="/desk" class="run-live-cta reveal-item">Launch Underwriting Desk &rarr;</a>
       <p class="disclosure landing-disclosure reveal-item">
-        Engineered in accordance with Reserve Bank of India (RBI) Account Aggregator specifications, Sahamati ecosystem technical guidelines, and Digital Personal Data Protection (DPDP) Act.
+        Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA
+        integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place.
+        See <code>docs/DATA_SCHEMA.md</code>.
       </p>
       <div class="stack-list reveal-item">
         <span class="badge">Google Vertex AI</span>

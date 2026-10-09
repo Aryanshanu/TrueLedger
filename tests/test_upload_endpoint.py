@@ -161,6 +161,34 @@ def test_document_extraction_runs_concurrently_not_sequentially():
     assert elapsed < DELAY * 2, f"expected concurrent extraction (~{DELAY}s), took {elapsed:.3f}s - looks sequential"
 
 
+def test_empty_optional_file_is_treated_as_not_provided():
+    """A browser can submit an optional file input as a zero-byte, empty-
+    filename part rather than omitting the field outright (observed in the
+    wild - see the "Skip empty optional uploads" fix this guards). That
+    must be treated the same as not uploading it at all - a 422, not a
+    silent crash - while required sources still enforce their own checks."""
+    seen = {}
+
+    def fake_extract_source(doc_type, file_bytes, mime_type):
+        seen[doc_type] = True
+        return _minimal_valid_source(doc_type)
+
+    p1, p2, p3 = _client_with_mocks(fake_extract_source)
+    with p1, p2, p3:
+        client = TestClient(app)
+        resp = client.post(
+            "/borrowers/upload",
+            data={"loan_amount_requested": "100000"},
+            files={
+                "bank_statement": ("b.pdf", b"x", "application/pdf"),
+                "gst_return": ("g.pdf", b"x", "application/pdf"),
+                "mutual_fund_statement": ("", b"", "application/octet-stream"),
+            },
+        )
+    assert resp.status_code == 200
+    assert "MUTUAL_FUNDS" not in seen  # never sent to extraction at all
+
+
 def test_empty_required_source_rejected_with_a_clear_422():
     """The exact failure mode a real upload hit: GST extraction legitimately
     succeeded but found zero filing periods (e.g. the wrong document, or a

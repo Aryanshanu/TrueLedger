@@ -17,14 +17,14 @@ const BACKEND_URL = (window.__CONFIG__ && window.__CONFIG__.BACKEND_URL) || "htt
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const CASES = [
-  { id: "b_clean", scenario: "Asha Traders · All sources verified", note: "Prime credit profile · Healthy cashflows & clean GST", group: "prime" },
-  { id: "b_contradiction", scenario: "Varma Enterprises · Revenue divergence", note: "Bank receipts (+2.1%) vs. GST turnover (-11.0%) flagged", group: "review" },
-  { id: "b_stale_consent", scenario: "Priya Textiles · Lapsed consent window", note: "Consent expired · Dynamic confidence decay to zero", group: "review" },
-  { id: "b_freelancer", scenario: "Rahul Sharma · Digital consulting", note: "Sole proprietor · Thin file with regular SIP cushion", group: "prime" },
-  { id: "b_roundtrip", scenario: "Zenith Logistics · Inflated bank deposits", note: "Deposit surges vs. flat GST · Suspected circular flow", group: "flagged" },
-  { id: "b_closing_consent", scenario: "Krishna Foods · Approaching expiry", note: "2 days consent remaining · Mathematical haircut applied", group: "review" },
-  { id: "b_seasonal", scenario: "Royal Confectionery · Cyclical seasonal dip", note: "Seasonal revenue variance vs. stable cash buffer", group: "prime" },
-  { id: "b_double_flag", scenario: "Apex Infra · Compound risk exposure", note: "Turnover divergence stacked with decaying consent", group: "flagged" },
+  { id: "b_clean", scenario: "All sources verified", note: "Prime credit profile · Healthy cashflows & clean GST", group: "prime" },
+  { id: "b_contradiction", scenario: "Bank vs. GST revenue divergence", note: "Bank receipts (+2.1%) vs. GST turnover (-11.0%) flagged", group: "review" },
+  { id: "b_stale_consent", scenario: "Lapsed consent window", note: "Consent expired · Dynamic confidence decay to zero", group: "review" },
+  { id: "b_freelancer", scenario: "Freelancer, thin file", note: "Sole proprietor · Thin file with regular SIP cushion", group: "prime" },
+  { id: "b_roundtrip", scenario: "Inflated bank deposits", note: "Deposit surges vs. flat GST · Suspected circular flow", group: "flagged" },
+  { id: "b_closing_consent", scenario: "Consent approaching expiry", note: "2 days consent remaining · Mathematical haircut applied", group: "review" },
+  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", note: "Seasonal revenue variance vs. stable cash buffer", group: "prime" },
+  { id: "b_double_flag", scenario: "Compound risk exposure", note: "Turnover divergence stacked with decaying consent", group: "flagged" },
 ];
 
 const CASE_GROUPS = [
@@ -495,7 +495,7 @@ function renderDecisionCard(decision, consentSources, auditMeta) {
 
   $("decision-body").innerHTML = `
     ${auditMeta
-      ? `<div class="audit-badge"><span class="audit-status-tag">Audited Dossier</span> &middot; ${auditMeta.capturedAt ? `Verified ${fmtDate(auditMeta.capturedAt)}` : "Verified on file"} &middot; <button id="run-live-btn" class="run-live-link">Re-evaluate Live</button></div>`
+      ? `<div class="audit-badge"><span class="audit-status-tag">Cached Run</span> &middot; ${auditMeta.capturedAt ? `Last synced ${fmtDate(auditMeta.capturedAt)}` : "Cached result"} &middot; <button id="run-live-btn" class="run-live-link">Re-evaluate Live</button></div>`
       : ""}
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
@@ -507,7 +507,7 @@ function renderDecisionCard(decision, consentSources, auditMeta) {
     <ul class="reasons-list">
       ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${r.rule}</div>${r.text}</li>`).join("")}
     </ul>
-    <div class="reasons-label">Consent${auditMeta ? ` <span class="consent-asof">(verified on file)</span>` : ""}</div>
+    <div class="reasons-label">Consent${auditMeta ? ` <span class="consent-asof">(as of the cached run)</span>` : ""}</div>
     <div class="decision-consent">${miniGaugesHtml(consentSources, decision.weakest_consent_source)}</div>
   `;
 
@@ -817,7 +817,7 @@ async function loadBorrower(borrowerId, { forceRefetch }) {
     const data = cache.get(borrowerId);
     setStatus(
       data.isAuditDossier
-        ? `${borrowerId} · verified audit dossier · click Re-evaluate Live for fresh multi-agent execution.`
+        ? `${borrowerId} · cached run · click Re-evaluate Live for fresh multi-agent execution.`
         : `${borrowerId} · loaded from active session cache.`
     );
     playReveal(borrowerId);

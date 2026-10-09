@@ -23,9 +23,12 @@ body.landing-body {
 
 .skip-to-desk {
   position: fixed;
-  top: 16px;
+  /* Below the fixed .landing-nav (60px tall) and above it in stacking
+     order (z-index 100), so it's never hidden behind the nav bar that
+     now occupies the same top-right corner. */
+  top: 68px;
   right: 16px;
-  z-index: 50;
+  z-index: 150;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   color: var(--text);
