@@ -336,34 +336,41 @@ function divergenceSvg(bankClaim, gstClaim, hasContradiction) {
   const scale = 2.2;
   const clamp = (v) => Math.max(18, Math.min(108, v));
   const baseY = 64;
-  const bankPct = bankClaim && bankClaim.magnitude_pct != null ? bankClaim.magnitude_pct : 0;
-  const gstPct = gstClaim && gstClaim.magnitude_pct != null ? gstClaim.magnitude_pct : 0;
+  const hasBank = !!(bankClaim && bankClaim.magnitude_pct != null);
+  const hasGst = !!(gstClaim && gstClaim.magnitude_pct != null);
+  const bothPresent = hasBank && hasGst;
+  const bankPct = hasBank ? bankClaim.magnitude_pct : 0;
+  const gstPct = hasGst ? gstClaim.magnitude_pct : 0;
   const bankY = clamp(baseY - bankPct * scale);
   const gstY = clamp(baseY - gstPct * scale);
   const startX = 56;
   const endX = 356;
   const [startLabel, endLabel] = periodRange(bankClaim, gstClaim);
-  const gapPts = Math.abs(bankPct - gstPct).toFixed(1);
+  // A "gap" is only a real, comparable number when both sources were
+  // actually examined - comparing a real reading against a source that
+  // was never read (standing in at 0 purely for chart geometry) would
+  // show a fabricated divergence, not a measured one.
+  const gapPts = bothPresent ? Math.abs(bankPct - gstPct).toFixed(1) : null;
 
   return `
 <svg viewBox="0 0 400 156" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <line x1="${startX}" y1="${baseY}" x2="${endX}" y2="${baseY}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 3"></line>
-  <polygon class="gap-band ${hasContradiction ? "show pulse" : ""}" points="${startX},${baseY} ${endX},${bankY} ${endX},${gstY}"></polygon>
-  <polyline class="signal-line bank" points="${startX},${baseY} ${endX},${bankY}"></polyline>
-  <polyline class="signal-line gst" points="${startX},${baseY} ${endX},${gstY}"></polyline>
+  ${bothPresent ? `<polygon class="gap-band ${hasContradiction ? "show pulse" : ""}" points="${startX},${baseY} ${endX},${bankY} ${endX},${gstY}"></polygon>` : ""}
+  <polyline class="signal-line bank${hasBank ? "" : " unavailable"}" points="${startX},${baseY} ${endX},${bankY}"></polyline>
+  <polyline class="signal-line gst${hasGst ? "" : " unavailable"}" points="${startX},${baseY} ${endX},${gstY}"></polyline>
 
   <circle class="signal-dot bank" cx="${startX}" cy="${baseY}" r="3"></circle>
-  <circle class="signal-dot bank" cx="${endX}" cy="${bankY}" r="3.5"></circle>
-  <circle class="signal-dot gst" cx="${endX}" cy="${gstY}" r="3.5"></circle>
+  ${hasBank ? `<circle class="signal-dot bank" cx="${endX}" cy="${bankY}" r="3.5"></circle>` : ""}
+  ${hasGst ? `<circle class="signal-dot gst" cx="${endX}" cy="${gstY}" r="3.5"></circle>` : ""}
 
-  <text x="${endX}" y="${bankY - 10}" text-anchor="end" class="chart-value" fill="var(--signal-bank)">Bank income ${bankClaim ? fmtPct(bankPct) : "n/a"}</text>
-  <text x="${endX}" y="${gstY + 18}" text-anchor="end" class="chart-value" fill="var(--signal-gst)">GST revenue ${gstClaim ? fmtPct(gstPct) : "n/a"}</text>
+  <text x="${endX}" y="${bankY - 10}" text-anchor="end" class="chart-value" fill="${hasBank ? "var(--signal-bank)" : "var(--muted-dim)"}">Bank income ${hasBank ? fmtPct(bankPct) : "not examined"}</text>
+  <text x="${endX}" y="${gstY + 18}" text-anchor="end" class="chart-value" fill="${hasGst ? "var(--signal-gst)" : "var(--muted-dim)"}">GST revenue ${hasGst ? fmtPct(gstPct) : "not examined"}</text>
 
   <text x="${startX}" y="${baseY + 22}" class="axis-label">${monthLabel(startLabel)}</text>
   <text x="${endX}" y="${baseY + 22}" class="axis-label" text-anchor="end">${monthLabel(endLabel)}</text>
   <text x="${startX}" y="14" class="axis-label">% change since ${monthLabel(startLabel)}</text>
 
-  <text x="${(startX + endX) / 2}" y="146" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">Gap: ${gapPts} pts</text>
+  <text x="${(startX + endX) / 2}" y="146" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">${bothPresent ? `Gap: ${gapPts} pts` : "Gap not comparable - one source wasn't examined"}</text>
 </svg>`;
 }
 
@@ -378,6 +385,12 @@ function renderDivergenceChart(decision, ledgerSteps) {
   if (contradiction) {
     title.textContent = "⚠ Income vs. revenue signals diverge";
     title.className = "divergence-title contradiction";
+  } else if (!bankClaim || !gstClaim) {
+    // "Agree" is a claim about a comparison that was actually made - with
+    // one side missing, the honest state is "never compared", not "found
+    // to match".
+    title.textContent = "— Income vs. revenue signal incomplete";
+    title.className = "divergence-title incomplete";
   } else {
     title.textContent = "✓ Income vs. revenue signals agree";
     title.className = "divergence-title agree";
@@ -867,22 +880,39 @@ $("replay-btn").addEventListener("click", () => {
   const submitBtn = $("upload-submit-btn");
   if (!dialog || !form) return; // landing page includes neither
 
+  const UPLOAD_TIMEOUT_MS = 90000; // extraction is now concurrent per-document
+  // (not N times one document's latency), plus the pipeline's own ~10-30s -
+  // generous enough not to false-positive on a legitimately slow real call.
+  let inFlightController = null;
+  let cancelledByUser = false;
+
   $("upload-open-btn").addEventListener("click", () => {
     form.reset();
     statusEl.textContent = "";
     dialog.showModal();
   });
 
-  $("upload-cancel-btn").addEventListener("click", () => dialog.close());
+  $("upload-cancel-btn").addEventListener("click", () => {
+    if (inFlightController) {
+      cancelledByUser = true;
+      inFlightController.abort();
+    }
+    dialog.close();
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     submitBtn.disabled = true;
     statusEl.textContent = "Reading documents and extracting structured data via Gemini - this can take 10-30s...";
+    cancelledByUser = false;
+
+    const controller = new AbortController();
+    inFlightController = controller;
+    const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
     try {
       const body = new FormData(form);
-      const res = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body });
+      const res = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body, signal: controller.signal });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.detail || `${res.status} ${res.statusText}`);
@@ -893,8 +923,16 @@ $("replay-btn").addEventListener("click", () => {
       renderCaseRail();
       loadBorrower(borrower_id, { forceRefetch: true });
     } catch (err) {
-      statusEl.textContent = `Error: ${err.message}`;
+      if (err.name === "AbortError") {
+        if (!cancelledByUser) {
+          statusEl.textContent = "Timed out waiting for a response - check your connection and try again.";
+        } // else the user already closed the dialog - nothing to show
+      } else {
+        statusEl.textContent = `Error: ${err.message}`;
+      }
     } finally {
+      clearTimeout(timeoutId);
+      inFlightController = null;
       submitBtn.disabled = false;
     }
   });

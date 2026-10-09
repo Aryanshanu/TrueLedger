@@ -8,6 +8,7 @@ judgement, is what keeps the highest-stakes checks auditable.
 
 Rule                          Signals compared                                  Condition                                                          Action
 ----                          -----------------                                 ---------                                                          ------
+Specialist produced no claims  bank/gst/investment findings                     a specialist's claims list is empty                                note as risk factor, caller forces manual review (see detect_empty_specialists)
 Income vs revenue divergence  bank.income_trend, gst.revenue_trend              bank stable/rising while gst declining                             flag contradiction, cap confidence at 0.5
 Declared vs actual mismatch   gst.declared_turnover, bank.total_credits         gap exceeds 15%                                                    flag contradiction, request manual review
 Asset cushion vs cash flow    investment.liquid_assets, bank.cash_flow_volatility  high volatility + high liquid assets claimed, no drawdown evidence  flag contradiction
@@ -20,8 +21,47 @@ from agents.config import DECLARED_VS_ACTUAL_GAP_PCT
 from agents.schemas import AgentFindings, Claim, Contradiction, Evidence, RiskFactor
 
 
+EMPTY_SPECIALIST_RULE = "specialist_produced_no_claims"
+
+
 def _get_claim(findings: AgentFindings, metric: str) -> Claim | None:
     return next((c for c in findings.claims if c.metric == metric), None)
+
+
+def detect_empty_specialists(
+    bank_findings: AgentFindings, gst_findings: AgentFindings, investment_findings: AgentFindings
+) -> list[RiskFactor]:
+    """Rule 0 (checked before the four cross-source rules above): a
+    specialist that returned zero claims isn't "nothing to flag" - every
+    rule above only fires on an `if claim and other_claim` pair, so a
+    silent specialist just makes every rule involving it quietly never
+    fire, and the decision would read as a clean approval that in fact
+    never examined that source. This is the one failure mode synthetic
+    demo data can never exercise (every planted case has real non-empty
+    data by design) - it surfaces for real uploads whose extraction
+    legitimately found nothing to cite (see each specialist's own
+    instruction: "if a metric has no evidence, do not include it").
+
+    Callers (orchestrator_agent.py) must treat a non-empty result as
+    forcing manual_review, not just another soft risk factor - unlike
+    Rule 4's insurance_coverage_gap, this isn't a judgement call."""
+    return [
+        RiskFactor(
+            rule=EMPTY_SPECIALIST_RULE,
+            metric=f"{source}_empty",
+            finding=(
+                f"The specialist reading {source.replace('_findings', '')} data returned no "
+                "findings for this borrower - that source could not be examined."
+            ),
+            evidence=[Evidence(source=source)],
+        )
+        for source, findings in (
+            ("bank_findings", bank_findings),
+            ("gst_findings", gst_findings),
+            ("investment_findings", investment_findings),
+        )
+        if not findings.claims
+    ]
 
 
 def evaluate_rules(

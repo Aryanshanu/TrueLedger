@@ -680,6 +680,10 @@ body {
   color: var(--ok);
 }
 
+.divergence-title.incomplete {
+  color: var(--muted-dim);
+}
+
 .divergence-chart svg {
   width: 100%;
   max-width: 440px;
@@ -707,6 +711,17 @@ body {
 
 .signal-line.gst {
   stroke: var(--signal-gst);
+}
+
+/* A source with no claim at all (e.g. an uploaded document that couldn't
+   be read) is not the same as a real 0% reading - never draw it as an
+   ordinary flat line in the signal color, which would misrepresent "not
+   examined" as "examined and found unchanged". Color/opacity only (not
+   stroke-dasharray, which .signal-line above already uses for the
+   draw-in reveal animation). */
+.signal-line.unavailable {
+  stroke: var(--muted-dim);
+  opacity: 0.5;
 }
 
 .signal-dot {

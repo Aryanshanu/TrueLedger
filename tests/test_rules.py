@@ -1,5 +1,5 @@
 from agents import tools
-from agents.rules import evaluate_rules
+from agents.rules import detect_empty_specialists, evaluate_rules
 from agents.schemas import AgentFindings, Claim, Evidence
 from data.synthetic.borrowers import build_b_clean, build_b_contradiction
 
@@ -71,3 +71,30 @@ def test_b_clean_has_no_contradictions():
     )
 
     assert contradictions == []
+
+
+def test_b_clean_has_no_empty_specialists():
+    """All 8 planted cases have real, non-empty data for every source by
+    design - detect_empty_specialists must never fire on them, or every
+    one of them would unexpectedly flip to manual_review."""
+    borrower = build_b_clean()
+    bank_findings, gst_findings, investment_findings, gap = _findings_for(borrower)
+    assert detect_empty_specialists(bank_findings, gst_findings, investment_findings) == []
+
+
+def test_detect_empty_specialists_flags_each_silent_source_independently():
+    empty = AgentFindings(agent="gst_tax_agent", borrower_id="b_test", claims=[])
+    present = AgentFindings(
+        agent="bank_statement_agent", borrower_id="b_test", claims=[_claim("income_trend", "stable", 0.0)]
+    )
+
+    only_gst_empty = detect_empty_specialists(present, empty, present)
+    assert [r.rule for r in only_gst_empty] == ["specialist_produced_no_claims"]
+    assert only_gst_empty[0].evidence[0].source == "gst_findings"
+
+    all_empty = detect_empty_specialists(empty, empty, empty)
+    assert len(all_empty) == 3
+    assert {r.evidence[0].source for r in all_empty} == {"bank_findings", "gst_findings", "investment_findings"}
+
+    none_empty = detect_empty_specialists(present, present, present)
+    assert none_empty == []

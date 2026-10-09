@@ -32,7 +32,7 @@ from agents import config, tools
 from agents.consent import apply_decay, build_consent_status
 from agents.firestore_gateway import get_consent, get_fi_data, set_decision
 from agents.ledger import parse_findings_payload, write_entry
-from agents.rules import evaluate_rules
+from agents.rules import detect_empty_specialists, evaluate_rules
 from agents.schemas import AgentFindings, Decision
 
 SUBTLER_REASONING_INSTRUCTION = """You are the orchestrator's second-pass reasoning step in a
@@ -106,6 +106,8 @@ class OrchestratorAgent(BaseAgent):
         contradictions, risk_factors = evaluate_rules(
             bank_findings, gst_findings, investment_findings, gap, loan_amount_requested
         )
+        empty_specialist_findings = detect_empty_specialists(bank_findings, gst_findings, investment_findings)
+        risk_factors.extend(empty_specialist_findings)
 
         for c in contradictions:
             write_entry(
@@ -181,7 +183,7 @@ class OrchestratorAgent(BaseAgent):
         hard_manual_review = any(c.action == "request_manual_review" for c in contradictions)
         if final_confidence <= 0.0:
             outcome = "decline"
-        elif hard_manual_review or contradictions or final_confidence < 0.6:
+        elif hard_manual_review or contradictions or empty_specialist_findings or final_confidence < 0.6:
             outcome = "manual_review"
         else:
             outcome = "approve"

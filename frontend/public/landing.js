@@ -93,30 +93,36 @@ function divergenceSvg(bankClaim, gstClaim, hasContradiction) {
   const scale = 2.2;
   const clamp = (v) => Math.max(18, Math.min(108, v));
   const baseY = 64;
-  const bankPct = bankClaim && bankClaim.magnitude_pct != null ? bankClaim.magnitude_pct : 0;
-  const gstPct = gstClaim && gstClaim.magnitude_pct != null ? gstClaim.magnitude_pct : 0;
+  const hasBank = !!(bankClaim && bankClaim.magnitude_pct != null);
+  const hasGst = !!(gstClaim && gstClaim.magnitude_pct != null);
+  const bothPresent = hasBank && hasGst;
+  const bankPct = hasBank ? bankClaim.magnitude_pct : 0;
+  const gstPct = hasGst ? gstClaim.magnitude_pct : 0;
   const bankY = clamp(baseY - bankPct * scale);
   const gstY = clamp(baseY - gstPct * scale);
   const startX = 56;
   const endX = 356;
   const [startLabel, endLabel] = periodRange(bankClaim, gstClaim);
-  const gapPts = Math.abs(bankPct - gstPct).toFixed(1);
+  // A "gap" is only a real, comparable number when both sources were
+  // actually examined - see app.js's identical comment on its own copy
+  // of this function.
+  const gapPts = bothPresent ? Math.abs(bankPct - gstPct).toFixed(1) : null;
 
   return `
 <svg viewBox="0 0 400 156" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <line x1="${startX}" y1="${baseY}" x2="${endX}" y2="${baseY}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 3"></line>
-  <polygon class="gap-band ${hasContradiction ? "show pulse" : ""}" points="${startX},${baseY} ${endX},${bankY} ${endX},${gstY}"></polygon>
-  <polyline class="signal-line bank drawn" points="${startX},${baseY} ${endX},${bankY}"></polyline>
-  <polyline class="signal-line gst drawn" points="${startX},${baseY} ${endX},${gstY}"></polyline>
+  ${bothPresent ? `<polygon class="gap-band ${hasContradiction ? "show pulse" : ""}" points="${startX},${baseY} ${endX},${bankY} ${endX},${gstY}"></polygon>` : ""}
+  <polyline class="signal-line bank drawn${hasBank ? "" : " unavailable"}" points="${startX},${baseY} ${endX},${bankY}"></polyline>
+  <polyline class="signal-line gst drawn${hasGst ? "" : " unavailable"}" points="${startX},${baseY} ${endX},${gstY}"></polyline>
   <circle class="signal-dot bank" cx="${startX}" cy="${baseY}" r="3"></circle>
-  <circle class="signal-dot bank" cx="${endX}" cy="${bankY}" r="3.5"></circle>
-  <circle class="signal-dot gst" cx="${endX}" cy="${gstY}" r="3.5"></circle>
-  <text x="${endX}" y="${bankY - 10}" text-anchor="end" class="chart-value" fill="var(--signal-bank)">Bank income ${bankClaim ? fmtPct(bankPct) : "n/a"}</text>
-  <text x="${endX}" y="${gstY + 18}" text-anchor="end" class="chart-value" fill="var(--signal-gst)">GST revenue ${gstClaim ? fmtPct(gstPct) : "n/a"}</text>
+  ${hasBank ? `<circle class="signal-dot bank" cx="${endX}" cy="${bankY}" r="3.5"></circle>` : ""}
+  ${hasGst ? `<circle class="signal-dot gst" cx="${endX}" cy="${gstY}" r="3.5"></circle>` : ""}
+  <text x="${endX}" y="${bankY - 10}" text-anchor="end" class="chart-value" fill="${hasBank ? "var(--signal-bank)" : "var(--muted-dim)"}">Bank income ${hasBank ? fmtPct(bankPct) : "not examined"}</text>
+  <text x="${endX}" y="${gstY + 18}" text-anchor="end" class="chart-value" fill="${hasGst ? "var(--signal-gst)" : "var(--muted-dim)"}">GST revenue ${hasGst ? fmtPct(gstPct) : "not examined"}</text>
   <text x="${startX}" y="${baseY + 22}" class="axis-label">${monthLabel(startLabel)}</text>
   <text x="${endX}" y="${baseY + 22}" class="axis-label" text-anchor="end">${monthLabel(endLabel)}</text>
   <text x="${startX}" y="14" class="axis-label">% change since ${monthLabel(startLabel)}</text>
-  <text x="${(startX + endX) / 2}" y="146" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">Gap: ${gapPts} pts</text>
+  <text x="${(startX + endX) / 2}" y="146" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">${bothPresent ? `Gap: ${gapPts} pts` : "Gap not comparable - one source wasn't examined"}</text>
 </svg>`;
 }
 

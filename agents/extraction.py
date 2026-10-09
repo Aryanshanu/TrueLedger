@@ -136,15 +136,23 @@ def _client():
     )
 
 
-def extract_source(doc_type: str, file_bytes: bytes, mime_type: str) -> dict:
+async def extract_source(doc_type: str, file_bytes: bytes, mime_type: str) -> dict:
     """Calls Gemini once on one uploaded document and returns it already
-    mapped into the pipeline's FI source shape (see `_to_source_shape`)."""
+    mapped into the pipeline's FI source shape (see `_to_source_shape`).
+
+    Deliberately `async` using the SDK's `client.aio` surface, not the sync
+    `client.models` call wrapped in a blocking call - a sync network call
+    made directly inside an `async def` FastAPI endpoint (as this one
+    originally was) blocks the whole event loop for the call's full
+    real-world latency, serializing every concurrent request the process
+    is handling, not just this one. `backend/main.py`'s upload endpoint
+    awaits several of these concurrently via `asyncio.gather`."""
     from google.genai import types
 
     schema = _SCHEMA_BY_SOURCE[doc_type]
     prompt = _PROMPT_BY_SOURCE[doc_type] + RESPONSE_PROMPT_SUFFIX
 
-    response = _client().models.generate_content(
+    response = await _client().aio.models.generate_content(
         model=config.SPECIALIST_MODEL,
         contents=[prompt, types.Part.from_bytes(data=file_bytes, mime_type=mime_type)],
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema),
