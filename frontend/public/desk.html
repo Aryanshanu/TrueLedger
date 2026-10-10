@@ -14,14 +14,8 @@
 </head>
 <body>
   <header class="topbar">
-    <a href="/" class="back-link">← Landing</a>
     <div class="brand">
       <h1 class="brand-name">TrueLedger</h1>
-      <span class="brand-tag">Enterprise Credit Intelligence</span>
-    </div>
-    <div class="topbar-badges">
-      <span class="badge">AA / DEPA SCHEMA</span>
-      <span class="badge">BFSI GRADE</span>
     </div>
     <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
   </header>
@@ -29,7 +23,7 @@
   <main class="desk">
     <aside class="case-rail" id="case-rail" aria-label="Credit Applications">
       <h2 class="rail-label">Credit Applications</h2>
-      <button type="button" id="upload-open-btn" class="upload-open-btn">+ Ingest Financial Documents</button>
+      <button type="button" id="upload-open-btn" class="upload-open-btn">+ New Submission</button>
       <div class="book-summary" id="book-summary" role="status" aria-live="polite"></div>
     </aside>
 
@@ -56,7 +50,7 @@
     </aside>
   </main>
 
-  <details class="ledger-panel" id="ledger-panel">
+  <details class="ledger-panel" id="ledger-panel" open>
     <summary>Explainability ledger <span id="ledger-count"></span></summary>
     <div class="ledger-list" id="ledger-list"></div>
   </details>
@@ -64,12 +58,6 @@
   <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
   <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
   <div class="toast" id="toast" aria-hidden="true"></div>
-
-  <p class="disclosure footer-disclosure">
-    Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA
-    integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place.
-    See <code>docs/DATA_SCHEMA.md</code>.
-  </p>
 
   <dialog id="upload-dialog" class="upload-dialog" aria-labelledby="upload-dialog-title">
     <form id="upload-form">

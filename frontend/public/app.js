@@ -500,10 +500,10 @@ function renderDecisionCard(decision, consentSources, auditMeta) {
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
       <div class="confidence-label">Final confidence</div>
-      <div class="confidence-number tabular" id="confidence-number">${decision.model_confidence.toFixed(2)}</div>
+      <div class="confidence-number tabular outcome-${decision.outcome}" id="confidence-number">${decision.model_confidence.toFixed(2)}</div>
       <div class="confidence-sub">model confidence ${decision.model_confidence.toFixed(2)}</div>
     </div>
-    <div class="reasons-label">Why (cited)</div>
+    <div class="reasons-label">Decision Rationale</div>
     <ul class="reasons-list">
       ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${r.rule}</div>${r.text}</li>`).join("")}
     </ul>

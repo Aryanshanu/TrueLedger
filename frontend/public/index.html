@@ -25,12 +25,9 @@
       <span class="landing-nav-tag">Credit Intelligence</span>
     </a>
     <nav class="landing-nav-links" aria-label="Main Navigation">
-      <a href="#ch1">The Underwriting Gap</a>
-      <a href="#ch2">Multi-Agent Engine</a>
-      <a href="#ch4">Live Audit</a>
-      <a href="#ch6">Credit Dossiers</a>
-      <a href="#ch-roi">Business ROI</a>
-      <a href="#ch-roadmap">Roadmap</a>
+      <a href="#ch1">The Problem</a>
+      <a href="#ch4">Live Demo</a>
+      <a href="#ch-roi">Enterprise ROI</a>
     </nav>
     <div class="landing-nav-actions">
       <a href="/desk" class="landing-nav-btn">Launch Underwriting Desk &rarr;</a>
@@ -43,10 +40,10 @@
     <section class="chapter chapter-cold-open" id="ch0" data-chapter="0" aria-label="Executive Overview">
       <p class="chapter-kicker reveal-item">AUTONOMOUS CONSENT-AWARE CREDIT UNDERWRITING PLATFORM</p>
       <h1 class="chapter-lead cold-open-line reveal-item">
-        The Blind Spot in Commercial Credit: Financial Data Evaluated in Silos.
+        The ₹1.8 Trillion Blind Spot in Commercial Credit.
       </h1>
       <p class="chapter-sub reveal-item" style="max-width: 680px; font-size: 15px;">
-        Banks and NBFCs review bank statements, GST filings, and liquid assets independently. Fraudsters and stressed borrowers exploit the uncoordinated space between them. TrueLedger deploys specialized AI agents that cross-examine financial truth in real time—with deterministic rules, dynamic consent decay, and complete transaction-level citations.
+        Banks evaluate bank statements, GST filings, and liquid assets in silos. Fraudsters and stressed borrowers exploit the uncoordinated space between them. TrueLedger deploys specialized AI agents that cross-examine financial truth in real time—with deterministic rules, dynamic consent decay, and complete transaction-level citations.
       </p>
 
       <div class="hero-metrics-bar reveal-item">
@@ -68,7 +65,15 @@
         </div>
       </div>
 
-      <p class="cold-open-hint">Scroll to explore the underwriting crisis</p>
+      <div class="stack-list reveal-item">
+        <span class="badge">Google Vertex AI</span>
+        <span class="badge">Gemini 3.8 Flash</span>
+        <span class="badge">Gemini 3.1 Pro</span>
+        <span class="badge">Google ADK</span>
+        <span class="badge">Cloud Run</span>
+        <span class="badge">Cloud Firestore</span>
+      </div>
+
     </section>
 
     <!-- 1: The Problem & The Industry Gap -->
@@ -144,30 +149,6 @@
           <p class="pillar-desc">Confidence score decays dynamically as Account Aggregator consent window runs out. If consent expires, confidence drops to 0.00 - modeled on the consent-expiry principle at the heart of RBI's DEPA framework.</p>
         </div>
       </div>
-    </section>
-
-    <!-- 3: Act I - Specialist Deep-Dive -->
-    <section class="chapter chapter-act1" id="ch3" data-chapter="3" aria-label="Specialist Agents">
-      <p class="chapter-kicker">Specialist Agents</p>
-      <h2 class="chapter-lead">Three independent specialists. Three slices of the same borrower.</h2>
-      <div class="specialist-grid">
-        <div class="specialist-card reveal-item">
-          <div class="specialist-name">Banking Intelligence Agent</div>
-          <div class="specialist-source mono">DEPOSIT / AA STREAM</div>
-          <p class="specialist-desc">Audits monthly credit velocity, cash-flow volatility, debit burn rate, and counterparty concentration from bank statement feeds.</p>
-        </div>
-        <div class="specialist-card reveal-item">
-          <div class="specialist-name">Tax &amp; GST Intelligence Agent</div>
-          <div class="specialist-source mono">GSTR1_3B / GSTN STREAM</div>
-          <p class="specialist-desc">Verifies declared turnover trajectory, input-tax credit consistency, and statutory filing punctuality from government returns.</p>
-        </div>
-        <div class="specialist-card reveal-item">
-          <div class="specialist-name">Liquid Collateral Agent</div>
-          <div class="specialist-source mono">MUTUAL_FUNDS + POLICIES</div>
-          <p class="specialist-desc">Evaluates liquid net worth cushion, mutual fund portfolio valuations, and insurance coverage against the requested credit limit.</p>
-        </div>
-      </div>
-      <p class="chapter-sub">Every claim carries an immutable citation back to the exact transaction ID or filing period. The decision is audit-ready the moment it is made.</p>
     </section>
 
     <!-- 4: Act II - Interactive Revenue Divergence Detection -->
@@ -303,26 +284,14 @@
       </div>
     </section>
 
-    <!-- 9: Credits & Platform Integrity -->
-    <section class="chapter chapter-credits" id="ch9" data-chapter="9" aria-label="Platform Integrity">
-      <p class="chapter-kicker">Platform Integrity</p>
-      <p class="credits-thesis reveal-item">
-        A credit decision is a fiduciary act. Every number is traceable to source transactions, every confidence score is earned, and consent expiration is enforced by code. That discipline is the product.
-      </p>
+    <!-- 9: CTA -->
+    <section class="chapter chapter-credits" id="ch9" data-chapter="9" aria-label="Launch">
       <a href="/desk" class="run-live-cta reveal-item">Launch Underwriting Desk &rarr;</a>
       <p class="disclosure landing-disclosure reveal-item">
         Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA
         integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place.
         See <code>docs/DATA_SCHEMA.md</code>.
       </p>
-      <div class="stack-list reveal-item">
-        <span class="badge">Google Vertex AI</span>
-        <span class="badge">Gemini 3.8 Flash</span>
-        <span class="badge">Gemini 3.1 Pro</span>
-        <span class="badge">Google ADK</span>
-        <span class="badge">Cloud Run</span>
-        <span class="badge">Cloud Firestore</span>
-      </div>
       <p class="team-credit reveal-item">TrueLedger Enterprise Credit Intelligence Platform &middot; Designed by Aryan &amp; Ganesh Kumar</p>
     </section>
 

@@ -388,8 +388,8 @@ body {
 }
 
 .case-card-status .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--border-strong);
   flex: none;
@@ -882,7 +882,12 @@ body {
   font-weight: 600;
   line-height: 1.1;
   color: var(--accent);
+  transition: color 0.4s ease;
 }
+
+.confidence-number.outcome-approve { color: var(--ok); }
+.confidence-number.outcome-manual_review { color: var(--warn); }
+.confidence-number.outcome-decline { color: var(--bad); }
 
 .confidence-sub {
   font-size: 12px;
@@ -1252,7 +1257,7 @@ body {
 .status-line {
   padding: 8px 24px;
   font-size: 12px;
-  color: var(--muted);
+  color: transparent;
   min-height: 14px;
 }
 

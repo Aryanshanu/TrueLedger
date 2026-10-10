@@ -1,9 +1,9 @@
 {
-  "capturedAt": "2026-10-03T16:27:56Z",
+  "capturedAt": "2026-10-10T00:00:00Z",
   "decision": {
     "borrower_id": "b_stale_consent",
-    "outcome": "manual_review",
-    "final_confidence": 0.1429,
+    "outcome": "decline",
+    "final_confidence": 0.0,
     "model_confidence": 1.0,
     "weakest_consent_source": "bank_findings",
     "contradictions": [],
@@ -11,7 +11,7 @@
     "ledger_step_ids": [
       "stp_00009"
     ],
-    "generated_at": "2026-10-03T16:27:56Z"
+    "generated_at": "2026-10-10T00:00:00Z"
   },
   "ledgerSteps": [
     {
@@ -236,34 +236,34 @@
     },
     {
       "claim": {
-        "weakest_days_remaining": 1,
+        "weakest_days_remaining": -3,
         "weakest_source": "bank_findings",
-        "final_confidence": 0.1429,
+        "final_confidence": 0.0,
         "model_confidence": 1.0,
-        "confidence_multiplier": 0.1429
+        "confidence_multiplier": 0.0
       },
       "step_id": "stp_00008",
       "borrower_id": "b_stale_consent",
       "input_refs": [
         "consent/b_stale_consent"
       ],
-      "timestamp": "2026-10-03T16:27:56Z",
+      "timestamp": "2026-10-10T00:00:00Z",
       "agent": "orchestrator_agent",
       "action": "apply_consent_decay",
       "notes": "c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
-      "confidence": 0.1429
+      "confidence": 0.0
     },
     {
       "claim": {
         "weakest_consent_source": "bank_findings",
-        "final_confidence": 0.1429,
-        "outcome": "manual_review",
+        "final_confidence": 0.0,
+        "outcome": "decline",
         "contradictions": [],
         "model_confidence": 1.0,
         "borrower_id": "b_stale_consent",
         "ledger_step_ids": [],
         "risk_factors": [],
-        "generated_at": "2026-10-03T16:27:56Z"
+        "generated_at": "2026-10-10T00:00:00Z"
       },
       "step_id": "stp_00009",
       "borrower_id": "b_stale_consent",
@@ -272,34 +272,34 @@
         "claims/b_stale_consent/gst_findings",
         "claims/b_stale_consent/investment_findings"
       ],
-      "timestamp": "2026-10-03T16:27:56Z",
+      "timestamp": "2026-10-10T00:00:00Z",
       "agent": "orchestrator_agent",
       "action": "final_decision",
-      "notes": "outcome=manual_review",
-      "confidence": 0.1429
+      "notes": "outcome=decline",
+      "confidence": 0.0
     }
   ],
   "consentSources": [
     {
       "source": "gst_findings",
       "fi_type": "GSTR1_3B",
-      "expires_at": "2026-11-02T16:23:49Z",
-      "days_remaining": 29,
+      "expires_at": "2026-11-09T00:00:00Z",
+      "days_remaining": 30,
       "confidence_multiplier": 1.0
     },
     {
       "source": "investment_findings",
       "fi_type": "MUTUAL_FUNDS+INSURANCE_POLICIES",
-      "expires_at": "2026-11-02T16:23:49Z",
-      "days_remaining": 29,
+      "expires_at": "2026-11-09T00:00:00Z",
+      "days_remaining": 30,
       "confidence_multiplier": 1.0
     },
     {
       "source": "bank_findings",
       "fi_type": "DEPOSIT",
-      "expires_at": "2026-10-05T16:23:49Z",
-      "days_remaining": 1,
-      "confidence_multiplier": 0.1429
+      "expires_at": "2026-10-07T00:00:00Z",
+      "days_remaining": -3,
+      "confidence_multiplier": 0.0
     }
   ]
 }
