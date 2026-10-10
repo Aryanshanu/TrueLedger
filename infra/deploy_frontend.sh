@@ -17,7 +17,8 @@ gcloud run deploy "$SERVICE" \
   --image "$IMAGE" \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars "BACKEND_URL=${BACKEND_URL}"
+  --set-env-vars "BACKEND_URL=${BACKEND_URL}" \
+  --min-instances "${MIN_INSTANCES:-0}"
 
 echo "Frontend deployed. URL:"
 gcloud run services describe "$SERVICE" --project "$GOOGLE_CLOUD_PROJECT" --region "$REGION" --format 'value(status.url)'

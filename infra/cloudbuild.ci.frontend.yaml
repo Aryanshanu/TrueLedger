@@ -31,7 +31,8 @@ steps:
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --set-env-vars=BACKEND_URL=$$BACKEND_URL
+          --set-env-vars=BACKEND_URL=$$BACKEND_URL \
+          --min-instances=0
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA}'
 substitutions:

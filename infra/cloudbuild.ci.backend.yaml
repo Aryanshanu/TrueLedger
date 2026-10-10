@@ -34,6 +34,9 @@ steps:
       - --platform=managed
       - --allow-unauthenticated
       - '--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION}'
+      # 0, not 1: a trigger that redeploys on every push to main must not
+      # silently keep an always-on billed instance running between pushes.
+      - --min-instances=0
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-backend:${SHORT_SHA}'
 substitutions:

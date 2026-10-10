@@ -50,7 +50,7 @@ You are an expert Google AI Builder Hackathon Engineering Partner. Operating as 
   - Requires a Firestore composite index (discovered as a real deployment bug — documented in `docs/DEPLOYMENT.md`).
 - **Key Integrations:**
   - **Vertex AI / Gemini** (via `google-adk`'s `Gemini` model wrapper and direct `google-genai` client) — both built via explicit `client_kwargs={"enterprise": True, "location": "global"}`, not relying on an SDK-implicit environment variable (the enterprise/Vertex env var name itself has drifted across SDK versions — see `agents/config.py` comment).
-  - **Google Cloud Run** — both `backend` and `frontend` deployed as separate services, `asia-south1`, `min-instances=1` on both to avoid cold starts.
+  - **Google Cloud Run** — both `backend` and `frontend` deployed as separate services, `asia-south1`. `min-instances` defaults to **0** in `infra/deploy_*.sh` / `infra/cloudbuild.ci.*.yaml` (override with `MIN_INSTANCES=1` only right before a live demo) — an earlier `min-instances=1`-on-both setup ran up a real billing-delinquency incident by billing continuously regardless of traffic; see `docs/DEPLOYMENT.md`'s "Cost and reliability guardrails" section.
   - **Cloud Build** — manual (`cloudbuild.yaml`, `infra/deploy_backend.sh` / `deploy_frontend.sh`) and CI/CD-from-GitHub (`infra/cloudbuild.ci.backend.yaml`, `infra/cloudbuild.ci.frontend.yaml`, using `gcloud builds triggers create github`, documented in `docs/DEPLOYMENT.md` §8).
   - No end-user auth layer yet (internal/demo tool scope).
 

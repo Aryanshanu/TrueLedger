@@ -27,6 +27,13 @@ DEPLOY_ARGS=(
   --image "$IMAGE"
   --platform managed
   --allow-unauthenticated
+  # min-instances=0: a hackathon demo does not run 24/7 traffic, and
+  # min-instances=1 bills for an always-on instance whether or not anyone
+  # is using it - the single largest line item in a billing surprise like
+  # the one documented in docs/DEPLOYMENT.md's "Cost control" section.
+  # Costs a few seconds of cold start on the first request after idle;
+  # override with MIN_INSTANCES=1 only right before a live judged demo.
+  --min-instances "${MIN_INSTANCES:-0}"
   # GOOGLE_CLOUD_PROJECT is the only Gemini-relevant env var the container
   # needs: each agent passes enterprise=True and location=VERTEX_AI_LOCATION
   # explicitly in code (agents/config.py), rather than relying on an SDK
