@@ -14,31 +14,151 @@
 </head>
 <body>
   <header class="topbar">
+    <a href="/" class="back-link">← Overview</a>
     <div class="brand">
       <h1 class="brand-name">TrueLedger</h1>
     </div>
-    <button id="replay-btn" class="replay-btn" disabled>↻ Replay</button>
+    <div id="topbar-case-ctx" class="topbar-case-ctx"></div>
+    <button id="replay-btn" class="replay-btn" disabled>↻ Re-animate</button>
   </header>
 
-  <main class="desk">
-    <aside class="case-rail" id="case-rail" aria-label="Credit Applications">
-      <h2 class="rail-label">Credit Applications</h2>
-      <button type="button" id="upload-open-btn" class="upload-open-btn">+ New Submission</button>
-      <div class="book-summary" id="book-summary" role="status" aria-live="polite"></div>
+  <main class="desk" id="desk" data-ws="dashboard">
+    <aside class="workspace-rail" id="case-rail" aria-label="Business Workspaces">
+
+      <!-- ── Workspace Navigator ─────────────────────────────── -->
+      <nav class="workspace-nav" id="workspace-nav" aria-label="Workspace selector">
+
+        <button class="workspace-nav-item active" data-ws="dashboard" type="button" title="Dashboard">
+          <span class="workspace-nav-icon" aria-hidden="true">▦</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Dashboard</span>
+            <span class="workspace-nav-sub">Live financial overview</span>
+          </div>
+        </button>
+
+        <button class="workspace-nav-item" data-ws="credit" type="button" title="Credit Applications">
+          <span class="workspace-nav-icon" aria-hidden="true">⊞</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Credit Applications</span>
+            <span class="workspace-nav-sub">Active pipeline · 8 cases</span>
+          </div>
+        </button>
+
+        <button class="workspace-nav-item" data-ws="client" type="button" title="Client Space">
+          <span class="workspace-nav-icon" aria-hidden="true">◈</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Client Space</span>
+            <span class="workspace-nav-sub">Onboarding · KYB · Vault</span>
+          </div>
+        </button>
+
+        <button class="workspace-nav-item" data-ws="income" type="button" title="Income & Revenue">
+          <span class="workspace-nav-icon" aria-hidden="true">₹</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Income &amp; Revenue</span>
+            <span class="workspace-nav-sub">Invoices · TDS · Cash Flows</span>
+          </div>
+        </button>
+
+        <button class="workspace-nav-item" data-ws="compliance" type="button" title="Compliance Matrix">
+          <span class="workspace-nav-icon" aria-hidden="true">⊖</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Compliance Matrix</span>
+            <span class="workspace-nav-sub">GST Lifecycle · ITC</span>
+          </div>
+        </button>
+
+        <button class="workspace-nav-item" data-ws="assets" type="button" title="Asset Allocations">
+          <span class="workspace-nav-icon" aria-hidden="true">◎</span>
+          <div class="workspace-nav-text">
+            <span class="workspace-nav-label">Asset Allocations</span>
+            <span class="workspace-nav-sub">Portfolios · Capital Flows</span>
+          </div>
+        </button>
+
+      </nav>
+
+      <!-- ── Context Panes (left-rail summary / sub-nav) ───── -->
+
+      <!-- PANE 1: Credit Applications (case rail) -->
+      <div class="workspace-pane" data-pane="credit" role="region" aria-label="Credit Applications">
+        <div class="book-summary" id="book-summary" role="status" aria-live="polite"></div>
+        <button type="button" id="upload-open-btn" class="upload-open-btn">+ New Submission</button>
+      </div>
+
+      <!-- PANE 2: Client Space -->
+      <div class="workspace-pane" data-pane="client" role="region" aria-label="Client Space">
+        <div class="ws-pane-header">
+          <span class="ws-pane-title">Client Space</span>
+        </div>
+        <nav class="ws-sub-nav" aria-label="Client Space sections">
+          <span class="ws-sub-nav-section">Onboarding</span>
+          <button class="ws-sub-nav-link active" data-ws-view="onboarding" type="button">Client Onboarding</button>
+          <button class="ws-sub-nav-link" data-ws-view="kyb" type="button">KYB Profile Validation</button>
+          <span class="ws-sub-nav-section" style="margin-top:8px">Documents</span>
+          <button class="ws-sub-nav-link" data-ws-view="vault" type="button">Document Vault</button>
+        </nav>
+        <div class="ws-ingest-zone" id="client-ingest-zone">
+          <div class="ws-ingest-empty">
+            <div class="ws-ingest-icon" aria-hidden="true">◈</div>
+            <div class="ws-ingest-label">No client file loaded</div>
+            <p class="ws-ingest-hint">Upload an onboarding Excel workbook to populate client profiles across all workspaces.</p>
+            <button class="ws-ingest-btn" id="ws-upload-btn" type="button">Upload Onboarding Workbook</button>
+          </div>
+        </div>
+        <div class="ws-client-list" id="ws-client-list" hidden></div>
+      </div>
+
+      <!-- PANE 3: Income & Revenue -->
+      <div class="workspace-pane" data-pane="income" role="region" aria-label="Income and Revenue">
+        <div class="ws-pane-header">
+          <span class="ws-pane-title">Income &amp; Revenue</span>
+        </div>
+        <nav class="ws-sub-nav" aria-label="Income sections">
+          <span class="ws-sub-nav-section">Revenue Streams</span>
+          <button class="ws-sub-nav-link active" data-ws-view="invoices" type="button">Invoice Processing</button>
+          <button class="ws-sub-nav-link" data-ws-view="tds" type="button">TDS Ledger</button>
+          <span class="ws-sub-nav-section" style="margin-top:8px">Monitoring</span>
+          <button class="ws-sub-nav-link" data-ws-view="cashflows" type="button">Active Cash Flows</button>
+        </nav>
+      </div>
+
+      <!-- PANE 4: Compliance Matrix -->
+      <div class="workspace-pane" data-pane="compliance" role="region" aria-label="Compliance Matrix">
+        <div class="ws-pane-header">
+          <span class="ws-pane-title">Compliance Matrix</span>
+        </div>
+        <nav class="ws-sub-nav" aria-label="Compliance sections">
+          <span class="ws-sub-nav-section">Tax Compliance</span>
+          <button class="ws-sub-nav-link active" data-ws-view="gst-lifecycle" type="button">GST Lifecycle</button>
+          <button class="ws-sub-nav-link" data-ws-view="itc" type="button">ITC Optimizers</button>
+        </nav>
+      </div>
+
+      <!-- PANE 5: Asset Allocations -->
+      <div class="workspace-pane" data-pane="assets" role="region" aria-label="Asset Allocations">
+        <div class="ws-pane-header">
+          <span class="ws-pane-title">Asset Allocations</span>
+        </div>
+        <nav class="ws-sub-nav" aria-label="Asset sections">
+          <span class="ws-sub-nav-section">Portfolio</span>
+          <button class="ws-sub-nav-link active" data-ws-view="mf-portfolios" type="button">Mutual Fund Portfolios</button>
+          <button class="ws-sub-nav-link" data-ws-view="capital" type="button">Capital Inflow Decisions</button>
+        </nav>
+      </div>
+
+      <!-- Hidden file input for workbook upload -->
+      <input type="file" id="ws-file-input" accept=".xlsx,.xlsm" hidden aria-hidden="true" />
+
     </aside>
 
+    <!-- ── Credit Pipeline view (only when data-ws="credit") ── -->
     <section class="pipeline-panel" aria-label="Pipeline">
-      <h2 class="rail-label">Pipeline</h2>
       <div class="pipeline-status-line" id="pipeline-status" role="status" aria-live="polite">Loading…</div>
       <div class="pipeline-canvas" id="pipeline-canvas"></div>
-
       <div class="divergence-panel">
         <div class="divergence-title" id="divergence-title">Income vs. revenue signal</div>
         <div class="divergence-chart" id="divergence-chart"></div>
-        <div class="chart-legend">
-          <span><span class="legend-swatch bank"></span> Bank income (agent 1)</span>
-          <span><span class="legend-swatch gst"></span> GST revenue (agent 2)</span>
-        </div>
       </div>
     </section>
 
@@ -48,12 +168,21 @@
         <div class="decision-empty">Running the pipeline...</div>
       </div>
     </aside>
+
+    <!-- ── Workspace Main Frame (all non-credit workspaces) ── -->
+    <div class="workspace-main-frame" id="workspace-main-frame" role="main" aria-live="polite">
+      <!-- Populated by renderWorkspaceMain() in app.js -->
+    </div>
+
   </main>
 
-  <details class="ledger-panel" id="ledger-panel" open>
-    <summary>Explainability ledger <span id="ledger-count"></span></summary>
+  <section class="ledger-panel" id="ledger-panel">
+    <div class="ledger-panel-header">
+      <span class="ledger-panel-title">Audit Trail</span>
+      <span id="ledger-count"></span>
+    </div>
     <div class="ledger-list" id="ledger-list"></div>
-  </details>
+  </section>
 
   <div class="status-line" id="status-line" role="status" aria-live="polite"></div>
   <div class="sr-only" id="copy-announcer" role="status" aria-live="polite"></div>
@@ -61,14 +190,17 @@
 
   <dialog id="upload-dialog" class="upload-dialog" aria-labelledby="upload-dialog-title">
     <form id="upload-form">
-      <h2 id="upload-dialog-title">Ingest Financial Documents &amp; Invoices</h2>
+      <h2 id="upload-dialog-title">New Credit Application</h2>
       <p class="upload-dialog-sub">
-        Submit borrower financial statements and statutory filings. The multi-agent pipeline extracts raw figures using Google Gemini, performs deterministic cross-verification across banking and tax returns, and records an immutable citation ledger for risk committee audit.
+        Submit borrower documents — the multi-agent pipeline handles extraction, cross-verification, and full audit trail automatically.
       </p>
 
       <label class="upload-field">
-        <span>Loan amount requested (INR) <span class="req">required</span></span>
-        <input type="number" id="upload-loan-amount" name="loan_amount_requested" min="1" step="1" required />
+        <span>Loan amount requested <span class="req">required</span></span>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">₹</span>
+          <input type="number" id="upload-loan-amount" name="loan_amount_requested" min="1" step="1" placeholder="e.g. 5000000" required />
+        </div>
       </label>
 
       <label class="upload-field">
@@ -95,7 +227,7 @@
 
       <div class="upload-dialog-actions">
         <button type="button" id="upload-cancel-btn" class="upload-cancel-btn">Cancel</button>
-        <button type="submit" id="upload-submit-btn" class="upload-submit-btn">Extract &amp; run</button>
+        <button type="submit" id="upload-submit-btn" class="upload-submit-btn">Analyze Documents</button>
       </div>
     </form>
   </dialog>

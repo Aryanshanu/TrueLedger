@@ -10,7 +10,7 @@
       {
         "rule": "declared_vs_actual_mismatch",
         "metric": "declared_vs_actual_gap",
-        "finding": "Declared GST turnover (276500.0) vs. actual bank credits (435000.0) diverge by 57.3%",
+        "finding": "Bank credits (₹4.35L) exceed GST-declared turnover (₹2.76L) by 57.3% — nearly 3.8× the 15.0% threshold. Pattern is consistent with revenue under-reporting. Manual reconciliation and borrower explanation required.",
         "evidence": [
           {
             "transaction_ids": null,
@@ -248,7 +248,7 @@
     {
       "claim": {
         "rule": "declared_vs_actual_mismatch",
-        "finding": "Declared GST turnover (276500.0) vs. actual bank credits (435000.0) diverge by 57.3%",
+        "finding": "Bank credits (₹4.35L) exceed GST-declared turnover (₹2.76L) by 57.3% — nearly 3.8× the 15.0% threshold. Pattern is consistent with revenue under-reporting. Manual reconciliation and borrower explanation required.",
         "metric": "declared_vs_actual_gap",
         "action": "request_manual_review",
         "evidence": [
@@ -331,7 +331,7 @@
         "contradictions": [
           {
             "rule": "declared_vs_actual_mismatch",
-            "finding": "Declared GST turnover (276500.0) vs. actual bank credits (435000.0) diverge by 57.3%",
+            "finding": "Bank credits (₹4.35L) exceed GST-declared turnover (₹2.76L) by 57.3% — nearly 3.8× the 15.0% threshold. Pattern is consistent with revenue under-reporting. Manual reconciliation and borrower explanation required.",
             "metric": "declared_vs_actual_gap",
             "action": "request_manual_review",
             "evidence": [

@@ -28,13 +28,32 @@ const CASES = [
 ];
 
 const CASE_GROUPS = [
-  { key: "prime", label: "Commercial Credit Dossiers" },
-  { key: "review", label: "Conditional Review & Audit Flags" },
-  { key: "flagged", label: "Forensic Anomalies & Contradictions" },
+  { key: "prime", label: "Prime" },
+  { key: "review", label: "Conditional Review" },
+  { key: "flagged", label: "Forensic Flags" },
 ];
 
 const DEFAULT_CASE = "b_contradiction";
 const RECORDED_URL = (id) => `/recorded/${id}.json`;
+
+// Pre-computed credit risk metrics derived from synthetic borrower data.
+// DSCR = annual NOI / annual debt service (12% p.a., 36-month term).
+// DTI  = monthly payment / avg monthly bank credits.
+// Collateral = pledgeable MF book value + life insurance sum assured.
+// tier: low | medium | high | watch | blocked
+const CREDIT_METRICS = {
+  b_clean:          { loan: 400000, entity: "Asha Traders",          biz: "SME · Trading",   dscr: 4.27, dti: 6.3,  tier: "low",     mfPledge: 250000,  insurance: 600000 },
+  b_contradiction:  { loan: 500000, entity: "Ramesh Kumar Ent.",      biz: "SME · Trading",   dscr: 2.51, dti: 9.96, tier: "medium",  mfPledge: 180000,  insurance: 600000 },
+  b_stale_consent:  { loan: 400000, entity: "Priya Nair",             biz: "SME · Services",  dscr: 4.27, dti: 6.3,  tier: "blocked", mfPledge: 250000,  insurance: 600000 },
+  b_freelancer:     { loan: 150000, entity: "Kavya Iyer Consulting",  biz: "Freelancer",      dscr: 6.84, dti: 10.0, tier: "low",     mfPledge: 44000,   insurance: 200000 },
+  b_roundtrip:      { loan: 300000, entity: "Patil General Store",    biz: "MSME · Retail",   dscr: 4.37, dti: 9.2,  tier: "high",    mfPledge: 56100,   insurance: 350000 },
+  b_closing_consent:{ loan: 400000, entity: "Farah Sheikh",           biz: "SME · Services",  dscr: 4.27, dti: 6.3,  tier: "watch",   mfPledge: 250000,  insurance: 600000 },
+  b_seasonal:       { loan: 350000, entity: "Mishra Sweets",          biz: "MSME · F&B",      dscr: 5.14, dti: 7.8,  tier: "low",     mfPledge: 60000,   insurance: 400000 },
+  b_double_flag:    { loan: 600000, entity: "Chawla Textiles",        biz: "SME · Textiles",  dscr: 2.52, dti: 10.6, tier: "high",    mfPledge: 70000,   insurance: 650000 },
+};
+
+const TIER_LABEL  = { low: "LOW RISK", medium: "MEDIUM", high: "HIGH RISK", watch: "WATCH", blocked: "BLOCKED" };
+const TIER_CLASS  = { low: "tier-low", medium: "tier-medium", high: "tier-high", watch: "tier-watch", blocked: "tier-blocked" };
 
 // Real uploads, filled in at runtime by the upload dialog below - never
 // pre-populated, never a recorded capture. Each entry is { id, scenario }
@@ -63,7 +82,61 @@ const AGENT_LABEL = {
 
 const AGENT_ORDER = ["bank_statement_agent", "gst_tax_agent", "investment_agent", "orchestrator_agent"];
 
+const ACTION_LABEL = {
+  record_claim: "Recorded finding",
+  flag_contradiction: "⚠ Contradiction flagged",
+  flag_subtler_contradiction: "⚠ Subtler contradiction flagged",
+  apply_consent_decay: "Consent decay applied",
+  final_decision: "Decision issued",
+};
+
+const RULE_LABEL = {
+  income_vs_revenue_divergence: "Income vs. Revenue Divergence",
+  declared_vs_actual_mismatch: "Declared vs. Actual Mismatch",
+  asset_cushion_vs_cash_flow: "Asset Cushion vs. Cash Flow",
+  insurance_coverage_gap: "Insurance Coverage Gap",
+  specialist_produced_no_claims: "Unexamined Source",
+  consent_expiry_decay: "Consent Expiry Decay",
+  all_sources_agree: "All Sources Verified",
+  roundtrip_deposit_pattern: "Round-Trip Deposit Pattern",
+  thin_file: "Thin File",
+  seasonal_revenue_dip: "Seasonal Revenue Dip",
+  turnover_divergence: "Turnover Divergence",
+};
+
+const METRIC_LABEL = {
+  income_trend: "Income Trend",
+  cash_flow_volatility: "Cash-Flow Volatility",
+  revenue_trend: "GST Revenue Trend",
+  filing_consistency: "GST Filing Consistency",
+  declared_vs_actual_gap: "Declared vs. Actual Gap",
+  liquid_assets: "Liquid Asset Cushion",
+  insurance_coverage: "Insurance Coverage",
+};
+
+const VALUE_LABEL = {
+  rising: "Rising",
+  stable: "Stable",
+  declining: "Declining",
+  low: "Low",
+  high: "High",
+  consistent: "Consistent",
+  inconsistent: "Inconsistent",
+  adequate: "Adequate",
+  borderline: "Borderline",
+  gap: "Below Threshold",
+  unknown: "Unknown",
+};
+
 const $ = (id) => document.getElementById(id);
+
+function setTopbarCaseCtx(borrowerId) {
+  const el = $("topbar-case-ctx");
+  if (!el) return;
+  if (!borrowerId) { el.textContent = ""; return; }
+  const c = [...CASES, ...UPLOADED_CASES].find((c) => c.id === borrowerId);
+  el.textContent = c ? `${c.id} · ${c.scenario}` : borrowerId;
+}
 
 // delay() is the single place that knows about reduced-motion: every staged
 // reveal in this file routes its setTimeout through it, so a
@@ -163,21 +236,41 @@ async function loadRecorded(id) {
 function caseCardHtml(c) {
   const isActive = c.id === currentBorrowerId;
   const cached = cache.get(c.id);
+  const outcomeClass = cached ? ` outcome-${cached.decision.outcome}` : "";
   const statusClass = cached ? `result-${cached.decision.outcome}` : "";
   const statusText = cached
     ? `${OUTCOME_META[cached.decision.outcome].icon} ${OUTCOME_META[cached.decision.outcome].label} (${cached.decision.final_confidence.toFixed(2)})`
     : "Not yet run";
+  const cm = CREDIT_METRICS[c.id];
+  const metricsStrip = cm ? `
+    <div class="case-card-metrics">
+      <span class="risk-tier-badge ${TIER_CLASS[cm.tier] || ""}">${TIER_LABEL[cm.tier] || cm.tier}</span>
+      <span class="case-card-metric-val">${fmtLoan(cm.loan)}</span>
+      <span class="case-card-metric-sep">·</span>
+      <span class="case-card-metric-label">DSCR</span><span class="case-card-metric-val">${cm.dscr.toFixed(2)}</span>
+      <span class="case-card-metric-sep">·</span>
+      <span class="case-card-metric-label">DTI</span><span class="case-card-metric-val">${cm.dti.toFixed(1)}%</span>
+    </div>` : "";
   return `
-    <button type="button" class="case-card${isActive ? " active" : ""}" data-borrower-id="${c.id}" aria-pressed="${isActive}">
-      <div class="case-card-id mono">${c.id}${isActive ? '<span class="case-card-viewing"> · viewing</span>' : ""}</div>
+    <button type="button" class="case-card${isActive ? " active" : ""}${outcomeClass}" data-borrower-id="${c.id}" aria-pressed="${isActive}">
       <div class="case-card-scenario">${c.scenario}</div>
+      ${c.note ? `<div class="case-card-note">${c.note}</div>` : ""}
+      ${metricsStrip}
       <div class="case-card-status ${statusClass}"><span class="status-dot"></span>${statusText}</div>
+      ${isActive ? `<div class="case-card-id mono">${c.id}<span class="case-card-viewing"> · viewing</span></div>` : ""}
     </button>`;
+}
+
+function fmtLoan(n) {
+  if (n >= 1e7) return `₹${(n / 1e7).toFixed(2)}Cr`;
+  if (n >= 1e5) return `₹${(n / 1e5).toFixed(1)}L`;
+  return `₹${n.toLocaleString("en-IN")}`;
 }
 
 function renderCaseRail() {
   const rail = $("case-rail");
-  rail.querySelectorAll(".case-group").forEach((n) => n.remove());
+  const creditPane = rail.querySelector('.workspace-pane[data-pane="credit"]') || rail;
+  creditPane.querySelectorAll(".case-group").forEach((n) => n.remove());
 
   CASE_GROUPS.forEach((group) => {
     const cases = CASES.filter((c) => c.group === group.key);
@@ -185,14 +278,14 @@ function renderCaseRail() {
     const wrap = document.createElement("div");
     wrap.className = "case-group";
     wrap.innerHTML = `<h3 class="case-group-label">${group.label}</h3>` + cases.map(caseCardHtml).join("");
-    rail.appendChild(wrap);
+    creditPane.appendChild(wrap);
   });
 
   if (UPLOADED_CASES.length) {
     const wrap = document.createElement("div");
     wrap.className = "case-group";
     wrap.innerHTML = `<h3 class="case-group-label">Your uploads</h3>` + UPLOADED_CASES.map(caseCardHtml).join("");
-    rail.appendChild(wrap);
+    creditPane.appendChild(wrap);
   }
 
   rail.querySelectorAll(".case-card").forEach((btn) => {
@@ -246,7 +339,7 @@ function pipelineSvg() {
   <path id="conn-bank" class="connector" d="M166,32 C 240,32 240,100 296,100" />
   <path id="conn-gst" class="connector" d="M166,100 C 230,100 230,100 296,100" />
   <path id="conn-investment" class="connector" d="M166,168 C 240,168 240,100 296,100" />
-  <path id="conn-out" class="connector" d="M450,100 L620,100" />
+  <path id="conn-out" class="connector" d="M450,100 L468,100" />
 
   <g id="node-bank" class="agent-node">
     <rect class="node-box" x="16" y="10" width="150" height="44" rx="7"></rect>
@@ -261,12 +354,17 @@ function pipelineSvg() {
   <g id="node-investment" class="agent-node">
     <rect class="node-box" x="16" y="146" width="150" height="44" rx="7"></rect>
     <text class="node-label" x="30" y="166">MF/Insurance agent</text>
-    <text class="node-sublabel" x="30" y="180">MUTUAL_FUNDS + INSURANCE</text>
+    <text class="node-sublabel" x="30" y="180">MF · Insurance</text>
   </g>
   <g id="node-orchestrator" class="agent-node">
     <rect class="node-box orchestrator" x="300" y="78" width="150" height="44" rx="7"></rect>
     <text class="node-label" x="314" y="96">Orchestrator</text>
     <text class="node-sublabel" id="orchestrator-outcome" x="314" y="110">rules + reasoning + decay</text>
+  </g>
+  <g id="node-decision" class="agent-node">
+    <rect class="node-box decision-node" x="468" y="78" width="152" height="44" rx="7"></rect>
+    <text class="node-label" x="482" y="96">Decision</text>
+    <text class="node-sublabel" id="decision-outcome-label" x="482" y="110">—</text>
   </g>
 </svg>`;
 }
@@ -369,7 +467,7 @@ function divergenceSvg(bankClaim, gstClaim, hasContradiction) {
 
   <text x="${startX}" y="${baseY + 22}" class="axis-label">${monthLabel(startLabel)}</text>
   <text x="${endX}" y="${baseY + 22}" class="axis-label" text-anchor="end">${monthLabel(endLabel)}</text>
-  <text x="${startX}" y="14" class="axis-label">% change since ${monthLabel(startLabel)}</text>
+  <text x="${startX}" y="14" class="axis-label">% change (${monthLabel(startLabel)} → ${monthLabel(endLabel)})</text>
 
   <text x="${(startX + endX) / 2}" y="146" text-anchor="middle" class="gap-pts-label ${hasContradiction ? "contradiction" : ""}">${bothPresent ? `Gap: ${gapPts} pts` : "Gap not comparable - one source wasn't examined"}</text>
 </svg>`;
@@ -435,7 +533,7 @@ function buildDecayReason(decision, consentSources) {
   return {
     kind: "decay",
     rule: "consent_expiry_decay",
-    text: `${sourceLabel} consent ${describeConsentAge(weakest)}, capping confidence from ${decision.model_confidence.toFixed(2)} to ${decision.final_confidence.toFixed(2)} (c &times; ${weakest.confidence_multiplier.toFixed(2)}).`,
+    text: `${sourceLabel.charAt(0).toUpperCase() + sourceLabel.slice(1)} account consent ${describeConsentAge(weakest)} under the Account Aggregator framework. Confidence reduced from ${decision.model_confidence.toFixed(2)} → ${decision.final_confidence.toFixed(2)}. To clear this flag: request fresh ${sourceLabel} consent from the borrower and re-evaluate.`,
   };
 }
 
@@ -453,7 +551,7 @@ function buildWhyReasons(decision, consentSources) {
     reasons.push({
       kind: "positive",
       rule: "all_sources_agree",
-      text: "All three specialist agents agree and every consent source is current - no contradiction, risk flag, or confidence decay.",
+      text: "All three data sources — bank statement, GST returns, and investment portfolio — are internally consistent and corroborate each other. Consent windows are current across all sources. No contradictions, risk flags, or confidence decay detected. This application meets the data quality threshold for approval.",
     });
   }
   return reasons;
@@ -469,6 +567,84 @@ function orchestratorSummaryText(decision) {
   return parts.join(", ") + " found";
 }
 
+// ---------- Credit Risk Scoring Board ----------
+
+function creditRiskSectionHtml(borrowerId) {
+  const cm = CREDIT_METRICS[borrowerId];
+  if (!cm) return "";
+
+  // DSCR bar: max scale 6.0, threshold marker at 1.25
+  const dscrMax = 6.0;
+  const dscrPct = Math.min(100, (cm.dscr / dscrMax) * 100).toFixed(1);
+  const dscrThreshPct = ((1.25 / dscrMax) * 100).toFixed(1);
+  const dscrColor = cm.dscr >= 2.0 ? "var(--ok)" : cm.dscr >= 1.25 ? "var(--warn)" : "var(--bad)";
+
+  // DTI bar: max scale 50%, threshold marker at 40%
+  const dtiMax = 50;
+  const dtiPct = Math.min(100, (cm.dti / dtiMax) * 100).toFixed(1);
+  const dtiThreshPct = ((40 / dtiMax) * 100).toFixed(1);
+  const dtiColor = cm.dti <= 20 ? "var(--ok)" : cm.dti <= 35 ? "var(--warn)" : "var(--bad)";
+
+  // Collateral LTV
+  const collateral = cm.mfPledge + cm.insurance;
+  const ltvRaw = collateral > 0 ? (cm.loan / collateral * 100) : 0;
+  const ltvStr = ltvRaw > 0 ? `${ltvRaw.toFixed(0)}%` : "—";
+
+  return `
+    <div class="credit-risk-section">
+      <div class="credit-risk-section-title">Credit Risk Metrics</div>
+
+      <div class="risk-metric-row">
+        <div class="risk-metric-header">
+          <span class="risk-metric-name">DSCR</span>
+          <span class="risk-metric-value" style="color:${dscrColor}">${cm.dscr.toFixed(2)}</span>
+        </div>
+        <div class="risk-metric-bar-wrap">
+          <div class="risk-metric-bar-track">
+            <div class="risk-metric-bar-fill" style="width:${dscrPct}%;background:${dscrColor}"></div>
+            <div class="risk-metric-threshold" style="left:${dscrThreshPct}%" title="Min threshold: 1.25x"></div>
+          </div>
+          <span class="risk-metric-note">min 1.25×</span>
+        </div>
+      </div>
+
+      <div class="risk-metric-row">
+        <div class="risk-metric-header">
+          <span class="risk-metric-name">DTI</span>
+          <span class="risk-metric-value" style="color:${dtiColor}">${cm.dti.toFixed(1)}%</span>
+        </div>
+        <div class="risk-metric-bar-wrap">
+          <div class="risk-metric-bar-track">
+            <div class="risk-metric-bar-fill" style="width:${dtiPct}%;background:${dtiColor}"></div>
+            <div class="risk-metric-threshold" style="left:${dtiThreshPct}%" title="Max threshold: 40%"></div>
+          </div>
+          <span class="risk-metric-note">max 40%</span>
+        </div>
+      </div>
+
+      <div class="risk-collateral-row">
+        <div class="risk-collateral-item">
+          <div class="risk-collateral-label">MF Pledgeable</div>
+          <div class="risk-collateral-value">${fmtLoan(cm.mfPledge)}</div>
+        </div>
+        <div class="risk-collateral-item">
+          <div class="risk-collateral-label">Life Cover</div>
+          <div class="risk-collateral-value">${fmtLoan(cm.insurance)}</div>
+        </div>
+        <div class="risk-collateral-item">
+          <div class="risk-collateral-label">Loan / Collateral</div>
+          <div class="risk-collateral-value ${ltvRaw > 60 ? "warn" : ""}">${ltvStr}</div>
+        </div>
+      </div>
+
+      <div class="risk-meta-row">
+        <span class="risk-meta-item">${cm.biz}</span>
+        <span class="risk-meta-sep">·</span>
+        <span class="risk-meta-item">Loan <strong>${fmtLoan(cm.loan)}</strong></span>
+      </div>
+    </div>`;
+}
+
 // ---------- Decision card ----------
 
 function miniGaugesHtml(sources, weakestSource) {
@@ -476,12 +652,15 @@ function miniGaugesHtml(sources, weakestSource) {
     .map((s) => {
       const isWeakest = s.source === weakestSource && s.confidence_multiplier < 1;
       const fillClass = s.confidence_multiplier <= 0 ? "bad" : s.confidence_multiplier < 1 ? "warn" : "";
+      const label = s.source.replace("_findings", "").toUpperCase();
+      const subParts = [s.fi_type, s.expires_at ? fmtDate(s.expires_at) : null].filter(Boolean);
       return `
         <div class="mini-gauge ${isWeakest ? "weakest" : ""}" data-source="${s.source}">
           <div class="mini-gauge-head">
-            <span class="mini-gauge-source">${s.source.replace("_findings", "")}</span>
+            <span class="mini-gauge-source">${label}</span>
             <span class="mini-gauge-days mono">${describeConsentAge(s)}</span>
           </div>
+          ${subParts.length ? `<div class="mini-gauge-sub">${subParts.join(" · ")}</div>` : ""}
           <div class="gauge-track"><div class="gauge-fill ${fillClass} ${isWeakest ? "sync" : ""}" style="width:0%" data-target="${Math.max(3, Math.min(100, s.confidence_multiplier * 100))}"></div></div>
         </div>`;
     })
@@ -495,20 +674,20 @@ function renderDecisionCard(decision, consentSources, auditMeta) {
 
   $("decision-body").innerHTML = `
     ${auditMeta
-      ? `<div class="audit-badge"><span class="audit-status-tag">Cached Run</span> &middot; ${auditMeta.capturedAt ? `Last synced ${fmtDate(auditMeta.capturedAt)}` : "Cached result"} &middot; <button id="run-live-btn" class="run-live-link">Re-evaluate Live</button></div>`
+      ? `<div class="audit-badge"><div><span class="audit-status-tag">Audited Dossier</span> &middot; ${auditMeta.capturedAt ? fmtDate(auditMeta.capturedAt) : "Captured"}</div><button id="run-live-btn" class="run-live-btn-inline">Re-evaluate Live ↑</button></div>`
       : ""}
     <div class="outcome-badge outcome-${decision.outcome}">${meta.icon} ${meta.label}</div>
     <div class="confidence-block">
       <div class="confidence-label">Final confidence</div>
       <div class="confidence-number tabular outcome-${decision.outcome}" id="confidence-number">${decision.model_confidence.toFixed(2)}</div>
-      <div class="confidence-sub">model confidence ${decision.model_confidence.toFixed(2)}</div>
+      ${isCapped ? `<div class="confidence-sub capped">model ${decision.model_confidence.toFixed(2)} · capped by consent decay</div>` : ""}
     </div>
-    <div class="reasons-label">Decision Rationale</div>
     <ul class="reasons-list">
-      ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${r.rule}</div>${r.text}</li>`).join("")}
+      ${reasons.map((r) => `<li class="reason-item ${r.kind}"><div class="reason-rule mono">${RULE_LABEL[r.rule] || r.rule}</div>${r.text}</li>`).join("")}
     </ul>
-    <div class="reasons-label">Consent${auditMeta ? ` <span class="consent-asof">(as of the cached run)</span>` : ""}</div>
+    <div class="reasons-label">Consent${auditMeta ? ` <span class="consent-asof">(as of captured run)</span>` : ""}</div>
     <div class="decision-consent">${miniGaugesHtml(consentSources, decision.weakest_consent_source)}</div>
+    ${creditRiskSectionHtml(decision.borrower_id)}
   `;
 
   if (auditMeta) {
@@ -582,8 +761,6 @@ function evidenceCopyText(ev) {
 }
 
 function jumpToClaim(source, field) {
-  const panel = $("ledger-panel");
-  panel.open = true;
   const target = document.querySelector(`.ledger-entry[data-agent="${SOURCE_TO_AGENT[source] || ""}"][data-metric="${field || ""}"]`);
   document.querySelectorAll(".ledger-entry.jump-target").forEach((el) => el.classList.remove("jump-target"));
   if (target) {
@@ -612,16 +789,17 @@ function ledgerEntryHtml(entry, groupIndex) {
     })
     .join("");
 
+  const showConf = Number(entry.confidence) < 1.0;
   return `
     <div class="ledger-entry${isContradiction ? " contradiction" : ""}${groupIndex >= 4 ? " ledger-entry-extra hidden" : ""}"
          data-agent="${entry.agent}" data-metric="${(entry.claim && entry.claim.metric) || ""}" tabindex="-1">
       <div class="ledger-entry-head">
-        <span class="mono">${entry.step_id}</span>
-        <span>${entry.action}</span>
-        <span class="mono">conf ${Number(entry.confidence).toFixed(2)}</span>
+        <span class="ledger-action-label${isContradiction ? " warn" : ""}">${ACTION_LABEL[entry.action] || entry.action}</span>
+        <span class="ledger-step-id">${entry.step_id}</span>
+        ${showConf ? `<span class="ledger-conf">conf ${Number(entry.confidence).toFixed(2)}</span>` : ""}
       </div>
       ${entry.claim && entry.claim.finding ? `<div class="ledger-entry-finding">${entry.claim.finding}</div>` : ""}
-      ${entry.claim && entry.claim.value && !entry.claim.finding ? `<div class="ledger-entry-finding">${entry.claim.metric}: ${entry.claim.value}${entry.claim.magnitude_pct != null ? ` (${fmtPct(entry.claim.magnitude_pct)})` : ""}</div>` : ""}
+      ${entry.claim && entry.claim.value && !entry.claim.finding ? `<div class="ledger-entry-finding">${METRIC_LABEL[entry.claim.metric] || entry.claim.metric}: <strong>${VALUE_LABEL[entry.claim.value] || entry.claim.value}</strong>${entry.claim.magnitude_pct != null ? ` (${fmtPct(entry.claim.magnitude_pct)})` : ""}</div>` : ""}
       ${evidenceHtml ? `<div class="ledger-entry-evidence">${evidenceHtml}</div>` : ""}
     </div>`;
 }
@@ -678,7 +856,11 @@ function renderLedger(rawLedgerSteps) {
     const group = document.createElement("div");
     group.className = "ledger-group";
     group.innerHTML = `<h3 class="ledger-group-label">${AGENT_LABEL[agent] || agent}</h3>`;
-    byAgent.get(agent).forEach((entry, groupIndex) => {
+    const groupEntries = [...byAgent.get(agent)].sort((a, b) => {
+      const isPriority = (e) => (e.action === "flag_contradiction" || e.action === "flag_subtler_contradiction" || e.action === "final_decision") ? 0 : 1;
+      return isPriority(a) - isPriority(b);
+    });
+    groupEntries.forEach((entry, groupIndex) => {
       if (groupIndex >= 4) hiddenCount++;
       group.insertAdjacentHTML("beforeend", ledgerEntryHtml(entry, groupIndex));
     });
@@ -738,10 +920,12 @@ function playReveal(borrowerId) {
   const { decision, ledgerSteps, consentSources, isAuditDossier, capturedAt } = data;
   const hasContradiction = (decision.contradictions || []).length > 0;
 
-  resetDeskUI(`${borrowerId} · 3 specialist agents ran in parallel, orchestrator cross-checked them`);
+  resetDeskUI("3 agents · parallel · orchestrated");
+  setTopbarCaseCtx(borrowerId);
 
   ["node-bank", "node-gst", "node-investment"].forEach((id) => setNodeState(id, "done"));
   setNodeState("node-orchestrator", "done");
+  delay(() => setNodeState("node-decision", "done"), 480);
 
   delay(() => setConnectorDrawn("conn-bank", true), 60);
   delay(() => setConnectorDrawn("conn-gst", true), 150);
@@ -750,6 +934,11 @@ function playReveal(borrowerId) {
 
   const outcomeEl = $("orchestrator-outcome");
   if (outcomeEl) outcomeEl.textContent = orchestratorSummaryText(decision);
+  const decisionLabelEl = $("decision-outcome-label");
+  if (decisionLabelEl) {
+    const m = OUTCOME_META[decision.outcome];
+    decisionLabelEl.textContent = m ? `${m.icon} ${m.label}` : decision.outcome;
+  }
 
   // The chart reads the latest known value of each claim, same as the
   // ledger panel does internally - a raw multi-run history could otherwise
@@ -769,10 +958,25 @@ function playReveal(borrowerId) {
 // real Vertex AI call is. It's replaced outright by the real result the
 // moment the response lands.
 function showLiveLoadingState(borrowerId) {
-  resetDeskUI(`${borrowerId} · calling 3 parallel agents + orchestrator on live Vertex AI - can take 10-30s`);
+  resetDeskUI("calling 3 parallel agents + orchestrator on live Vertex AI???");
+
+  // Show skeleton in decision body and divergence chart
+  $("decision-body").innerHTML = `
+    <div class="skeleton-loader">
+      <div class="skeleton-item" style="width: 60%; margin-bottom: 8px;"></div>
+      <div class="skeleton-item" style="width: 80%; margin-bottom: 8px;"></div>
+      <div class="skeleton-item" style="width: 40%;"></div>
+    </div>
+  `;
+  $("divergence-chart").innerHTML = `
+    <div class="skeleton-loader">
+      <div class="skeleton-item" style="height: 20px;"></div>
+      <div class="skeleton-item" style="height: 16px; margin-top: 8px;"></div>
+    </div>
+  `;
 
   if (REDUCE_MOTION) {
-    ["node-bank", "node-gst", "node-investment", "node-orchestrator"].forEach((id) => setNodeState(id, "working"));
+    ["node-bank", "node-gst", "node-investment", "node-orchestrator", "node-decision"].forEach((id) => setNodeState(id, "working"));
     ["conn-bank", "conn-gst", "conn-investment"].forEach((id) => setConnectorCharging(id, true));
     return;
   }
@@ -781,6 +985,7 @@ function showLiveLoadingState(borrowerId) {
   setNodeState("node-gst", "pending");
   setNodeState("node-investment", "pending");
   setNodeState("node-orchestrator", "pending");
+  setNodeState("node-decision", "pending");
 
   delay(() => {
     setNodeState("node-bank", "working");
@@ -799,179 +1004,996 @@ function showLiveLoadingState(borrowerId) {
     setConnectorCharging("conn-out", true);
   }, 700);
 }
+// in the left rail. The Credit Applications workspace (pane="credit")
+// is the default and preserves all existing case rail behaviour.
+// ═══════════════════════════════════════════════════════════════════
 
-// ---------- Load / fetch ----------
+const WS_STATUS_MAP = {
+  "Filed": "filed",
+  "Settled": "settled",
+  "Pending": "pending",
+  "Draft": "draft",
+  "Overdue": "overdue",
+  "Verified": "verified",
+  "Under Review": "under-review",
+};
 
-async function loadBorrower(borrowerId, { forceRefetch }) {
-  // Abort any in-flight live call for a different (or the same) borrower
-  // before doing anything else - a late response must never repaint a case
-  // the viewer has already navigated away from.
-  if (currentController) currentController.abort();
-  currentController = null;
-  const myToken = ++loadToken;
+function wsStatusBadge(status) {
+  const cls = WS_STATUS_MAP[status] || "draft";
+  return `<span class="ws-status-badge ${cls}">${status}</span>`;
+}
 
-  currentBorrowerId = borrowerId;
-  renderCaseRail();
+function fmtInr(amount) {
+  const n = Number(amount);
+  if (isNaN(n)) return "—";
+  if (n >= 1e7) return `₹${(n / 1e7).toFixed(2)}Cr`;
+  if (n >= 1e5) return `₹${(n / 1e5).toFixed(2)}L`;
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+}
 
-  if (!forceRefetch && cache.has(borrowerId)) {
-    const data = cache.get(borrowerId);
-    setStatus(
-      data.isAuditDossier
-        ? `${borrowerId} · cached run · click Re-evaluate Live for fresh multi-agent execution.`
-        : `${borrowerId} · loaded from active session cache.`
-    );
-    playReveal(borrowerId);
+// Active workspace state — persists which workspace + view is open
+let activeWorkspace = null;
+let wsData = null;         // parsed workbook data from /ingest/onboarding
+let activeWsClient = null; // selected client ID in workspace panes
+let enterpriseData = null; // pre-loaded enterprise_live_state.json
+
+// ── Layout state router ───────────────────────────────────────────────
+// desk[data-ws] drives CSS show/hide of pipeline vs workspace-main-frame.
+function switchWorkspace(ws) {
+  activeWorkspace = ws;
+
+  // Drive CSS layout switch
+  const desk = $("desk");
+  if (desk) desk.dataset.ws = ws;
+
+  // Nav button active state
+  document.querySelectorAll(".workspace-nav-item").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.ws === ws);
+  });
+
+  // Left-rail context pane visibility
+  document.querySelectorAll(".workspace-pane").forEach((pane) => {
+    pane.classList.toggle("active", pane.dataset.pane === ws);
+  });
+
+  // Update URL hash (enables browser back/forward)
+  try { history.replaceState(null, "", `#ws=${ws}`); } catch (_) {}
+
+  if (ws === "credit") {
+    renderCaseRail();
     return;
   }
+  renderWorkspaceMain(ws);
+}
 
-  const controller = new AbortController();
-  currentController = controller;
-  showLiveLoadingState(borrowerId);
-  setStatus(`Running the pipeline for ${borrowerId}...`);
-
-  try {
-    const decision = await fetchJSON(`/borrowers/${borrowerId}/evaluate`, {
-      method: "POST",
-      headers: { "Content-Length": "0" },
-      signal: controller.signal,
-    });
-    if (myToken !== loadToken) return; // a newer click superseded this one
-
-    const [ledgerResp, consentResp] = await Promise.all([
-      fetchJSON(`/borrowers/${borrowerId}/ledger`, { signal: controller.signal }),
-      fetchJSON(`/borrowers/${borrowerId}/consent-status`, { signal: controller.signal }),
-    ]);
-    if (myToken !== loadToken) return;
-
-    cache.set(borrowerId, { decision, ledgerSteps: ledgerResp.steps, consentSources: consentResp.sources, isAuditDossier: false });
-    setStatus(`${borrowerId} · done · ${decision.outcome} (${decision.final_confidence.toFixed(2)})`);
-    playReveal(borrowerId);
-  } catch (err) {
-    if (myToken !== loadToken || err.name === "AbortError") return; // superseded - stay silent
-    console.error(err);
-    setStatus(`Error running ${borrowerId}: ${err.message}`, true);
-    $("decision-body").innerHTML = `<div class="decision-empty">Pipeline call failed - see status line below.</div>`;
+// ── Workspace main frame renderer — dispatches to per-workspace builders ─
+function renderWorkspaceMain(ws) {
+  const frame = $("workspace-main-frame");
+  if (!frame) return;
+  switch (ws) {
+    case "dashboard":  renderDashboard(frame); break;
+    case "client":     renderClientMain(frame); break;
+    case "income":     renderIncomeMain(frame); break;
+    case "compliance": renderComplianceMain(frame); break;
+    case "assets":     renderAssetsMain(frame); break;
+    default:
+      frame.innerHTML = `<div style="padding:40px;color:var(--muted)">Workspace coming soon.</div>`;
   }
 }
 
-// ---------- Boot ----------
-//
-// Never show an empty state: the default case paints fully, instantly,
-// from a verbatim recorded capture - no skeleton, no 10-30s wait on the
-// one moment a judge forms a first impression. The page is only ever
-// "live" once someone clicks "Run live" or runs a case with no recorded
-// capture available yet.
+// ── Enterprise data loader (static JSON, no backend required) ────────
+async function loadEnterpriseData() {
+  try {
+    const res = await fetch("/enterprise_live_state.json");
+    if (!res.ok) throw new Error(res.statusText);
+    enterpriseData = await res.json();
+    if (activeWorkspace !== "credit") renderWorkspaceMain(activeWorkspace);
+  } catch (err) {
+    console.warn("enterprise_live_state.json not available:", err.message);
+  }
+}
 
-renderCaseRail();
-resetPipelineCanvas();
-$("replay-btn").addEventListener("click", () => {
-  if (currentBorrowerId) playReveal(currentBorrowerId);
+// ── GSTIN validation ─────────────────────────────────────────────────
+// Format: SSAAAAANNNNAAZC  (State 2d · PAN 10c · Entity 1c · Z · Check 1c)
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+function validateGSTIN(value) {
+  if (!value || value.trim() === "") return { valid: false, error: "GSTIN is required" };
+  const v = value.trim().toUpperCase();
+  if (v.length !== 15) return { valid: false, error: `GSTIN must be exactly 15 characters — got ${v.length}` };
+  if (!GSTIN_RE.test(v))  return { valid: false, error: "GSTIN format invalid — expected format: SSAAAAANNNNAAZC" };
+  return { valid: true, error: null };
+}
+
+// ── INR formatter (shared with workspace main) ────────────────────────
+function fmtInrMain(n) {
+  const v = Number(n);
+  if (isNaN(v) || v === 0) return "—";
+  if (v >= 1e7) return `₹${(v / 1e7).toFixed(2)}Cr`;
+  if (v >= 1e5) return `₹${(v / 1e5).toFixed(2)}L`;
+  return `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+}
+
+// ── Delta badge ───────────────────────────────────────────────────────
+function deltaChip(pct, dir) {
+  const sign = dir === "up" ? "▲" : "▼";
+  const cls  = dir === "up" ? "up" : "down";
+  return `<span class="ws-kpi-delta ${cls}">${sign} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+function setupWorkspaceNav() {
+  document.querySelectorAll(".workspace-nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => switchWorkspace(btn.dataset.ws));
+  });
+
+  // Sub-nav link switching
+  document.querySelectorAll(".ws-sub-nav-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      const parentPane = link.closest(".workspace-pane");
+      if (!parentPane) return;
+      parentPane.querySelectorAll(".ws-sub-nav-link").forEach((l) => l.classList.remove("active"));
+      link.classList.add("active");
+    });
+  });
+
+  // Workbook upload button
+  const wsUploadBtn = $("ws-upload-btn");
+  const wsFileInput = $("ws-file-input");
+  if (wsUploadBtn && wsFileInput) {
+    wsUploadBtn.addEventListener("click", () => wsFileInput.click());
+    wsFileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) handleWorkbookUpload(file);
+      wsFileInput.value = ""; // allow re-uploading same file
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WORKSPACE MAIN FRAME RENDERERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Dashboard — three-column financial command deck ──────────────────
+function renderDashboard(frame) {
+  if (!enterpriseData) {
+    frame.innerHTML = `<div style="padding:40px 20px;color:var(--muted);text-align:center">
+      <div style="font-size:24px;margin-bottom:12px">▦</div>
+      <div style="font-size:13px">Loading enterprise data…</div>
+    </div>`;
+    return;
+  }
+  const { entity, summary, compliance, actions, invoices, mf_portfolio } = enterpriseData;
+
+  // ── Computed: overdue receivable, filing health, portfolio allocation ──
+  const overdueInvs = (invoices || []).filter((i) => i.status === "Overdue");
+  const overdueTotal = overdueInvs.reduce((s, i) => s + i.amount_inr, 0);
+
+  const fullyFiled = compliance.filter((r) => r.gstr1_status === "Filed" && r.gstr3b_status === "Filed").length;
+  const actionCount = compliance.filter((r) => r.action_required).length;
+  const totalItc = compliance.reduce((s, r) => s + r.itc_eligible_inr, 0);
+  const totalPayable = compliance.reduce((s, r) => s + r.net_payable_inr, 0);
+  const healthPct = Math.round((fullyFiled / compliance.length) * 100);
+
+  const portTotal = (mf_portfolio || []).reduce((s, f) => s + f.current_value_inr, 0);
+  const portByType = {};
+  (mf_portfolio || []).forEach((f) => { portByType[f.type] = (portByType[f.type] || 0) + f.current_value_inr; });
+  const PORT_COLORS = { Liquid: "var(--ok)", Equity: "var(--signal-bank)", ELSS: "#9c27b0", Debt: "var(--accent)", Hybrid: "#06b6d4" };
+
+  const overdueCard = overdueTotal > 0 ? `
+    <div class="ws-kpi-card" style="border-left:2px solid var(--warn)">
+      <div class="ws-kpi-card-label" style="color:var(--warn)">⚑ Overdue Receivable</div>
+      <div class="ws-kpi-card-value warn">${fmtInrMain(overdueTotal)}</div>
+      <div class="ws-kpi-card-footer"><span style="font-size:11px;color:var(--muted-dim)">${overdueInvs.length} invoice${overdueInvs.length > 1 ? "s" : ""} · past payment terms</span></div>
+    </div>` : "";
+
+  const portAllocation = portTotal > 0 ? `
+    <div style="padding:10px 0 4px;border-top:1px solid var(--border);margin-top:4px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Portfolio Allocation · ${fmtInrMain(portTotal)} total</div>
+      <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;gap:1px">
+        ${Object.entries(portByType).map(([t, v]) => `<div style="flex:${v};background:${PORT_COLORS[t] || "#888"}" title="${t}: ${fmtInrMain(v)}"></div>`).join("")}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:7px">
+        ${Object.entries(portByType).map(([t, v]) => `<span style="font-size:10px;color:var(--muted)"><span style="display:inline-block;width:7px;height:7px;border-radius:1px;background:${PORT_COLORS[t] || "#888"};vertical-align:middle;margin-right:3px"></span>${t} ${Math.round(v / portTotal * 100)}%</span>`).join("")}
+      </div>
+    </div>` : "";
+
+  const trendData = [...compliance].reverse();
+  const maxPay = Math.max(...trendData.map((r) => r.net_payable_inr || 0), 1);
+  const BAR_W = 26, GAP = 3, CHART_H = 60, LABEL_H = 16;
+  const svgW = trendData.length * (BAR_W + GAP) + 10;
+  const trendBars = trendData.map((row, i) => {
+    const h = row.net_payable_inr > 0 ? Math.max(3, Math.round((row.net_payable_inr / maxPay) * CHART_H)) : 2;
+    const x = 5 + i * (BAR_W + GAP);
+    const fill = row.action_required ? "var(--warn)" : (row.net_payable_inr === 0 ? "var(--border)" : "var(--signal-bank)");
+    return `<rect x="${x}" y="${CHART_H - h}" width="${BAR_W}" height="${h}" rx="2" fill="${fill}" opacity="0.85"><title>${row.period}: ${fmtInrMain(row.net_payable_inr)} GST net payable${row.action_required ? " ⚑" : ""}</title></rect><text x="${x + BAR_W / 2}" y="${CHART_H + LABEL_H}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${row.period.split(" ")[0].slice(0, 3)}</text>`;
+  }).join("");
+
+  const trendChart = `
+    <div style="padding-top:10px;margin-top:10px;border-top:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">GST Net Payable — Monthly</div>
+      <svg viewBox="0 0 ${svgW} ${CHART_H + LABEL_H + 2}" style="width:100%;display:block" xmlns="http://www.w3.org/2000/svg">${trendBars}</svg>
+    </div>`;
+
+  const healthBar = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;margin-bottom:8px;background:var(--surface-2);border-radius:5px;border:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--ok)">✓ ${fullyFiled}/${compliance.length} filed</span>
+      ${actionCount > 0 ? `<span style="font-size:11px;color:var(--warn)">⚑ ${actionCount} action req.</span>` : ""}
+      <span style="font-size:11px;color:var(--muted)">ITC ${fmtInrMain(totalItc)}</span>
+      <span style="font-size:11px;color:var(--muted)">Payable ${fmtInrMain(totalPayable)}</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
+        <span style="font-size:10px;color:var(--muted)">Filing health</span>
+        <span style="font-size:12px;font-weight:600;color:${healthPct >= 80 ? "var(--ok)" : "var(--warn)"}">${healthPct}%</span>
+      </span>
+    </div>`;
+
+  // ── Entity header ───────────────────────────────────────────────
+  const header = `
+    <div class="ws-entity-header">
+      <div>
+        <div class="ws-entity-name">${entity.name}</div>
+        <div class="ws-entity-meta" style="margin-top:3px">
+          <span>${entity.industry}</span>
+          <span>·</span>
+          <span>${entity.city}, ${entity.state}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ws-entity-meta-chip">${entity.gstin}</span>
+        <span class="ws-entity-meta-chip">${entity.pan}</span>
+        <span class="ws-entity-asof">as of ${entity.as_of}</span>
+      </div>
+    </div>`;
+
+  // ── KPI Banner (left column) ────────────────────────────────────
+  const kpiCards = Object.values(summary).map((kpi) => `
+    <div class="ws-kpi-card">
+      <div class="ws-kpi-card-label">${kpi.label}</div>
+      <div class="ws-kpi-card-value">${fmtInrMain(kpi.value)}</div>
+      <div class="ws-kpi-card-footer">
+        ${deltaChip(kpi.delta_pct, kpi.delta_direction)}
+        <span class="ws-kpi-card-note">${kpi.period}</span>
+      </div>
+      <div class="ws-kpi-card-note" style="margin-top:2px">${kpi.note}</div>
+    </div>`).join("");
+
+  // ── Compliance Control Grid (center column) ─────────────────────
+  function cBadge(status) {
+    const map = {
+      "filed":           "filed",
+      "draft":           "draft",
+      "pending":         "pending",
+      "action required": "action-required",
+      "due soon":        "due-soon",
+    };
+    const key = (status || "").toLowerCase();
+    const cls = map[key] || "pending";
+    return `<span class="c-badge ${cls}">${status}</span>`;
+  }
+
+  const complianceRows = compliance.map((row) => {
+    const isAction = row.action_required;
+    const gstr1 = cBadge(row.gstr1_status);
+    const gstr3b = cBadge(row.gstr3b_status);
+    const itc = row.itc_eligible_inr > 0
+      ? `<span class="c-inr">${fmtInrMain(row.itc_eligible_inr)}</span>`
+      : `<span class="c-inr zero">—</span>`;
+    const payable = row.net_payable_inr > 0
+      ? `<span class="c-inr ${isAction ? "warn" : ""}">${fmtInrMain(row.net_payable_inr)}</span>`
+      : `<span class="c-inr zero">—</span>`;
+    const flag = isAction
+      ? `<span class="c-action-flag" title="${row.action_note}">⚑ ${row.action_note}</span>`
+      : (row.action_note ? `<span style="font-size:10px;color:var(--muted-dim)">${row.action_note}</span>` : "");
+    return `<tr class="${isAction ? "action-row" : ""}">
+      <td style="font-family:var(--font-mono);font-size:12px;font-weight:600">${row.period}</td>
+      <td>${gstr1}</td>
+      <td>${gstr3b}</td>
+      <td style="text-align:right">${itc}</td>
+      <td style="text-align:right">${payable}</td>
+      <td style="min-width:120px;white-space:normal;font-size:10.5px">${flag}</td>
+    </tr>`;
+  }).join("");
+
+  // ── Smart Decision Action Panel (right column) ──────────────────
+  const actionItems = actions.map((a) => `
+    <div class="ws-action-item ${a.priority}">
+      <div class="ws-action-item-header">
+        <div class="ws-action-label">${a.label}</div>
+        <span class="ws-action-priority ${a.priority}">${a.priority.toUpperCase()}</span>
+      </div>
+      <div class="ws-action-detail">${a.detail}</div>
+      <div class="ws-action-period">${a.period}</div>
+      <button class="ws-action-trigger-btn" type="button" data-action-id="${a.id}">
+        Initiate →
+      </button>
+    </div>`).join("");
+
+  frame.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+      ${header}
+      <div class="ws-cmd-deck" style="flex:1;overflow:hidden">
+
+        <div class="ws-cmd-col" style="overflow-y:auto">
+          <div class="ws-cmd-col-header">Financial Overview</div>
+          <div class="ws-kpi-banner">${kpiCards}${overdueCard}</div>
+          ${portAllocation}
+          ${trendChart}
+        </div>
+
+        <div class="ws-cmd-col">
+          <div class="ws-cmd-col-header">GST Compliance Tracker — FY2026-27</div>
+          ${healthBar}
+          <div style="overflow-x:auto;flex:1">
+            <table class="ws-compliance-table">
+              <thead>
+                <tr>
+                  <th style="width:90px">Period</th>
+                  <th style="width:90px">GSTR-1</th>
+                  <th style="width:90px">GSTR-3B</th>
+                  <th style="width:85px;text-align:right">ITC Eligible</th>
+                  <th style="width:85px;text-align:right">Net Payable</th>
+                  <th>Status / Note</th>
+                </tr>
+              </thead>
+              <tbody>${complianceRows}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="ws-cmd-col">
+          <div class="ws-cmd-col-header">Action Queue</div>
+          <div class="ws-action-list">${actionItems}</div>
+        </div>
+
+      </div>
+    </div>`;
+
+  // Wire action trigger buttons — show a toast acknowledgement
+  frame.querySelectorAll(".ws-action-trigger-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.actionId;
+      const item = actions.find((a) => a.id === id);
+      if (item) showToast(`Initiated: ${item.label}`);
+    });
+  });
+}
+
+// ── Client Space main frame ──────────────────────────────────────────
+function renderClientMain(frame) {
+  const data = enterpriseData;
+  if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
+  const { entity } = data;
+
+  frame.innerHTML = `
+    <div class="ws-main-section">
+      <div class="ws-main-section-title">KYB Entity Profile</div>
+      <div class="ws-main-kpi-row">
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Entity</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:4px">${entity.name}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">PAN</div>
+          <div class="ws-main-kpi-cell-value" style="font-size:14px">${entity.pan}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">GSTIN</div>
+          <div class="ws-main-kpi-cell-value" style="font-size:14px">${entity.gstin}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">State</div>
+          <div class="ws-main-kpi-cell-value" style="font-size:14px">${entity.state_code} · ${entity.state}</div>
+        </div>
+      </div>
+      <table class="ws-data-table" style="margin-top:4px">
+        <thead><tr>
+          <th style="width:180px">Field</th>
+          <th>Value</th>
+        </tr></thead>
+        <tbody>
+          ${[
+            ["Entity Type",   entity.entity_type],
+            ["Industry",      entity.industry],
+            ["City",          entity.city],
+            ["Banker",        entity.banker],
+            ["CA Firm",       entity.ca_firm],
+            ["FY",            entity.fy],
+            ["As of Date",    entity.as_of],
+          ].map(([k, v]) => `<tr><td style="color:var(--muted);font-size:11.5px">${k}</td><td>${v}</td></tr>`).join("")}
+        </tbody>
+      </table>
+
+      <div class="ws-main-section-title" style="margin-top:16px">Upload Additional Client Workbook</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <button class="ws-ingest-btn" id="ws-upload-btn-main" type="button" style="padding:7px 16px">
+          Upload Onboarding Workbook (.xlsx)
+        </button>
+        <span style="font-size:11px;color:var(--muted-dim)">Multi-client batch · Cross-references via Client_ID</span>
+      </div>
+    </div>`;
+
+  const btn = frame.querySelector("#ws-upload-btn-main");
+  const fi = $("ws-file-input");
+  if (btn && fi) btn.addEventListener("click", () => fi.click());
+}
+
+// ── Income & Revenue main frame ──────────────────────────────────────
+function renderIncomeMain(frame) {
+  const data = enterpriseData;
+  if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
+  const { invoices, tds, summary } = data;
+
+  const totalGross    = invoices.reduce((s, i) => s + (i.gstin_valid ? i.amount_inr : 0), 0);
+  const totalSettled  = invoices.filter((i) => i.status === "Settled").reduce((s, i) => s + i.amount_inr, 0);
+  const totalPending  = invoices.filter((i) => i.status === "Pending").reduce((s, i) => s + i.amount_inr, 0);
+  const totalOverdue  = invoices.filter((i) => i.status === "Overdue").reduce((s, i) => s + i.amount_inr, 0);
+  const invalidCount  = invoices.filter((i) => !i.gstin_valid).length;
+
+  const kpiRow = `
+    <div class="ws-main-kpi-row">
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Gross Invoiced (30d)</div>
+        <div class="ws-main-kpi-cell-value">${fmtInrMain(invoices.reduce((s, i) => s + i.amount_inr, 0))}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Settled</div>
+        <div class="ws-main-kpi-cell-value ok">${fmtInrMain(totalSettled)}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Pending + Overdue</div>
+        <div class="ws-main-kpi-cell-value warn">${fmtInrMain(totalPending + totalOverdue)}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">GSTIN Validation Errors</div>
+        <div class="ws-main-kpi-cell-value ${invalidCount > 0 ? "warn" : "ok"}">${invalidCount}</div>
+      </div>
+    </div>`;
+
+  const invoiceRows = invoices.map((inv) => {
+    const { valid: gstinOk, error: gstinErr } = validateGSTIN(inv.buyer_gstin);
+    const gstinCell = gstinOk
+      ? `<span class="ws-gstin-value valid">${inv.buyer_gstin}</span>`
+      : `<div>
+          <span class="ws-gstin-value invalid">${inv.buyer_gstin}</span>
+          <div class="ws-gstin-error">
+            <span class="ws-gstin-error-icon">⚑</span>
+            <span class="ws-gstin-error-text">${gstinErr}</span>
+          </div>
+        </div>`;
+
+    const statusCls = { Settled: "filed", Pending: "pending", Overdue: "action-required", Draft: "draft" };
+    return `<tr class="${!gstinOk ? "invalid-row" : ""}">
+      <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${inv.id}</td>
+      <td style="color:var(--muted-dim);font-size:11.5px">${inv.date}</td>
+      <td style="white-space:normal;overflow:visible">${inv.buyer}</td>
+      <td style="white-space:normal;overflow:visible">${gstinCell}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(inv.amount_inr)}</td>
+      <td style="text-align:right;font-family:var(--font-mono);color:var(--muted-dim)">${(inv.gst_rate * 100).toFixed(0)}%</td>
+      <td><span class="c-badge ${statusCls[inv.status] || "pending"}">${inv.status}</span></td>
+    </tr>`;
+  }).join("");
+
+  const tdsRows = tds.map((t) => `<tr>
+    <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${t.traces_ref}</td>
+    <td>${t.deductor}</td>
+    <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${t.period}</td>
+    <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(t.amount_inr)}</td>
+    <td><span class="ws-tds-${t.status.toLowerCase()}">${t.status}</span></td>
+  </tr>`).join("");
+
+  frame.innerHTML = `
+    <div class="ws-main-section">
+      ${kpiRow}
+
+      <div class="ws-main-section-title">Invoice Pipeline — Last 30 Days</div>
+      <div style="overflow-x:auto">
+        <table class="ws-data-table">
+          <thead><tr>
+            <th style="width:80px">Invoice</th>
+            <th style="width:90px">Date</th>
+            <th style="width:200px">Buyer</th>
+            <th style="width:200px">Buyer GSTIN</th>
+            <th style="width:100px;text-align:right">Amount</th>
+            <th style="width:60px;text-align:right">GST%</th>
+            <th style="width:110px">Status</th>
+          </tr></thead>
+          <tbody>${invoiceRows}</tbody>
+        </table>
+      </div>
+
+      <div class="ws-main-section-title" style="margin-top:8px">TDS Tracker — Form 26AS</div>
+      <div style="overflow-x:auto">
+        <table class="ws-data-table">
+          <thead><tr>
+            <th style="width:110px">TRACES Ref</th>
+            <th style="width:220px">Deductor</th>
+            <th style="width:120px">Period</th>
+            <th style="width:100px;text-align:right">Amount</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody>${tdsRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── Compliance Matrix main frame ─────────────────────────────────────
+function renderComplianceMain(frame) {
+  const data = enterpriseData;
+  if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
+  const { compliance, entity } = data;
+
+  const filed    = compliance.filter((r) => r.gstr1_status === "Filed" && r.gstr3b_status === "Filed").length;
+  const draft    = compliance.filter((r) => r.gstr3b_status === "Draft").length;
+  const pending  = compliance.filter((r) => r.gstr1_status === "Pending").length;
+  const actions  = compliance.filter((r) => r.action_required).length;
+  const totalItc = compliance.reduce((s, r) => s + r.itc_eligible_inr, 0);
+
+  const kpiRow = `
+    <div class="ws-main-kpi-row">
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Fully Filed</div>
+        <div class="ws-main-kpi-cell-value ok">${filed} <span style="font-size:12px;color:var(--muted)">/ ${compliance.length}</span></div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Draft / Pending</div>
+        <div class="ws-main-kpi-cell-value warn">${draft + pending}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Action Required</div>
+        <div class="ws-main-kpi-cell-value ${actions > 0 ? "warn" : "ok"}">${actions}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Total ITC Eligible</div>
+        <div class="ws-main-kpi-cell-value">${fmtInrMain(totalItc)}</div>
+      </div>
+    </div>`;
+
+  function cBadge(s) {
+    const m = { Filed: "filed", Draft: "draft", Pending: "pending" };
+    return `<span class="c-badge ${m[s] || "pending"}">${s}</span>`;
+  }
+
+  const rows = compliance.map((r) => {
+    const flag = r.action_required
+      ? `<span class="c-action-flag">⚑ ${r.action_note}</span>`
+      : (r.action_note ? `<span style="font-size:10.5px;color:var(--muted-dim)">${r.action_note}</span>` : "");
+    return `<tr class="${r.action_required ? "action-row" : ""}">
+      <td style="font-family:var(--font-mono);font-weight:600;font-size:12px">${r.period}</td>
+      <td>${cBadge(r.gstr1_status)}</td>
+      <td>${cBadge(r.gstr3b_status)}</td>
+      <td style="text-align:right"><span class="c-inr">${r.itc_eligible_inr > 0 ? fmtInrMain(r.itc_eligible_inr) : "—"}</span></td>
+      <td style="text-align:right"><span class="c-inr ${r.action_required ? "warn" : ""}">${r.net_payable_inr > 0 ? fmtInrMain(r.net_payable_inr) : "—"}</span></td>
+      <td style="white-space:normal">${flag}</td>
+    </tr>`;
+  }).join("");
+
+  frame.innerHTML = `
+    <div class="ws-main-section">
+      ${kpiRow}
+      <div class="ws-main-section-title">GST Filing Ledger — ${entity.gstin}</div>
+      <div style="overflow-x:auto">
+        <table class="ws-compliance-table" style="min-width:600px">
+          <thead><tr>
+            <th style="width:100px">Period</th>
+            <th style="width:100px">GSTR-1</th>
+            <th style="width:100px">GSTR-3B</th>
+            <th style="width:110px;text-align:right">ITC Eligible</th>
+            <th style="width:110px;text-align:right">Net Payable</th>
+            <th>Notes</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── Asset Allocations main frame ─────────────────────────────────────
+function renderAssetsMain(frame) {
+  const data = enterpriseData;
+  if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
+  const { mf_portfolio, summary } = data;
+
+  const totalAum    = mf_portfolio.reduce((s, f) => s + f.current_value_inr, 0);
+  const liquidAum   = mf_portfolio.filter((f) => f.type === "Liquid").reduce((s, f) => s + f.current_value_inr, 0);
+  const equityAum   = mf_portfolio.filter((f) => f.type === "Equity" || f.type === "ELSS").reduce((s, f) => s + f.current_value_inr, 0);
+  const avgXirr     = mf_portfolio.reduce((s, f) => s + f.xirr_pct, 0) / mf_portfolio.length;
+
+  const kpiRow = `
+    <div class="ws-main-kpi-row">
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Total AUM</div>
+        <div class="ws-main-kpi-cell-value ok">${fmtInrMain(totalAum)}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Liquid Buffer</div>
+        <div class="ws-main-kpi-cell-value">${fmtInrMain(liquidAum)}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Equity Exposure</div>
+        <div class="ws-main-kpi-cell-value">${fmtInrMain(equityAum)}</div>
+      </div>
+      <div class="ws-main-kpi-cell">
+        <div class="ws-main-kpi-cell-label">Avg. XIRR</div>
+        <div class="ws-main-kpi-cell-value ok">${avgXirr.toFixed(1)}%</div>
+      </div>
+    </div>`;
+
+  const fundTypeColor = { Liquid: "var(--ok)", Equity: "var(--signal-bank)", ELSS: "var(--signal-gst)", Debt: "var(--muted)", Hybrid: "var(--accent)" };
+
+  const rows = mf_portfolio.map((f) => {
+    const barW = Math.round((f.xirr_pct / 25) * 60);
+    const color = fundTypeColor[f.type] || "var(--muted)";
+    return `<tr>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${f.folio}</td>
+      <td style="white-space:normal;overflow:visible">${f.fund}</td>
+      <td><span class="c-badge pending" style="background:${color}20;color:${color};border:1px solid ${color}40">${f.type}</span></td>
+      <td style="color:var(--muted-dim);font-size:11.5px">${f.amc}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${f.units.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(f.nav)}</td>
+      <td style="text-align:right;font-family:var(--font-mono);font-weight:600">${fmtInrMain(f.current_value_inr)}</td>
+      <td style="text-align:right">
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--ok)">${f.xirr_pct.toFixed(1)}%</span>
+        <span class="ws-xirr-bar" style="width:${barW}px;background:${color}80"></span>
+      </td>
+    </tr>`;
+  }).join("");
+
+  frame.innerHTML = `
+    <div class="ws-main-section">
+      ${kpiRow}
+      <div class="ws-main-section-title">Mutual Fund Portfolio — Pledgeable Asset Register</div>
+      <div style="overflow-x:auto">
+        <table class="ws-data-table">
+          <thead><tr>
+            <th style="width:90px">Folio</th>
+            <th style="width:240px">Fund</th>
+            <th style="width:80px">Type</th>
+            <th style="width:130px">AMC</th>
+            <th style="width:90px;text-align:right">Units</th>
+            <th style="width:80px;text-align:right">NAV</th>
+            <th style="width:100px;text-align:right">Current Value</th>
+            <th style="width:100px;text-align:right">XIRR</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function handleWorkbookUpload(file) {
+  const zone = $("client-ingest-zone");
+  if (!zone) return;
+
+  // Show loading state
+  zone.innerHTML = `
+    <div class="ws-upload-progress">
+      <div class="ws-upload-progress-label">
+        <span class="ws-ingest-spinner"></span>
+        Parsing workbook — cross-referencing sheets…
+      </div>
+      <div class="ws-upload-progress-bar">
+        <div class="ws-upload-progress-fill" id="ws-progress-fill" style="width: 20%"></div>
+      </div>
+    </div>`;
+
+  // Animate progress bar
+  const fill = $("ws-progress-fill");
+  if (fill) delay(() => { if (fill) fill.style.width = "65%"; }, 300);
+
+  const form = new FormData();
+  form.append("workbook", file);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/ingest/onboarding`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || res.statusText);
+    }
+    wsData = await res.json();
+    if (fill) fill.style.width = "100%";
+    delay(() => renderWorkbookLoaded(file.name), 200);
+  } catch (err) {
+    zone.innerHTML = `
+      <div class="ws-ingest-empty">
+        <div class="ws-ingest-icon">⚠</div>
+        <div class="ws-ingest-label">Upload failed</div>
+        <p class="ws-ingest-hint">${err.message}</p>
+        <button class="ws-ingest-btn" id="ws-upload-btn" type="button">Try again</button>
+      </div>`;
+    const retryBtn = $("ws-upload-btn");
+    const wsFileInput = $("ws-file-input");
+    if (retryBtn && wsFileInput) retryBtn.addEventListener("click", () => wsFileInput.click());
+  }
+}
+
+function renderWorkbookLoaded(filename) {
+  if (!wsData) return;
+
+  // Build the loaded bar + client list for the Client Space pane
+  const loadedBar = `
+    <div class="ws-loaded-bar">
+      <span class="ws-loaded-bar-icon">✓</span>
+      <span class="ws-loaded-bar-name">${filename}</span>
+      <span style="color:var(--muted-dim);font-size:11px">${wsData.client_count} client${wsData.client_count !== 1 ? "s" : ""}</span>
+      <button class="ws-loaded-bar-clear" id="ws-clear-btn" title="Clear workbook" type="button">✕</button>
+    </div>`;
+
+  // Replace ingest zone in Client Space pane
+  const clientIngestZone = $("client-ingest-zone");
+  if (clientIngestZone) clientIngestZone.style.display = "none";
+
+  const clientList = $("ws-client-list");
+  if (clientList) {
+    clientList.hidden = false;
+    clientList.innerHTML = loadedBar + wsData.clients.map((c) => {
+      const kyb = c.profile.KYB_Status || c.profile.kyb_status || "";
+      return `
+        <div class="ws-client-card" data-client-id="${c.client_id}" role="button" tabindex="0">
+          <div class="ws-client-name">${c.profile.Full_Name || c.profile.full_name || c.client_id}</div>
+          <div class="ws-client-id">${c.client_id} · ${c.profile.Entity_Type || c.profile.entity_type || ""}</div>
+          <div class="ws-client-meta" style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:var(--muted-dim)">${c.profile.City || c.profile.city || ""}</span>
+            ${kyb ? wsStatusBadge(kyb) : ""}
+          </div>
+        </div>`;
+    }).join("");
+
+    clientList.querySelectorAll(".ws-client-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        clientList.querySelectorAll(".ws-client-card").forEach((c) => c.classList.remove("active"));
+        card.classList.add("active");
+        activeWsClient = card.dataset.clientId;
+        renderWorkspaceData(activeWorkspace);
+      });
+    });
+  }
+
+  // Propagate the loaded bar + data to Income, Compliance, Assets panes
+  renderWorkspaceData("income");
+  renderWorkspaceData("compliance");
+  renderWorkspaceData("assets");
+
+  // Wire up the clear button
+  delay(() => {
+    const clearBtn = $("ws-clear-btn");
+    if (clearBtn) clearBtn.addEventListener("click", clearWorkbook);
+  }, 100);
+}
+
+function clearWorkbook() {
+  wsData = null;
+  activeWsClient = null;
+
+  const clientList = $("ws-client-list");
+  if (clientList) { clientList.hidden = true; clientList.innerHTML = ""; }
+
+  const clientIngestZone = $("client-ingest-zone");
+  if (clientIngestZone) {
+    clientIngestZone.style.display = "";
+    clientIngestZone.innerHTML = `
+      <div class="ws-ingest-empty">
+        <div class="ws-ingest-icon">◈</div>
+        <div class="ws-ingest-label">No client file loaded</div>
+        <p class="ws-ingest-hint">Upload an onboarding Excel workbook to populate client profiles.</p>
+        <button class="ws-ingest-btn" id="ws-upload-btn" type="button">Upload Onboarding Workbook</button>
+      </div>`;
+    const btn = $("ws-upload-btn");
+    const fi = $("ws-file-input");
+    if (btn && fi) btn.addEventListener("click", () => fi.click());
+  }
+
+  ["income", "compliance", "assets"].forEach((ws) => {
+    const view = $(`ws-${ws}-view`);
+    if (view) view.hidden = true;
+    const zone = $(`${ws}-ingest-zone`);
+    if (zone) zone.style.display = "";
+  });
+}
+
+function renderWorkspaceData(ws) {
+  if (!wsData) return;
+  const clients = wsData.clients;
+  const client = activeWsClient ? clients.find((c) => c.client_id === activeWsClient) : clients[0];
+
+  if (ws === "income") {
+    const zone = $("income-ingest-zone");
+    const view = $("ws-income-view");
+    if (!zone || !view) return;
+    zone.style.display = "none";
+    view.hidden = false;
+
+    const inv = client ? client.income : null;
+    const kpis = client ? `
+      <div class="ws-kpi-row">
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Gross Income</div>
+          <div class="ws-kpi-value inr-cell">${inv ? fmtInr(inv.total_gross_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">TDS Deducted</div>
+          <div class="ws-kpi-value warn inr-cell">${inv ? fmtInr(inv.total_tds_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Net Receivable</div>
+          <div class="ws-kpi-value ok inr-cell">${inv ? fmtInr(inv.total_net_receivable_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Invoices</div>
+          <div class="ws-kpi-value">${inv ? inv.count : "—"}</div>
+        </div>
+      </div>` : "";
+
+    const statusRows = inv ? Object.entries(inv.status_breakdown || {})
+      .map(([s, n]) => `<div class="ws-data-row"><span class="ws-data-key">${wsStatusBadge(s)}</span><span class="ws-data-val">${n} invoice${n !== 1 ? "s" : ""}</span></div>`)
+      .join("") : "";
+
+    view.innerHTML = `
+      ${renderClientSelector(clients, activeWsClient)}
+      ${kpis}
+      <div class="ws-data-section">
+        <div class="ws-data-section-title">Invoice Status</div>
+        ${statusRows || '<div class="ws-data-row"><span class="ws-data-key">No invoices found</span></div>'}
+      </div>`;
+  }
+
+  if (ws === "compliance") {
+    const zone = $("compliance-ingest-zone");
+    const view = $("ws-compliance-view");
+    if (!zone || !view) return;
+    zone.style.display = "none";
+    view.hidden = false;
+
+    const gst = client ? client.gst : null;
+    const kpis = client ? `
+      <div class="ws-kpi-row">
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Total Turnover</div>
+          <div class="ws-kpi-value inr-cell">${gst ? fmtInr(gst.total_turnover_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">GST Payable</div>
+          <div class="ws-kpi-value warn inr-cell">${gst ? fmtInr(gst.total_gst_payable_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">ITC Claimed</div>
+          <div class="ws-kpi-value ok inr-cell">${gst ? fmtInr(gst.total_itc_claimed_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Periods Filed</div>
+          <div class="ws-kpi-value">${gst ? gst.periods : "—"}</div>
+        </div>
+      </div>` : "";
+
+    const gstr1Rows = gst ? Object.entries(gst.gstr1_status_breakdown || {})
+      .map(([s, n]) => `<div class="ws-data-row"><span class="ws-data-key">${wsStatusBadge(s)} GSTR-1</span><span class="ws-data-val">${n} period${n !== 1 ? "s" : ""}</span></div>`)
+      .join("") : "";
+
+    view.innerHTML = `
+      ${renderClientSelector(clients, activeWsClient)}
+      ${kpis}
+      <div class="ws-data-section">
+        <div class="ws-data-section-title">GSTR-1 Filing Status</div>
+        ${gstr1Rows || '<div class="ws-data-row"><span class="ws-data-key">No GST records found</span></div>'}
+      </div>`;
+  }
+
+  if (ws === "assets") {
+    const zone = $("assets-ingest-zone");
+    const view = $("ws-assets-view");
+    if (!zone || !view) return;
+    zone.style.display = "none";
+    view.hidden = false;
+
+    const mf = client ? client.mutual_funds : null;
+    const kpis = client ? `
+      <div class="ws-kpi-row">
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Portfolio Value</div>
+          <div class="ws-kpi-value ok inr-cell">${mf ? fmtInr(mf.total_current_value_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Monthly SIP</div>
+          <div class="ws-kpi-value inr-cell">${mf ? fmtInr(mf.total_monthly_sip_inr) : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Folios</div>
+          <div class="ws-kpi-value">${mf ? mf.folio_count : "—"}</div>
+        </div>
+        <div class="ws-kpi-tile">
+          <div class="ws-kpi-label">Expenses</div>
+          <div class="ws-kpi-value warn inr-cell">${client ? fmtInr(client.expenses.total_expense_inr) : "—"}</div>
+        </div>
+      </div>` : "";
+
+    const fundRows = mf ? (mf.records || []).slice(0, 5).map((f) => {
+      const name = f.Fund_Name || f.fund_name || "—";
+      const val = f.Current_Value_INR || f.current_value_inr || 0;
+      const type = f.Fund_Type || f.fund_type || "";
+      return `<div class="ws-data-row">
+        <span class="ws-data-key" title="${name}">${name}</span>
+        <span style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <span class="ws-status-badge draft">${type}</span>
+          <span class="ws-data-val inr-cell">${fmtInr(val)}</span>
+        </span>
+      </div>`;
+    }).join("") : "";
+
+    view.innerHTML = `
+      ${renderClientSelector(clients, activeWsClient)}
+      ${kpis}
+      <div class="ws-data-section">
+        <div class="ws-data-section-title">Top Folios</div>
+        ${fundRows || '<div class="ws-data-row"><span class="ws-data-key">No portfolio data found</span></div>'}
+      </div>`;
+  }
+}
+
+function renderClientSelector(clients, activeId) {
+  if (!clients || clients.length <= 1) return "";
+  const firstId = activeId || (clients[0] && clients[0].client_id);
+  return `
+    <div style="padding:6px 8px 0">
+      <select class="ws-client-selector" id="ws-client-selector" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font:inherit;font-size:11.5px;padding:5px 8px;cursor:pointer" aria-label="Select client">
+        ${clients.map((c) => `<option value="${c.client_id}" ${c.client_id === firstId ? "selected" : ""}>${c.profile.Full_Name || c.client_id}</option>`).join("")}
+      </select>
+    </div>`;
+}
+
+// Wire up the client selector inside workspace data views
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "ws-client-selector") {
+    activeWsClient = e.target.value;
+    if (wsData) {
+      renderWorkspaceData("income");
+      renderWorkspaceData("compliance");
+      renderWorkspaceData("assets");
+    }
+  }
 });
 
-// ---------- Real-document upload ----------
-//
-// Extraction happens server-side (agents/extraction.py, via Gemini) and
-// hands back a brand new borrower_id already written to Firestore in the
-// same FI shape every other case uses - from here on it's just another
-// loadBorrower() call against the real, unmodified pipeline.
-(function setupUploadDialog() {
-  const dialog = $("upload-dialog");
-  const form = $("upload-form");
-  const statusEl = $("upload-status");
-  const submitBtn = $("upload-submit-btn");
-  if (!dialog || !form) return; // landing page includes neither
-
-  const UPLOAD_TIMEOUT_MS = 90000; // extraction is now concurrent per-document
-  // (not N times one document's latency), plus the pipeline's own ~10-30s -
-  // generous enough not to false-positive on a legitimately slow real call.
-  let inFlightController = null;
-  let cancelledByUser = false;
-
-  $("upload-open-btn").addEventListener("click", () => {
-    form.reset();
-    statusEl.textContent = "";
-    dialog.showModal();
-  });
-
-  $("upload-cancel-btn").addEventListener("click", () => {
-    if (inFlightController) {
-      cancelledByUser = true;
-      inFlightController.abort();
-    }
-    dialog.close();
-  });
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    submitBtn.disabled = true;
-    statusEl.textContent = "Reading documents and extracting structured data via Gemini - this can take 10-30s...";
-    cancelledByUser = false;
-
-    const controller = new AbortController();
-    inFlightController = controller;
-    const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-
-    try {
-      const body = new FormData(form);
-      const res = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body, signal: controller.signal });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.detail || `${res.status} ${res.statusText}`);
-      }
-      const { borrower_id } = await res.json();
-      UPLOADED_CASES.push({ id: borrower_id, scenario: "Your upload" });
-      dialog.close();
-      renderCaseRail();
-      loadBorrower(borrower_id, { forceRefetch: true });
-    } catch (err) {
-      if (err.name === "AbortError") {
-        if (!cancelledByUser) {
-          statusEl.textContent = "Timed out waiting for a response - check your connection and try again.";
-        } // else the user already closed the dialog - nothing to show
-      } else {
-        statusEl.textContent = `Error: ${err.message}`;
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      inFlightController = null;
-      submitBtn.disabled = false;
-    }
-  });
-})();
-
-// Deep link: /desk?case=b_seasonal opens that case instead of the usual
-// default. Falls back to DEFAULT_CASE for a missing/unknown id - never
-// trusts the query string blindly.
 function bootCaseFromURL() {
   const requested = new URLSearchParams(window.location.search).get("case");
   return requested && CASES.some((c) => c.id === requested) ? requested : DEFAULT_CASE;
 }
 
 (async function boot() {
-  const bootCase = bootCaseFromURL();
-  const defaultRecorded = await loadRecorded(bootCase);
-  if (defaultRecorded) {
-    cache.set(bootCase, defaultRecorded);
-    currentBorrowerId = bootCase;
-    setStatus(`${bootCase} · cached result · click Refresh for a live Vertex AI run.`);
-    playReveal(bootCase);
-  } else {
-    // No cached capture on disk yet (e.g. before public/recorded/*.json is
-    // populated) - an honest "ready to run" state, never a fabricated
-    // result standing in for one.
-    currentBorrowerId = bootCase;
-    renderCaseRail();
-    resetDeskUI(`${bootCase} · not yet run`);
-    $("decision-body").innerHTML = `<div class="decision-empty">No cached result yet for ${bootCase}. Click the case to run the live pipeline.</div>`;
+  // Determine initial workspace from URL hash or default to credit
+  const hashWs = (location.hash.match(/[#&]ws=([a-z]+)/) || [])[1];
+  let startWs = "credit"; // default to credit
+  if (hashWs) {
+    if (hashWs === "credit" ||
+        (ENABLE_ENTERPRISE_WORKSPACE && ["dashboard","client","income","compliance","assets"].includes(hashWs))) {
+      startWs = hashWs;
+    }
   }
 
-  // Prefetch every other case's recorded capture in the background so
-  // switching to them is instant too, same as the boot case.
+  // Start enterprise data fetch immediately (parallel with recorded preload)
+  loadEnterpriseData();
+
+  // Preload the default credit case in the background so switching to
+  // Credit Applications is instant ??" same recorded-capture behaviour as before.
+  const bootCase = bootCaseFromURL();
+  (async () => {
+    const recorded = await loadRecorded(bootCase);
+    if (recorded && !cache.has(bootCase)) {
+      cache.set(bootCase, recorded);
+      currentBorrowerId = bootCase;
+      renderCaseRail();
+    }
+  })();
+
+  // Prefetch all other credit cases
   CASES.filter((c) => c.id !== bootCase).forEach(async (c) => {
     const data = await loadRecorded(c.id);
     if (data && !cache.has(c.id)) {
       cache.set(c.id, data);
-      renderCaseRail();
+      if (activeWorkspace === "credit") renderCaseRail();
     }
   });
+
+  // Boot into requested workspace
+  activeWorkspace = startWs; // set the global
+  switchWorkspace(startWs);
 })();
