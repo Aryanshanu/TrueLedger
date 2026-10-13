@@ -17,39 +17,37 @@ const BACKEND_URL = (window.__CONFIG__ && window.__CONFIG__.BACKEND_URL) || "htt
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const CASES = [
-  { id: "b_clean", scenario: "All sources verified", note: "Prime credit profile · Healthy cashflows & clean GST", group: "prime" },
-  { id: "b_contradiction", scenario: "Bank vs. GST revenue divergence", note: "Bank receipts (+2.1%) vs. GST turnover (-11.0%) flagged", group: "review" },
-  { id: "b_stale_consent", scenario: "Lapsed consent window", note: "Consent expired · Dynamic confidence decay to zero", group: "review" },
-  { id: "b_freelancer", scenario: "Freelancer, thin file", note: "Sole proprietor · Thin file with regular SIP cushion", group: "prime" },
-  { id: "b_roundtrip", scenario: "Inflated bank deposits", note: "Deposit surges vs. flat GST · Suspected circular flow", group: "flagged" },
-  { id: "b_closing_consent", scenario: "Consent approaching expiry", note: "2 days consent remaining · Mathematical haircut applied", group: "review" },
-  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", note: "Seasonal revenue variance vs. stable cash buffer", group: "prime" },
-  { id: "b_double_flag", scenario: "Compound risk exposure", note: "Turnover divergence stacked with decaying consent", group: "flagged" },
+  { 
+    id: "b_contradiction", 
+    scenario: "Bank vs. GST Revenue Divergence", 
+    note: "Bank credit receipts (+2.1%) vs. GST turnover (-11.0%) · Structural discrepancy", 
+    group: "active" 
+  },
 ];
 
 const CASE_GROUPS = [
-  { key: "prime", label: "Prime" },
-  { key: "review", label: "Conditional Review" },
-  { key: "flagged", label: "Forensic Flags" },
+  { key: "active", label: "Active Commercial Underwriting" },
 ];
 
 const DEFAULT_CASE = "b_contradiction";
 const RECORDED_URL = (id) => `/recorded/${id}.json`;
 
-// Pre-computed credit risk metrics derived from synthetic borrower data.
+// Credit risk metrics anchored to the active operational target: Ramesh Kumar Enterprises
 // DSCR = annual NOI / annual debt service (12% p.a., 36-month term).
 // DTI  = monthly payment / avg monthly bank credits.
 // Collateral = pledgeable MF book value + life insurance sum assured.
 // tier: low | medium | high | watch | blocked
 const CREDIT_METRICS = {
-  b_clean:          { loan: 400000, entity: "Asha Traders",          biz: "SME · Trading",   dscr: 4.27, dti: 6.3,  tier: "low",     mfPledge: 250000,  insurance: 600000 },
-  b_contradiction:  { loan: 500000, entity: "Ramesh Kumar Ent.",      biz: "SME · Trading",   dscr: 2.51, dti: 9.96, tier: "medium",  mfPledge: 180000,  insurance: 600000 },
-  b_stale_consent:  { loan: 400000, entity: "Priya Nair",             biz: "SME · Services",  dscr: 4.27, dti: 6.3,  tier: "blocked", mfPledge: 250000,  insurance: 600000 },
-  b_freelancer:     { loan: 150000, entity: "Kavya Iyer Consulting",  biz: "Freelancer",      dscr: 6.84, dti: 10.0, tier: "low",     mfPledge: 44000,   insurance: 200000 },
-  b_roundtrip:      { loan: 300000, entity: "Patil General Store",    biz: "MSME · Retail",   dscr: 4.37, dti: 9.2,  tier: "high",    mfPledge: 56100,   insurance: 350000 },
-  b_closing_consent:{ loan: 400000, entity: "Farah Sheikh",           biz: "SME · Services",  dscr: 4.27, dti: 6.3,  tier: "watch",   mfPledge: 250000,  insurance: 600000 },
-  b_seasonal:       { loan: 350000, entity: "Mishra Sweets",          biz: "MSME · F&B",      dscr: 5.14, dti: 7.8,  tier: "low",     mfPledge: 60000,   insurance: 400000 },
-  b_double_flag:    { loan: 600000, entity: "Chawla Textiles",        biz: "SME · Textiles",  dscr: 2.52, dti: 10.6, tier: "high",    mfPledge: 70000,   insurance: 650000 },
+  b_contradiction: { 
+    loan: 5000000, 
+    entity: "Ramesh Kumar Enterprises", 
+    biz: "Logistics & Freight Services", 
+    dscr: 2.51, 
+    dti: 9.96, 
+    tier: "medium", 
+    mfPledge: 180000, 
+    insurance: 600000 
+  },
 };
 
 const TIER_LABEL  = { low: "LOW RISK", medium: "MEDIUM", high: "HIGH RISK", watch: "WATCH", blocked: "BLOCKED" };
@@ -321,14 +319,12 @@ function renderBookSummary() {
   const avgConfidence = (confidenceSum / entries.length).toFixed(2);
 
   el.innerHTML = `
-    <span class="book-summary-label">Book</span>
-    <span class="book-summary-count">${entries.length} case${entries.length === 1 ? "" : "s"} evaluated this session</span>
+    <span class="book-summary-label">Active Portfolio</span>
+    <span class="book-summary-count">Target: Ramesh Kumar Enterprises</span>
     <span class="book-summary-sep">&middot;</span>
-    <span class="book-summary-stat ok">${counts.approve || 0} approve</span>
-    <span class="book-summary-stat warn">${counts.manual_review || 0} manual review</span>
-    <span class="book-summary-stat bad">${counts.decline || 0} decline</span>
+    <span class="book-summary-stat warn">${counts.manual_review || 1} manual review</span>
     <span class="book-summary-sep">&middot;</span>
-    <span class="book-summary-avg">avg. final confidence ${avgConfidence}</span>`;
+    <span class="book-summary-avg">avg. confidence ${avgConfidence}</span>`;
 }
 
 // ---------- Pipeline canvas (SVG) ----------
@@ -1109,9 +1105,79 @@ let wsData = null;         // parsed workbook data from /ingest/onboarding
 let activeWsClient = null; // selected client ID in workspace panes
 let enterpriseData = null; // pre-loaded enterprise_live_state.json
 
+// ── Top-Level State Machine: currentWorkspaceMilestone ────────────────
+// Explicit state machine with 5 discrete stages:
+// 'auth' | 'onboarding' | 'ingestion_processing' | 'settled_dashboard' | 'dev_gateway'
+let currentWorkspaceMilestone = "auth";
+
+function setWorkspaceMilestone(milestone) {
+  currentWorkspaceMilestone = milestone;
+
+  // Sync data-milestone attribute on body and desk element
+  if (document.body) document.body.dataset.milestone = milestone;
+  const desk = $("desk");
+  if (desk) desk.dataset.milestone = milestone;
+
+  // Context pane synchronization in onboarding phase
+  if (milestone === "onboarding") {
+    document.querySelectorAll(".workspace-pane").forEach((pane) => {
+      pane.classList.toggle("active", pane.dataset.pane === "onboarding_checklist");
+    });
+    if (typeof updateOnboardingChecklistUI === "function") {
+      updateOnboardingChecklistUI();
+    }
+  }
+
+  // Update customer stepper
+  if (typeof updateCustomerStepper === "function") {
+    updateCustomerStepper();
+  }
+}
+
+function updateOnboardingChecklistUI() {
+  const gCheck = $("sidebar-chk-gstn");
+  const iCheck = $("sidebar-chk-itr");
+  const bCheck = $("sidebar-chk-bank");
+
+  if (gCheck) gCheck.classList.toggle("checked", !!enterpriseChannels.gstn);
+  if (iCheck) iCheck.classList.toggle("checked", !!enterpriseChannels.itr);
+  if (bCheck) bCheck.classList.toggle("checked", !!enterpriseChannels.bank);
+
+  const gIcon = $("sidebar-icon-gstn");
+  const iIcon = $("sidebar-icon-itr");
+  const bIcon = $("sidebar-icon-bank");
+
+  if (gIcon) gIcon.classList.toggle("checked", !!enterpriseChannels.gstn);
+  if (iIcon) iIcon.classList.toggle("checked", !!enterpriseChannels.itr);
+  if (bIcon) bIcon.classList.toggle("checked", !!enterpriseChannels.bank);
+}
+
 // ── Layout state router ───────────────────────────────────────────────
 // desk[data-ws] drives CSS show/hide of pipeline vs workspace-main-frame.
 function switchWorkspace(ws) {
+  // If in pre-audit phases ('auth', 'onboarding', 'ingestion_processing'),
+  // strictly block user from accessing post-audit institutional workspaces!
+  if (["auth", "onboarding", "ingestion_processing"].includes(currentWorkspaceMilestone)) {
+    if (!["dev_auth", "dev_console", "customer_wizard"].includes(ws)) {
+      if (typeof showToast === "function") {
+        showToast("Access restricted: Complete client onboarding & audit before accessing institutional workspaces.");
+      }
+      return;
+    }
+  }
+
+  if (ws === "dev_auth" || ws === "dev_console") {
+    setWorkspaceMilestone("dev_gateway");
+  } else if (ws === "customer_wizard") {
+    if (customerStep === 1) setWorkspaceMilestone("auth");
+    else if (customerStep === 2) setWorkspaceMilestone("onboarding");
+    else if (customerStep === 3) setWorkspaceMilestone("ingestion_processing");
+    else setWorkspaceMilestone("settled_dashboard");
+  } else {
+    // Navigating between unlocked settled workspaces
+    setWorkspaceMilestone("settled_dashboard");
+  }
+
   if (ws === "onboarding" || ws === "user_onboarding" || ws === "user_workspace" || ws === "cockpit") {
     ws = "customer_wizard";
   }
@@ -1129,7 +1195,11 @@ function switchWorkspace(ws) {
 
   // Left-rail context pane visibility
   document.querySelectorAll(".workspace-pane").forEach((pane) => {
-    pane.classList.toggle("active", pane.dataset.pane === ws);
+    if (currentWorkspaceMilestone === "onboarding") {
+      pane.classList.toggle("active", pane.dataset.pane === "onboarding_checklist");
+    } else {
+      pane.classList.toggle("active", pane.dataset.pane === ws);
+    }
   });
 
   // Update URL hash (enables browser back/forward and deep linking)
@@ -1334,17 +1404,12 @@ const COMMAND_ITEMS = [
   { group: "Forensic Actions", icon: "↻", label: "Re-animate Decision & Ledger Stepper", action: () => { $("replay-btn")?.click(); } },
   { group: "Forensic Actions", icon: "📁", label: "+ New Credit Submission (Upload Statement/GST)", action: () => { $("upload-open-btn")?.click(); } },
   { group: "Workspaces", icon: "▦", label: "Executive Dashboard", action: () => switchWorkspace("dashboard") },
-  { group: "Workspaces", icon: "⊞", label: "Credit Applications (8 Active Cases)", action: () => switchWorkspace("credit") },
+  { group: "Workspaces", icon: "⊞", label: "Credit Applications (Active Dossier)", action: () => switchWorkspace("credit") },
   { group: "Workspaces", icon: "◈", label: "Client Space (Onboarding & KYB)", action: () => switchWorkspace("client") },
   { group: "Workspaces", icon: "₹", label: "Income & Revenue Telemetry", action: () => switchWorkspace("income") },
   { group: "Workspaces", icon: "⊖", label: "Compliance & GST Lifecycle", action: () => switchWorkspace("compliance") },
   { group: "Workspaces", icon: "◎", label: "Asset Allocations & Portfolios", action: () => switchWorkspace("assets") },
   { group: "Target Entities", icon: "⚠", label: "Ramesh Kumar Enterprises (Bank vs GST Divergence)", action: () => { switchWorkspace("credit"); loadBorrower("b_contradiction"); } },
-  { group: "Target Entities", icon: "⏱", label: "Priya Nair (Lapsed AA Consent Window)", action: () => { switchWorkspace("credit"); loadBorrower("b_stale_consent"); } },
-  { group: "Target Entities", icon: "✓", label: "Asha Traders (Verified Prime SME)", action: () => { switchWorkspace("credit"); loadBorrower("b_clean"); } },
-  { group: "Target Entities", icon: "🔍", label: "Patil General Store (Suspected Circular Flow)", action: () => { switchWorkspace("credit"); loadBorrower("b_roundtrip"); } },
-  { group: "Target Entities", icon: "📊", label: "Mishra Sweets (Seasonal Dip vs Stable Buffer)", action: () => { switchWorkspace("credit"); loadBorrower("b_seasonal"); } },
-  { group: "Target Entities", icon: "⚡", label: "Chawla Textiles (Compound Exposure: Flag + Decay)", action: () => { switchWorkspace("credit"); loadBorrower("b_double_flag"); } },
 ];
 
 function setupCommandPalette() {
@@ -2431,7 +2496,7 @@ let isCustomerAuthenticated = false;
 let customerEmail = "analyst@apexcapital.fi";
 let customerPassword = "••••••••••••";
 
-let enterpriseEntityName = "Acme Hyperion Logistics Corp";
+let enterpriseEntityName = "Ramesh Kumar Enterprises";
 let enterpriseGstinMasked = true;
 let enterpriseChannels = {
   gstn: false,
@@ -2480,14 +2545,21 @@ function switchCustomerStep(step) {
   if (step === 2 && !isCustomerAuthenticated) {
     if (typeof showToast === "function") showToast("Please authenticate at Step 1 to proceed.");
     customerStep = 1;
+    setWorkspaceMilestone("auth");
   } else if (step === 3 && (!isCustomerAuthenticated || !isStep2Valid())) {
     if (typeof showToast === "function") showToast("Please verify all 3 telemetry rails at Step 2 to proceed.");
     customerStep = isCustomerAuthenticated ? 2 : 1;
+    setWorkspaceMilestone(isCustomerAuthenticated ? "onboarding" : "auth");
   } else if (step === 4 && (!isCustomerAuthenticated || !isStep2Valid() || swarmProgress < 100)) {
     if (typeof showToast === "function") showToast("Multi-agent swarm verification must finish before viewing final dossier.");
     customerStep = isCustomerAuthenticated && isStep2Valid() ? 3 : (isCustomerAuthenticated ? 2 : 1);
+    setWorkspaceMilestone(isCustomerAuthenticated && isStep2Valid() ? "ingestion_processing" : (isCustomerAuthenticated ? "onboarding" : "auth"));
   } else {
     customerStep = step;
+    if (step === 1) setWorkspaceMilestone("auth");
+    else if (step === 2) setWorkspaceMilestone("onboarding");
+    else if (step === 3) setWorkspaceMilestone("ingestion_processing");
+    else if (step === 4) setWorkspaceMilestone("settled_dashboard");
   }
 
   try { history.replaceState(null, "", `#step=${customerStep}`); } catch (_) {}
@@ -3277,7 +3349,12 @@ function bootCaseFromURL() {
     startWs = "customer_wizard";
     customerStep = Number(stepMatch[1]);
   } else if (hashWs && ["credit", "dashboard", "client", "income", "compliance", "assets", "customer_wizard"].includes(hashWs)) {
-    startWs = hashWs;
+    if (!isCustomerAuthenticated) {
+      startWs = "customer_wizard";
+      customerStep = 1;
+    } else {
+      startWs = hashWs;
+    }
   }
 
   // Start enterprise data fetch immediately

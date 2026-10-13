@@ -6999,3 +6999,299 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MILESTONE-DRIVEN PROGRESSIVE DISCLOSURE ENGINE
+   Controls: sidebar, topbar controls, decision-anchor visibility
+   based on data-milestone attribute on .desk element.
+   Milestones: auth | onboarding | ingestion_processing | settled_dashboard
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── MILESTONE: auth ─ Hide sidebar, anchor bar, stepper, env toggle ── */
+.desk[data-milestone="auth"] .workspace-rail {
+  display: none !important;
+}
+.desk[data-milestone="auth"] ~ .ledger-panel {
+  display: none !important;
+}
+/* Topbar: only show brand + version in auth */
+.desk[data-milestone="auth"] ~ .decision-anchor-bar,
+body[data-milestone="auth"] .decision-anchor-bar {
+  display: none !important;
+}
+body[data-milestone="auth"] .customer-stepper {
+  display: none !important;
+}
+body[data-milestone="auth"] .env-toggle-pill {
+  display: none !important;
+}
+body[data-milestone="auth"] .global-search-btn {
+  display: none !important;
+}
+body[data-milestone="auth"] .mask-toggle-btn {
+  display: none !important;
+}
+body[data-milestone="auth"] .replay-btn {
+  display: none !important;
+}
+body[data-milestone="auth"] #topbar-case-ctx {
+  display: none !important;
+}
+/* auth: make main frame fill entire width, no grid offset */
+.desk[data-milestone="auth"] {
+  grid-template-columns: 1fr !important;
+}
+.desk[data-milestone="auth"] .workspace-main-frame {
+  grid-column: 1 / -1 !important;
+  display: block !important;
+}
+.desk[data-milestone="auth"] .pipeline-panel,
+.desk[data-milestone="auth"] .decision-card {
+  display: none !important;
+}
+
+/* ── MILESTONE: onboarding ─ Sidebar shows only checklist, no dashboard tabs ── */
+.desk[data-milestone="onboarding"] .workspace-rail {
+  display: flex !important;
+}
+/* Hide all full-dashboard nav items; show only the onboarding checklist */
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="dashboard"],
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="credit"],
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="client"],
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="income"],
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="compliance"],
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="assets"] {
+  display: none !important;
+}
+/* Show onboarding checklist nav */
+.desk[data-milestone="onboarding"] .ws-nav-group-header,
+.desk[data-milestone="onboarding"] .workspace-nav-item[data-ws="customer_wizard"] {
+  display: flex !important;
+}
+/* Hide all context panes */
+.desk[data-milestone="onboarding"] .workspace-pane {
+  display: none !important;
+}
+/* Show the onboarding sidebar checklist pane */
+.desk[data-milestone="onboarding"] .workspace-pane[data-pane="onboarding_checklist"] {
+  display: flex !important;
+  flex-direction: column;
+  gap: 6px;
+}
+body[data-milestone="onboarding"] .decision-anchor-bar {
+  display: none !important;
+}
+body[data-milestone="onboarding"] .env-toggle-pill {
+  display: none !important;
+}
+body[data-milestone="onboarding"] .mask-toggle-btn {
+  display: none !important;
+}
+body[data-milestone="onboarding"] .replay-btn {
+  display: none !important;
+}
+body[data-milestone="onboarding"] #topbar-case-ctx {
+  display: none !important;
+}
+.desk[data-milestone="onboarding"] .pipeline-panel,
+.desk[data-milestone="onboarding"] .decision-card {
+  display: none !important;
+}
+.desk[data-milestone="onboarding"] .workspace-main-frame {
+  display: block !important;
+}
+
+/* ── MILESTONE: ingestion_processing ─ Fullscreen processing, no sidebar ── */
+.desk[data-milestone="ingestion_processing"] .workspace-rail {
+  display: none !important;
+}
+.desk[data-milestone="ingestion_processing"] {
+  grid-template-columns: 1fr !important;
+}
+.desk[data-milestone="ingestion_processing"] .workspace-main-frame {
+  grid-column: 1 / -1 !important;
+  display: block !important;
+}
+.desk[data-milestone="ingestion_processing"] .pipeline-panel,
+.desk[data-milestone="ingestion_processing"] .decision-card {
+  display: none !important;
+}
+.desk[data-milestone="ingestion_processing"] ~ .ledger-panel {
+  display: none !important;
+}
+body[data-milestone="ingestion_processing"] .decision-anchor-bar {
+  display: none !important;
+}
+body[data-milestone="ingestion_processing"] .env-toggle-pill {
+  display: none !important;
+}
+body[data-milestone="ingestion_processing"] .mask-toggle-btn {
+  display: none !important;
+}
+body[data-milestone="ingestion_processing"] .replay-btn {
+  display: none !important;
+}
+body[data-milestone="ingestion_processing"] #topbar-case-ctx {
+  display: none !important;
+}
+
+/* ── MILESTONE: settled_dashboard ─ Full institutional sidebar layout ── */
+.desk[data-milestone="settled_dashboard"] .workspace-rail {
+  display: flex !important;
+}
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="dashboard"],
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="credit"],
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="client"],
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="income"],
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="compliance"],
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="assets"] {
+  display: flex !important;
+}
+/* In settled state, hide the wizard nav item and group header */
+.desk[data-milestone="settled_dashboard"] .ws-nav-group-header,
+.desk[data-milestone="settled_dashboard"] .workspace-nav-item[data-ws="customer_wizard"] {
+  display: none !important;
+}
+body[data-milestone="settled_dashboard"] .decision-anchor-bar {
+  display: flex !important;
+}
+body[data-milestone="settled_dashboard"] .env-toggle-pill {
+  display: flex !important;
+}
+body[data-milestone="settled_dashboard"] .global-search-btn {
+  display: flex !important;
+}
+body[data-milestone="settled_dashboard"] .mask-toggle-btn {
+  display: flex !important;
+}
+body[data-milestone="settled_dashboard"] .replay-btn {
+  display: inline-flex !important;
+}
+
+/* ── MILESTONE: dev_gateway ─ Dev auth/console, no sidebar, no anchor ── */
+.desk[data-milestone="dev_gateway"] .workspace-rail {
+  display: none !important;
+}
+.desk[data-milestone="dev_gateway"] {
+  grid-template-columns: 1fr !important;
+}
+.desk[data-milestone="dev_gateway"] .workspace-main-frame {
+  grid-column: 1 / -1 !important;
+  display: block !important;
+}
+.desk[data-milestone="dev_gateway"] .pipeline-panel,
+.desk[data-milestone="dev_gateway"] .decision-card {
+  display: none !important;
+}
+.desk[data-milestone="dev_gateway"] ~ .ledger-panel {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] .decision-anchor-bar {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] .customer-stepper {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] .env-toggle-pill {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] .mask-toggle-btn {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] .replay-btn {
+  display: none !important;
+}
+body[data-milestone="dev_gateway"] #topbar-case-ctx {
+  display: none !important;
+}
+
+/* ── Onboarding Checklist Sidebar Pane ── */
+.onboarding-checklist-pane {
+  padding: 14px;
+}
+.onboarding-checklist-pane .checklist-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.checklist-item:last-child {
+  border-bottom: none;
+}
+.checklist-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s ease;
+}
+.checklist-check.checked {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #34d399;
+}
+.checklist-check:not(.checked) {
+  background: rgba(255,255,255,0.03);
+  color: transparent;
+}
+.checklist-info {
+  flex: 1;
+}
+.checklist-info .checklist-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.checklist-info .checklist-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+.checklist-item.checked .checklist-label {
+  color: #34d399;
+}
+
+/* ── Fullscreen Processing Overlay styles ── */
+.processing-fullscreen-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  animation: fadeIn 0.3s ease-out;
+}
+.processing-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.processing-lock-badge .lock-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #818cf8;
+  animation: pulse 1.5s infinite;
+}

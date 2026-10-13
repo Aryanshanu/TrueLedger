@@ -12,7 +12,7 @@
   />
   <link rel="stylesheet" href="/style.css" />
 </head>
-<body>
+<body data-milestone="auth">
   <header class="topbar">
     <a href="/" class="back-link">← Overview</a>
     <div class="brand">
@@ -107,7 +107,7 @@
     </div>
   </section>
 
-  <main class="desk" id="desk" data-ws="dashboard">
+  <main class="desk" id="desk" data-ws="dashboard" data-milestone="auth">
     <aside class="workspace-rail" id="case-rail" aria-label="Business Workspaces">
 
       <!-- ── Workspace Navigator ─────────────────────────────── -->
@@ -125,7 +125,7 @@
           <span class="workspace-nav-icon" aria-hidden="true">⊞</span>
           <div class="workspace-nav-text">
             <span class="workspace-nav-label">Credit Applications</span>
-            <span class="workspace-nav-sub">Active pipeline · 8 cases</span>
+            <span class="workspace-nav-sub">Active Dossier · Ramesh Kumar Ent.</span>
           </div>
         </button>
 
@@ -240,6 +240,35 @@
           <button class="ws-sub-nav-link active" data-ws-view="mf-portfolios" type="button">Mutual Fund Portfolios</button>
           <button class="ws-sub-nav-link" data-ws-view="capital" type="button">Capital Inflow Decisions</button>
         </nav>
+      </div>
+
+      <!-- PANE 6: Onboarding Checklist (milestone: onboarding) -->
+      <div class="workspace-pane onboarding-checklist-pane" data-pane="onboarding_checklist" role="region" aria-label="Audit Pipeline Wizard">
+        <div class="ws-pane-header">
+          <span class="ws-pane-title">Audit Pipeline Wizard</span>
+        </div>
+        <div class="checklist-title">Verification Checklist</div>
+        <div class="checklist-item" id="sidebar-chk-gstn">
+          <div class="checklist-check" id="sidebar-icon-gstn">✓</div>
+          <div class="checklist-info">
+            <div class="checklist-label">GSTN GSTR-1 &amp; 3B</div>
+            <div class="checklist-desc">Automated G2G gateway connection</div>
+          </div>
+        </div>
+        <div class="checklist-item" id="sidebar-chk-itr">
+          <div class="checklist-check" id="sidebar-icon-itr">✓</div>
+          <div class="checklist-info">
+            <div class="checklist-label">Income Tax (ITR)</div>
+            <div class="checklist-desc">Form 16 &amp; 26AS ingestion framework</div>
+          </div>
+        </div>
+        <div class="checklist-item" id="sidebar-chk-bank">
+          <div class="checklist-check" id="sidebar-icon-bank">✓</div>
+          <div class="checklist-info">
+            <div class="checklist-label">Bank MFT Aggregator</div>
+            <div class="checklist-desc">Direct MFT transfer stream feed</div>
+          </div>
+        </div>
       </div>
 
       <!-- Hidden file input for workbook upload -->
