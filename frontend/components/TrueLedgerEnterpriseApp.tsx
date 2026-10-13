@@ -55,8 +55,10 @@ import {
 
 export type WorkspaceMilestone =
   | "landing"
+  | "login"
   | "auth"
   | "onboarding"
+  | "processing"
   | "ingestion_processing"
   | "settled_dashboard";
 
@@ -523,7 +525,7 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
   // ───────────────────────────────────────────────────────────────────────────
   // VIEW RENDERER 2: PORTAL GATEWAY (ISOLATED CUSTOMER LOGIN)
   // ───────────────────────────────────────────────────────────────────────────
-  if (currentMilestone === "auth") {
+  if (currentMilestone === "auth" || currentMilestone === "login") {
     return (
       <div className="min-h-screen bg-[#060913] text-[#e2e8f0] flex flex-col items-center justify-center p-6 relative">
         <button
@@ -614,7 +616,7 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
   // ───────────────────────────────────────────────────────────────────────────
   // VIEW RENDERER 3: TELEMETRY & SWARM PROCESSING PORTAL (FULLSCREEN)
   // ───────────────────────────────────────────────────────────────────────────
-  if (currentMilestone === "ingestion_processing") {
+  if (currentMilestone === "ingestion_processing" || currentMilestone === "processing") {
     return (
       <div className="min-h-screen bg-[#060913] text-[#e2e8f0] p-8 flex flex-col justify-center items-center">
         <div className="w-full max-w-3xl">
@@ -1431,6 +1433,37 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
           )}
         </main>
       </div>
+
+      {/* ───────────────────────────────────────────────────────────────────────────
+          FOOTER: REAL-TIME APPEND-ONLY GOVERNANCE LEDGER STRIP (PHASE 4)
+          ─────────────────────────────────────────────────────────────────────────── */}
+      <footer className="h-10 border-t border-[#1e293b] bg-[#0c101d] px-6 flex items-center justify-between text-[11px] font-mono z-10 select-none shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
+            <Terminal className="w-3.5 h-3.5" />
+            <span>IMMUTABLE AUDIT STREAM</span>
+          </span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400 truncate max-w-md">
+            Latest Event: <strong className="text-white">{auditLog[0]?.eventToken}</strong> — {auditLog[0]?.action}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4 text-slate-500">
+          <span className="tabular-nums">{auditLog.length} Events Logged</span>
+          <span className="text-slate-700">|</span>
+          <span className="truncate max-w-[140px] text-slate-400" title={auditLog[0]?.sha256BlockDigest}>
+            {auditLog[0]?.sha256BlockDigest?.slice(0, 16)}...
+          </span>
+          <span className="text-slate-700">|</span>
+          <button
+            onClick={() => setIsDevRouteActive(true)}
+            className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+          >
+            Open Full Ledger
+          </button>
+        </div>
+      </footer>
 
       {/* ───────────────────────────────────────────────────────────────────────────
           MODAL: HIDDEN DEVELOPER GOVERNANCE GATEWAY (/app/dev-login)
