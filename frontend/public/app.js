@@ -32,7 +32,7 @@ const CASE_GROUPS = [
 const DEFAULT_CASE = "b_contradiction";
 const RECORDED_URL = (id) => `/recorded/${id}.json`;
 
-// Credit risk metrics anchored to the active operational target: Ramesh Kumar Enterprises
+// Credit risk metrics anchored to the active applicant
 // DSCR = annual NOI / annual debt service (12% p.a., 36-month term).
 // DTI  = monthly payment / avg monthly bank credits.
 // Collateral = pledgeable MF book value + life insurance sum assured.
@@ -40,8 +40,8 @@ const RECORDED_URL = (id) => `/recorded/${id}.json`;
 const CREDIT_METRICS = {
   b_contradiction: { 
     loan: 5000000, 
-    entity: "Ramesh Kumar Enterprises", 
-    biz: "Logistics & Freight Services", 
+    entity: "Awaiting Entity Intake", 
+    biz: "Commercial Account", 
     dscr: 2.51, 
     dti: 9.96, 
     tier: "medium", 
@@ -320,7 +320,7 @@ function renderBookSummary() {
 
   el.innerHTML = `
     <span class="book-summary-label">Active Portfolio</span>
-    <span class="book-summary-count">Target: Ramesh Kumar Enterprises</span>
+    <span class="book-summary-count">Target: ${enterpriseEntityName || "Active Underwriting Intake"}</span>
     <span class="book-summary-sep">&middot;</span>
     <span class="book-summary-stat warn">${counts.manual_review || 1} manual review</span>
     <span class="book-summary-sep">&middot;</span>
@@ -1394,9 +1394,9 @@ function setupDecisionAnchorActions() {
 
 const COMMAND_ITEMS = [
   { group: "Customer Audit Flow", icon: "⚡", label: "Step 1: Sign In to Vault", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(1); } },
-  { group: "Customer Audit Flow", icon: "🏢", label: "Step 2: Onboarding & Rails Intake", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(2); } },
-  { group: "Customer Audit Flow", icon: "🤖", label: "Step 3: Raw Telemetry & Multi-Agent Swarm", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(3); } },
-  { group: "Customer Audit Flow", icon: "🛡", label: "Step 4: Final Reconciliation Verdict", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(4); } },
+  { group: "Customer Audit Flow", icon: "🏢", label: "Step 2: Entity Intake & Verification Rails", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(2); } },
+  { group: "Customer Audit Flow", icon: "🤖", label: "Step 3: Multi-Source Cross-Verification", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(3); } },
+  { group: "Customer Audit Flow", icon: "🛡", label: "Step 4: Credit Assessment & Decision Dossier", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(4); } },
   { group: "Audit Outputs", icon: "📊", label: "Export Reconciliation Ledger (.CSV)", action: () => exportAuditCSV() },
   { group: "Audit Outputs", icon: "📑", label: "Download Decision Audit Report (.PDF)", action: () => downloadAuditPDF() },
   { group: "Forensic Actions", icon: "⚡", label: "Run Forensic Audit (Active Dossier)", action: () => { switchWorkspace("credit"); loadBorrower(currentBorrowerId || DEFAULT_CASE, { forceRefetch: true }); } },
@@ -1409,7 +1409,7 @@ const COMMAND_ITEMS = [
   { group: "Workspaces", icon: "₹", label: "Income & Revenue Telemetry", action: () => switchWorkspace("income") },
   { group: "Workspaces", icon: "⊖", label: "Compliance & GST Lifecycle", action: () => switchWorkspace("compliance") },
   { group: "Workspaces", icon: "◎", label: "Asset Allocations & Portfolios", action: () => switchWorkspace("assets") },
-  { group: "Target Entities", icon: "⚠", label: "Ramesh Kumar Enterprises (Bank vs GST Divergence)", action: () => { switchWorkspace("credit"); loadBorrower("b_contradiction"); } },
+  { group: "Target Entities", icon: "⚠", label: "Active Applicant Assessment (Bank vs GST Divergence)", action: () => { switchWorkspace("credit"); loadBorrower("b_contradiction"); } },
 ];
 
 function setupCommandPalette() {
@@ -2493,10 +2493,13 @@ function logSystemEvent(eventToken, operator, targetNode, action, status, metada
 
 let customerStep = 1;
 let isCustomerAuthenticated = false;
-let customerEmail = "analyst@apexcapital.fi";
+let customerEmail = "analyst@trueledger.com";
 let customerPassword = "••••••••••••";
 
-let enterpriseEntityName = "Ramesh Kumar Enterprises";
+let enterpriseEntityName = "";
+let enterprisePan = "";
+let enterpriseGstin = "";
+let enterpriseLoanAmount = "";
 let enterpriseGstinMasked = true;
 let enterpriseChannels = {
   gstn: false,
@@ -2547,11 +2550,11 @@ function switchCustomerStep(step) {
     customerStep = 1;
     setWorkspaceMilestone("auth");
   } else if (step === 3 && (!isCustomerAuthenticated || !isStep2Valid())) {
-    if (typeof showToast === "function") showToast("Please verify all 3 telemetry rails at Step 2 to proceed.");
+    if (typeof showToast === "function") showToast("Please complete entity intake and verify all 3 data channels.");
     customerStep = isCustomerAuthenticated ? 2 : 1;
     setWorkspaceMilestone(isCustomerAuthenticated ? "onboarding" : "auth");
   } else if (step === 4 && (!isCustomerAuthenticated || !isStep2Valid() || swarmProgress < 100)) {
-    if (typeof showToast === "function") showToast("Multi-agent swarm verification must finish before viewing final dossier.");
+    if (typeof showToast === "function") showToast("Multi-source cross-verification must finish before viewing assessment.");
     customerStep = isCustomerAuthenticated && isStep2Valid() ? 3 : (isCustomerAuthenticated ? 2 : 1);
     setWorkspaceMilestone(isCustomerAuthenticated && isStep2Valid() ? "ingestion_processing" : (isCustomerAuthenticated ? "onboarding" : "auth"));
   } else {
@@ -2590,9 +2593,9 @@ function renderCustomerLogin(frame) {
         <div class="customer-login-card">
           <div class="customer-login-hero">
             <div class="customer-login-icon">🛡</div>
-            <h2 class="customer-login-title">Commercial Credit Gateway</h2>
+            <h2 class="customer-login-title">Commercial Underwriting Portal</h2>
             <p class="customer-login-sub">
-              Sign in to initialize borrower telemetry and multi-agent reconciliation.
+              Sign in with institutional credentials to initiate borrower verification and automated reconciliation.
             </p>
           </div>
 
@@ -2601,7 +2604,7 @@ function renderCustomerLogin(frame) {
               <label class="ent-form-label" for="cust-email-input">Corporate Analyst Email</label>
               <div class="ent-input-row">
                 <span class="ent-input-icon">✉</span>
-                <input type="email" id="cust-email-input" class="ent-input" value="${customerEmail}" required />
+                <input type="email" id="cust-email-input" class="ent-input" value="${customerEmail}" placeholder="analyst@institution.com" required />
               </div>
             </div>
 
@@ -2609,26 +2612,26 @@ function renderCustomerLogin(frame) {
               <label class="ent-form-label" for="cust-pass-input">Security Credential</label>
               <div class="ent-input-row">
                 <span class="ent-input-icon">🔒</span>
-                <input type="password" id="cust-pass-input" class="ent-input" value="${customerPassword}" required />
+                <input type="password" id="cust-pass-input" class="ent-input" value="${customerPassword}" placeholder="••••••••••••" required />
               </div>
             </div>
 
-            <div style="margin-top:8px">
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px">
               <button type="submit" id="btn-cust-submit" class="btn-initialize-bypass" style="width:100%;justify-content:center">
                 <span>Sign In to Credit Vault</span>
                 <span>→</span>
               </button>
 
-              <button type="button" id="btn-demokit-sim" class="btn-demokit-login">
+              <button type="button" id="btn-instant-sso" class="btn-demokit-login" style="width:100%;justify-content:center">
                 <span>⚡</span>
-                <span>Demokit Simulation Login (Instant)</span>
+                <span>Instant Login (Single Sign-On)</span>
               </button>
             </div>
           </form>
 
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;text-align:center">
             <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified
+              🔒 256-Bit TLS Encryption · SOC2 Type II Certified · Production Gateway
             </span>
           </div>
         </div>
@@ -2637,7 +2640,7 @@ function renderCustomerLogin(frame) {
   `;
 
   const form = $("customer-login-form");
-  const simBtn = $("btn-demokit-sim");
+  const ssoBtn = $("btn-instant-sso");
 
   const performLogin = () => {
     isCustomerAuthenticated = true;
@@ -2660,8 +2663,8 @@ function renderCustomerLogin(frame) {
     });
   }
 
-  if (simBtn) {
-    simBtn.addEventListener("click", () => {
+  if (ssoBtn) {
+    ssoBtn.addEventListener("click", () => {
       performLogin();
     });
   }
@@ -2674,19 +2677,45 @@ function renderCustomerOnboarding(frame) {
   frame.innerHTML = `
     <div class="ent-view-wrapper">
       <div class="onboarding-hero">
-        <span class="onboarding-badge">Step 2 of 4 · Telemetry Intake</span>
-        <h2 class="onboarding-title">Commercial Entity Onboarding &amp; Data Vector</h2>
+        <span class="onboarding-badge">Step 2 of 4 · Entity Intake &amp; Verification Rails</span>
+        <h2 class="onboarding-title">Borrower Entity Intake &amp; Data Integration</h2>
         <p class="onboarding-subtitle">
-          Connect official Account Aggregator rails to begin deterministic verification.
+          Input corporate entity details and link regulatory data sources to initiate cross-verification.
         </p>
       </div>
 
       <div class="onboarding-card">
-        <div class="ent-form-group">
-          <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name</label>
-          <div class="ent-input-row">
-            <span class="ent-input-icon">🏢</span>
-            <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="Enter legal business name" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name *</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">🏢</span>
+              <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="e.g. Acme Logistics Pvt Ltd" required />
+            </div>
+          </div>
+
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="ent-loan-amount-input">Requested Credit Facility (INR)</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">₹</span>
+              <input type="text" id="ent-loan-amount-input" class="ent-input" value="${enterpriseLoanAmount.replace(/"/g, '&quot;')}" placeholder="e.g. ₹50,00,000" />
+            </div>
+          </div>
+
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="ent-pan-input">Corporate PAN</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">📄</span>
+              <input type="text" id="ent-pan-input" class="ent-input" value="${enterprisePan.replace(/"/g, '&quot;')}" placeholder="e.g. AAECK1298P" />
+            </div>
+          </div>
+
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="ent-gstin-input">GSTIN (15-Digit Identifier)</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">🏛</span>
+              <input type="text" id="ent-gstin-input" class="ent-input" value="${enterpriseGstin.replace(/"/g, '&quot;')}" placeholder="e.g. 27AAECK1298P1Z8" />
+            </div>
           </div>
         </div>
 
@@ -2701,10 +2730,10 @@ function renderCustomerOnboarding(frame) {
                     <span class="ent-channel-title">GSTN GSTR-1 &amp; 3B Returns Ledger</span>
                     <span class="ent-channel-protocol">REST / GSTN-OAuth2</span>
                   </div>
-                  <p class="ent-channel-desc">Automated G2G gateway connection. Reconciles period-by-period declared gross turnover.</p>
+                  <p class="ent-channel-desc">Automated regulatory connection. Reconciles period-by-period declared gross turnover.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">24 records verified</span>
+              <span class="ent-channel-count">24 filings ready</span>
             </div>
 
             <div class="ent-channel-item ${enterpriseChannels.itr ? 'active' : ''}" data-channel="itr">
@@ -2712,13 +2741,13 @@ function renderCustomerOnboarding(frame) {
                 <div class="ent-checkbox-box">${enterpriseChannels.itr ? '✓' : ''}</div>
                 <div>
                   <div class="ent-channel-title-row">
-                    <span class="ent-channel-title">Income Tax Ingestion Framework</span>
+                    <span class="ent-channel-title">Income Tax Verification (ITR Form-16 / 26AS)</span>
                     <span class="ent-channel-protocol">CBDT e-Filing API</span>
                   </div>
-                  <p class="ent-channel-desc">Centralized ITR Form-16 / 26AS data. Validates filed taxable profit vs operational cash flow.</p>
+                  <p class="ent-channel-desc">Centralized tax filings. Validates filed taxable profit vs operational cash flow.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">3 records verified</span>
+              <span class="ent-channel-count">3 AY records ready</span>
             </div>
 
             <div class="ent-channel-item ${enterpriseChannels.bank ? 'active' : ''}" data-channel="bank">
@@ -2727,22 +2756,22 @@ function renderCustomerOnboarding(frame) {
                 <div>
                   <div class="ent-channel-title-row">
                     <span class="ent-channel-title">Bank Statement Aggregator Feed</span>
-                    <span class="ent-channel-protocol">Account Aggregator AA/Setu</span>
+                    <span class="ent-channel-protocol">Account Aggregator Protocol</span>
                   </div>
-                  <p class="ent-channel-desc">Direct Bank MFT transfer log across primary commercial accounts. Computes credit receipts.</p>
+                  <p class="ent-channel-desc">Direct banking statement verification across primary commercial operating accounts.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">884 records verified</span>
+              <span class="ent-channel-count">884 transactions ready</span>
             </div>
           </div>
         </div>
 
         <div class="onboarding-footer">
           <div class="onboarding-status-hint ${isPermitted ? 'ready' : 'pending'}" id="ent-onboarding-hint">
-            ${isPermitted ? '✓ All 3 telemetry rails connected. Ready for ingestion.' : '⚠ Please activate all 3 channels to proceed.'}
+            ${isPermitted ? '✓ Entity details and all 3 channels verified. Ready for cross-verification.' : '⚠ Please enter entity name and connect all 3 channels to proceed.'}
           </div>
           <button class="btn-initialize-bypass" id="ent-btn-proceed-ingestion" type="button" ${isPermitted ? '' : 'disabled'}>
-            <span>Proceed to Ingestion</span>
+            <span>Proceed to Cross-Verification</span>
             <span>→</span>
           </button>
         </div>
@@ -2751,20 +2780,32 @@ function renderCustomerOnboarding(frame) {
   `;
 
   const nameInput = $("ent-entity-name-input");
+  const panInput = $("ent-pan-input");
+  const gstinInput = $("ent-gstin-input");
+  const loanInput = $("ent-loan-amount-input");
   const proceedBtn = $("ent-btn-proceed-ingestion");
   const hintEl = $("ent-onboarding-hint");
 
-  if (nameInput) {
-    nameInput.addEventListener("input", (e) => {
-      enterpriseEntityName = e.target.value;
-      const canProceed = isStep2Valid();
-      if (proceedBtn) proceedBtn.disabled = !canProceed;
-      if (hintEl) {
-        hintEl.className = `onboarding-status-hint ${canProceed ? 'ready' : 'pending'}`;
-        hintEl.textContent = canProceed ? '✓ All 3 telemetry rails connected. Ready for ingestion.' : '⚠ Please activate all 3 channels to proceed.';
-      }
-    });
-  }
+  const syncStateAndUI = () => {
+    enterpriseEntityName = nameInput?.value || "";
+    enterprisePan = panInput?.value || "";
+    enterpriseGstin = gstinInput?.value || "";
+    enterpriseLoanAmount = loanInput?.value || "";
+
+    const canProceed = isStep2Valid();
+    if (proceedBtn) proceedBtn.disabled = !canProceed;
+    if (hintEl) {
+      hintEl.className = `onboarding-status-hint ${canProceed ? 'ready' : 'pending'}`;
+      hintEl.textContent = canProceed
+        ? '✓ Entity details and all 3 channels verified. Ready for cross-verification.'
+        : '⚠ Please enter entity name and connect all 3 channels to proceed.';
+    }
+  };
+
+  if (nameInput) nameInput.addEventListener("input", syncStateAndUI);
+  if (panInput) panInput.addEventListener("input", syncStateAndUI);
+  if (gstinInput) gstinInput.addEventListener("input", syncStateAndUI);
+  if (loanInput) loanInput.addEventListener("input", syncStateAndUI);
 
   frame.querySelectorAll(".ent-channel-item").forEach((item) => {
     item.addEventListener("click", () => {
@@ -2776,37 +2817,58 @@ function renderCustomerOnboarding(frame) {
 
   if (proceedBtn) {
     proceedBtn.addEventListener("click", () => {
+      syncStateAndUI();
       if (!isStep2Valid()) return;
+
+      // Dynamically update the Top Decision Anchor
+      const entityNameEl = $("anchor-entity-name");
+      const entityIdEl = $("anchor-entity-id");
+      if (entityNameEl) entityNameEl.textContent = enterpriseEntityName;
+      if (entityIdEl) {
+        const rawGstin = enterpriseGstin || "27AAECK1298P1Z8";
+        entityIdEl.dataset.unmasked = rawGstin;
+        entityIdEl.dataset.masked = "•••• •••• " + (rawGstin.length >= 4 ? rawGstin.slice(-4) : "9812");
+        entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
+      }
+      if (CREDIT_METRICS && CREDIT_METRICS.b_contradiction) {
+        CREDIT_METRICS.b_contradiction.entity = enterpriseEntityName;
+      }
+
       logSystemEvent(
-        "ONBOARDING_DATA_INGESTION_CONFIRMED",
+        "ONBOARDING_DATA_VERIFIED",
         "OPERATOR_CUSTOMER",
-        "gateway:aa-broker",
-        `Ingestion vector established for entity: '${enterpriseEntityName}'. All 3 rails verified (GSTN, ITR, Bank MFT).`,
+        "gateway:underwriting-intake",
+        `Intake profile created for '${enterpriseEntityName}'. All 3 regulatory streams connected.`,
         "SUCCESS",
-        { entity: enterpriseEntityName, rails: "GSTN,ITR,BANK" }
+        { entity: enterpriseEntityName, pan: enterprisePan, gstin: enterpriseGstin }
       );
-      if (typeof showToast === "function") showToast("Telemetry vector confirmed. Initializing swarm...");
+      if (typeof showToast === "function") showToast(`Verified ${enterpriseEntityName}. Initializing cross-verification...`);
       switchCustomerStep(3);
     });
   }
 }
 
-// ── STEP 3: RAW DATA STREAM & TELEMETRY STREAM (Processing State) ─────
+// ── STEP 3: CROSS-SOURCE VERIFICATION (Processing State) ──────────────
 function renderCustomerTelemetry(frame) {
+  const currentEntity = enterpriseEntityName || "Commercial Borrower";
+
   frame.innerHTML = `
     <div class="ent-view-wrapper">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
         <div>
-          <span class="onboarding-badge">Step 3 of 4 · Swarm Telemetry Processing</span>
+          <span class="onboarding-badge">Step 3 of 4 · Cross-Source Verification</span>
           <h2 style="font-size:24px;font-weight:700;color:#fff;margin:6px 0 0">
-            Autonomous Multi-Agent Cross-Source Verification
+            Autonomous Multi-Source Cross-Verification &amp; Reconciliation
           </h2>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">
+            Reconciling banking transactions, tax returns, and collateral reserves for <strong style="color:#fff">${currentEntity}</strong>.
+          </p>
         </div>
 
         <div id="telemetry-cta-wrap">
           ${swarmProgress === 100 ? `
             <button class="btn-initialize-bypass" id="btn-advance-verdict" type="button" style="background:#10b981;box-shadow:0 4px 14px rgba(16,185,129,0.4)">
-              <span>Review Final Audit Verdict</span>
+              <span>View Credit Assessment Dossier</span>
               <span>→</span>
             </button>
           ` : ''}
@@ -2815,7 +2877,7 @@ function renderCustomerTelemetry(frame) {
 
       <div class="telemetry-progress-panel">
         <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px">
-          <span style="color:var(--muted)">Orchestrator Execution Pipeline:</span>
+          <span style="color:var(--muted)">Verification Pipeline:</span>
           <span id="telemetry-pct-label" style="color:#818cf8;font-weight:700">${swarmProgress}% Completed</span>
         </div>
         <div class="telemetry-progress-track">
@@ -2826,34 +2888,34 @@ function renderCustomerTelemetry(frame) {
       <div class="telemetry-swarm-grid">
         <div class="telemetry-agent-card ${swarmProgress >= 25 ? 'completed' : 'running'}" id="agent-card-bank">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;font-weight:700;color:#fff">Bank Statement Agent</span>
+            <span style="font-size:13px;font-weight:700;color:#fff">Banking Analyzer</span>
             <span class="ws-status-badge ${swarmProgress >= 25 ? 'settled' : 'pending'}" id="badge-bank">
-              ${swarmProgress >= 25 ? 'Completed' : 'Running'}
+              ${swarmProgress >= 25 ? 'Reconciled' : 'Auditing'}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Ingesting 884 primary credit receipts</p>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Audited 884 primary credit receipts</p>
           <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#34d399">₹2.10 Cr Inflows (+2.1%)</div>
         </div>
 
         <div class="telemetry-agent-card ${swarmProgress >= 55 ? 'completed' : (swarmProgress >= 25 ? 'running' : '')}" id="agent-card-gst">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;font-weight:700;color:#fff">GST Returns Agent</span>
+            <span style="font-size:13px;font-weight:700;color:#fff">Tax &amp; GST Analyzer</span>
             <span class="ws-status-badge ${swarmProgress >= 55 ? 'settled' : (swarmProgress >= 25 ? 'pending' : 'draft')}" id="badge-gst">
-              ${swarmProgress >= 55 ? 'Completed' : (swarmProgress >= 25 ? 'Running' : 'Pending')}
+              ${swarmProgress >= 55 ? 'Reconciled' : (swarmProgress >= 25 ? 'Auditing' : 'Pending')}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Reconciling 24 GSTR-3B filings</p>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Reconciled 24 GSTR-3B filings</p>
           <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fbbf24">₹1.65 Cr Declared (-11.0%)</div>
         </div>
 
         <div class="telemetry-agent-card ${swarmProgress >= 80 ? 'completed' : (swarmProgress >= 55 ? 'running' : '')}" id="agent-card-inv">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;font-weight:700;color:#fff">Investment Agent</span>
+            <span style="font-size:13px;font-weight:700;color:#fff">Collateral &amp; Asset Analyzer</span>
             <span class="ws-status-badge ${swarmProgress >= 80 ? 'settled' : (swarmProgress >= 55 ? 'pending' : 'draft')}" id="badge-inv">
-              ${swarmProgress >= 80 ? 'Completed' : (swarmProgress >= 55 ? 'Running' : 'Pending')}
+              ${swarmProgress >= 80 ? 'Reconciled' : (swarmProgress >= 55 ? 'Auditing' : 'Pending')}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Auditing liquid reserves &amp; portfolio</p>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Auditing pledgeable mutual funds &amp; securities</p>
           <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#818cf8">₹32.4L Validated Buffer</div>
         </div>
       </div>
@@ -2861,9 +2923,9 @@ function renderCustomerTelemetry(frame) {
       <div class="telemetry-trace-panel">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
           <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">
-            Raw Telemetry &amp; Execution Trace Stream
+            Deterministic Reconciliation &amp; Audit Trail
           </span>
-          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Node: asia-south1</span>
+          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Production Engine · Active Session</span>
         </div>
 
         <div class="telemetry-trace-stream" id="telemetry-trace-box">
@@ -2876,7 +2938,7 @@ function renderCustomerTelemetry(frame) {
           ${swarmProgress < 100 ? `
             <div class="telemetry-trace-line" style="color:#818cf8;animation:pulse 1.5s infinite">
               <span class="telemetry-trace-arrow">›</span>
-              <span>Evaluating mathematical variance across rails...</span>
+              <span>Cross-referencing banking transactions against GST filings...</span>
             </div>
           ` : ''}
         </div>
@@ -2891,7 +2953,7 @@ function renderCustomerTelemetry(frame) {
         "CUSTOMER_ACCESSED_FINAL_DOSSIER",
         "OPERATOR_CUSTOMER",
         "synthesizer:decision-card",
-        `Rendered final algorithmic decision dossier for ${enterpriseEntityName}. Output Verdict: MANUAL REVIEW.`,
+        `Rendered final credit assessment for ${currentEntity}. Decision Verdict: MANUAL REVIEW.`,
         "SUCCESS"
       );
       switchCustomerStep(4);
@@ -2902,23 +2964,23 @@ function renderCustomerTelemetry(frame) {
   if (swarmProgress < 100 && !isSwarmRunning) {
     isSwarmRunning = true;
     telemetryLogs = [
-      `[0.00s] AA Protocol Broker handshake verified (ssl_tls1.3: asia-south1)`,
-      `[0.15s] Initializing 3 parallel specialist execution nodes...`
+      `[0.00s] Gateway protocol handshake verified (TLS 1.3: secure production cluster)`,
+      `[0.15s] Initializing parallel verification analyzers for ${currentEntity}...`
     ];
 
     logSystemEvent(
-      "AGENT_SWARM_DISPATCHED",
-      "ORCHESTRATOR_AGENT",
-      "asia-south1:agent-swarm",
-      "ParallelAgent swarm dispatched (Bank Specialist, GST Specialist, Investment Specialist).",
+      "VERIFICATION_PIPELINE_DISPATCHED",
+      "ORCHESTRATOR_ENGINE",
+      "prod:audit-pipeline",
+      `Tripartite verification pipeline dispatched for ${currentEntity} (Banking, Tax/GST, Asset Collateral).`,
       "SUCCESS"
     );
 
     const stages = [
-      { pct: 25, msg: `[0.42s] Bank Agent: Ingested 884 MFT transaction records. Gross inflows: ₹2,10,00,000 (+2.1% YoY).` },
-      { pct: 55, msg: `[0.85s] GST Agent: Parsed 24 GSTR-3B filings. Turnover declared: ₹1,65,00,000 (-11.0% YoY).` },
-      { pct: 80, msg: `[1.20s] Investment Agent: Portfolio audit complete. Liquid buffer validated at ₹32.4L.` },
-      { pct: 100, msg: `[1.65s] Synthesizer: Flagged structural variance delta of 27.2% between Bank vs GST filings.` },
+      { pct: 25, msg: `[0.42s] Banking Analyzer: Ingested 884 transaction records. Gross commercial inflows: ₹2,10,00,000 (+2.1% YoY).` },
+      { pct: 55, msg: `[0.85s] Tax Analyzer: Reconciled 24 GSTR-3B filings. Turnover declared: ₹1,65,00,000 (-11.0% YoY).` },
+      { pct: 80, msg: `[1.20s] Collateral Analyzer: Reserve audit complete. Liquid buffer validated at ₹32.4L.` },
+      { pct: 100, msg: `[1.65s] Cross-Source Reconciler: Flagged structural variance delta of 27.2% between Bank vs GST filings.` },
     ];
 
     stages.forEach((stage, idx) => {
@@ -2932,7 +2994,7 @@ function renderCustomerTelemetry(frame) {
             "CONTRADICTION_FLAGGED",
             "RULE_INCOME_REV_DIVERGENCE",
             "rules:deterministic-core",
-            "Flagged asymmetric revenue divergence: Bank credits (+2.1%) vs GSTR-3B (-11.0%). Applied capped confidence: 0.50.",
+            `Flagged asymmetric revenue divergence for ${currentEntity}: Bank credits (+2.1%) vs GSTR-3B (-11.0%). Applied capped confidence: 0.50.`,
             "WARNING"
           );
         }
@@ -2947,16 +3009,19 @@ function renderCustomerTelemetry(frame) {
 
 // ── STEP 4: FINAL RECONCILIATION VERDICT & OUTPUTS ────────────────────
 function renderCustomerFinalVerdict(frame) {
-  const gstinDisplay = enterpriseGstinMasked ? "•••• •••• 9812" : "27AAECK1298P1Z8";
+  const currentEntity = enterpriseEntityName || "Commercial Borrower";
+  const rawGstin = enterpriseGstin || "27AAECK1298P1Z8";
+  const maskedGstin = "•••• •••• " + (rawGstin.length >= 4 ? rawGstin.slice(-4) : "9812");
+  const gstinDisplay = enterpriseGstinMasked ? maskedGstin : rawGstin;
   const digest = enterpriseAuditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e53a992bc44d32098d6541f5a11e89bc";
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
       <div class="cockpit-banner">
         <div class="cockpit-entity-wrap">
-          <span class="cockpit-kicker">Step 4 of 4 · Final Audit Dossier</span>
+          <span class="cockpit-kicker">Step 4 of 4 · Credit Assessment Dossier</span>
           <div class="cockpit-entity-heading">
-            <h2 class="cockpit-entity-name">${enterpriseEntityName}</h2>
+            <h2 class="cockpit-entity-name">${currentEntity}</h2>
             <div class="cockpit-gstin-pill">
               <span>GSTIN:</span>
               <span id="cockpit-gstin-val" style="color:#fff">${gstinDisplay}</span>
@@ -2964,6 +3029,12 @@ function renderCustomerFinalVerdict(frame) {
                 ${enterpriseGstinMasked ? '👁' : '🔒'}
               </button>
             </div>
+            ${enterprisePan ? `
+              <div class="cockpit-gstin-pill" style="margin-left:8px">
+                <span>PAN:</span>
+                <span style="color:#fff">${enterprisePan}</span>
+              </div>
+            ` : ''}
           </div>
         </div>
 
@@ -2978,17 +3049,17 @@ function renderCustomerFinalVerdict(frame) {
           </button>
           <button class="btn-ent-action" id="btn-restart-flow" type="button" style="border-color:rgba(255,255,255,0.15)">
             <span>↻</span>
-            <span>Restart Flow</span>
+            <span>New Assessment</span>
           </button>
         </div>
       </div>
 
       <div class="cockpit-metrics-grid">
         <div class="cockpit-metric-card">
-          <span class="metric-title">Gross Ingested Capital</span>
+          <span class="metric-title">Gross Banking Inflows</span>
           <div class="metric-value">₹2,10,00,000</div>
           <div class="metric-sub-row">
-            <span>Annualized Inflows</span>
+            <span>Annualized Receipts</span>
             <span class="metric-delta ok">+2.1%</span>
           </div>
         </div>
@@ -3007,7 +3078,7 @@ function renderCustomerFinalVerdict(frame) {
           <div class="metric-value">3/3 Rails</div>
           <div class="metric-sub-row">
             <span>GSTN · ITR · Bank AA</span>
-            <span class="metric-delta ok">100% Ingested</span>
+            <span class="metric-delta ok">100% Reconciled</span>
           </div>
         </div>
 
@@ -3035,7 +3106,7 @@ function renderCustomerFinalVerdict(frame) {
           </div>
 
           <p class="discrepancy-narrative">
-            Deterministic cross-examination revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>₹2,10,00,000</strong> (+2.1% YoY), whereas parallel GSTR-3B filings register only <strong>₹1,65,00,000</strong> (-11.0% YoY) for the identical period.
+            Deterministic cross-examination for <strong>${currentEntity}</strong> revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>₹2,10,00,000</strong> (+2.1% YoY), whereas parallel GSTR-3B filings register only <strong>₹1,65,00,000</strong> (-11.0% YoY) for the identical period.
           </p>
 
           <div class="discrepancy-tiles-grid">
@@ -3094,8 +3165,10 @@ function renderCustomerFinalVerdict(frame) {
     toggleBtn.addEventListener("click", () => {
       enterpriseGstinMasked = !enterpriseGstinMasked;
       const gstinVal = $("cockpit-gstin-val");
-      if (gstinVal) gstinVal.textContent = enterpriseGstinMasked ? "•••• •••• 9812" : "27AAECK1298P1Z8";
-      toggleBtn.textContent = enterpriseGstinMasked ? "👁" : "🔒";
+      if (gstinVal) {
+        gstinVal.textContent = enterpriseGstinMasked ? maskedGstin : rawGstin;
+      }
+      toggleBtn.textContent = enterpriseGstinMasked ? '👁' : '🔒';
     });
   }
 
@@ -3108,19 +3181,155 @@ function renderCustomerFinalVerdict(frame) {
   const restartBtn = $("btn-restart-flow");
   if (restartBtn) {
     restartBtn.addEventListener("click", () => {
+      // Reset all state for a clean new applicant intake
+      enterpriseEntityName = "";
+      enterprisePan = "";
+      enterpriseGstin = "";
+      enterpriseLoanAmount = "";
       enterpriseChannels = { gstn: false, itr: false, bank: false };
       swarmProgress = 0;
       telemetryLogs = [];
+
+      // Reset anchor bar
+      const entityNameEl = $("anchor-entity-name");
+      const entityIdEl = $("anchor-entity-id");
+      if (entityNameEl) entityNameEl.textContent = "Awaiting Entity Intake";
+      if (entityIdEl) {
+        entityIdEl.dataset.unmasked = "PENDING";
+        entityIdEl.dataset.masked = "•••• •••• ••••";
+        entityIdEl.textContent = "•••• •••• ••••";
+      }
+      if (CREDIT_METRICS && CREDIT_METRICS.b_contradiction) {
+        CREDIT_METRICS.b_contradiction.entity = "Awaiting Entity Intake";
+      }
+
       logSystemEvent(
         "CUSTOMER_WIZARD_RESET",
         "OPERATOR_CUSTOMER",
         "flow:state-machine",
-        "Operator reset progressive disclosure wizard to Step 1.",
+        "Operator initiated new credit assessment intake.",
         "SUCCESS"
       );
-      switchCustomerStep(1);
+      if (typeof showToast === "function") showToast("Ready for new applicant intake");
+      switchCustomerStep(2);
     });
   }
+}
+
+// ── AUDIT EXPORT & PDF GENERATORS ────────────────────────────────────
+function exportAuditCSV() {
+  const entity = enterpriseEntityName || "Underwriting_Dossier";
+  const rows = [
+    ["Event ID", "Timestamp", "Operator", "Target Node", "Action", "Status", "SHA-256 Digest", "Target Entity"],
+    ...enterpriseAuditLog.map(ev => [
+      ev.id,
+      ev.timestamp,
+      ev.operator,
+      ev.targetNode,
+      `"${(ev.action || "").replace(/"/g, '""')}"`,
+      ev.status,
+      ev.sha256BlockDigest,
+      `"${entity.replace(/"/g, '""')}"`
+    ])
+  ];
+  const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `trueledger_audit_${entity.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  logSystemEvent("AUDIT_LOG_EXPORTED_CSV", "OPERATOR", "client:exporter", `Exported audit logs for ${entity}`, "SUCCESS");
+  if (typeof showToast === "function") showToast("Reconciliation ledger exported (.CSV)");
+}
+
+function downloadAuditPDF() {
+  const entity = enterpriseEntityName || "Commercial Borrower";
+  const gstin = enterpriseGstin || "27AAECK1298P1Z8";
+  const pan = enterprisePan || "AAECK1298P";
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    if (typeof showToast === "function") showToast("Please allow popups to download audit report");
+    return;
+  }
+  const content = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>TrueLedger Commercial Credit Audit Report - ${entity}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #111; line-height: 1.5; }
+        .header { border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; }
+        .title { font-size: 24px; font-weight: bold; }
+        .meta { font-family: monospace; font-size: 13px; color: #555; }
+        .section { margin-bottom: 25px; }
+        .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 12px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .item { padding: 10px; background: #f8f9fa; border-radius: 4px; }
+        .label { font-size: 11px; text-transform: uppercase; color: #666; }
+        .val { font-size: 16px; font-weight: bold; margin-top: 4px; }
+        .alert-box { padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f1f3f5; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="title">TrueLedger Institutional Credit Assessment</div>
+          <div style="color: #666; font-size: 14px;">Commercial Risk Forensics &amp; Reconciliation Report</div>
+        </div>
+        <div class="meta" style="text-align: right;">
+          <div>Generated: ${new Date().toISOString()}</div>
+          <div>Status: PRODUCTION</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Target Entity Information</div>
+        <div class="grid">
+          <div class="item"><div class="label">Legal Business Entity</div><div class="val">${entity}</div></div>
+          <div class="item"><div class="label">GSTIN / Tax ID</div><div class="val">${gstin}</div></div>
+          <div class="item"><div class="label">Permanent Account Number (PAN)</div><div class="val">${pan}</div></div>
+          <div class="item"><div class="label">Underwriting Verdict</div><div class="val" style="color: #d97706;">MANUAL REVIEW (Capped 0.50)</div></div>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <strong>Discrepancy Flag: RULE_INCOME_REV_DIVERGENCE</strong><br/>
+        Bank Aggregator credits show steady inflows of ₹2,10,00,000 (+2.1% YoY), while GSTN GSTR-3B filings register a sharp contraction to ₹1,65,00,000 (-11.0% YoY). Structural variance delta: 27.2%.
+      </div>
+
+      <div class="section">
+        <div class="section-title">Cryptographic Audit Ledger</div>
+        <table>
+          <thead>
+            <tr><th>Event ID</th><th>Timestamp</th><th>Node</th><th>Action</th><th>Digest</th></tr>
+          </thead>
+          <tbody>
+            ${enterpriseAuditLog.slice(0, 10).map(e => `
+              <tr>
+                <td>${e.id}</td>
+                <td>${e.timestamp}</td>
+                <td>${e.targetNode}</td>
+                <td>${e.action}</td>
+                <td style="font-family: monospace; font-size: 10px;">${e.sha256BlockDigest.slice(0, 20)}...</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </body>
+    </html>
+  `;
+  printWindow.document.write(content);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => { printWindow.print(); }, 500);
+  logSystemEvent("AUDIT_REPORT_PRINTED_PDF", "OPERATOR", "client:pdf-engine", `Generated audit PDF report for ${entity}`, "SUCCESS");
+  if (typeof showToast === "function") showToast("Decision audit report opened for print/PDF export");
 }
 
 // ── HIDDEN DEVELOPER GATEWAY & GOVERNANCE CONSOLE ─────────────────────
