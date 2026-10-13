@@ -28,3 +28,9 @@ data/synthetic/output/
 .vscode/
 .idea/
 .gstack/
+
+# Local logs & generated scratch
+frontend/*.log
+frontend/*.err
+generated/
+rea/

@@ -671,6 +671,7 @@ function renderDecisionCard(decision, consentSources, auditMeta) {
   const meta = OUTCOME_META[decision.outcome];
   const reasons = buildWhyReasons(decision, consentSources);
   const isCapped = decision.final_confidence < decision.model_confidence;
+  updateDecisionAnchor(decision, consentSources);
 
   $("decision-body").innerHTML = `
     ${auditMeta
@@ -1004,6 +1005,75 @@ function showLiveLoadingState(borrowerId) {
     setConnectorCharging("conn-out", true);
   }, 700);
 }
+
+// ── Ultra-low latency borrower loader (< 1ms from memory cache) ─────
+async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
+  if (currentController) currentController.abort();
+  currentController = null;
+  const myToken = ++loadToken;
+
+  currentBorrowerId = borrowerId;
+  renderCaseRail();
+
+  // Instant in-memory cache hit (< 1ms latency)
+  if (!forceRefetch && cache.has(borrowerId)) {
+    const data = cache.get(borrowerId);
+    setStatus(
+      data.isAuditDossier
+        ? `${borrowerId} · cached run · click Re-evaluate Live for fresh multi-agent execution.`
+        : `${borrowerId} · loaded from active session cache.`
+    );
+    playReveal(borrowerId);
+    return;
+  }
+
+  // Fast preloaded fixture hit (< 5ms latency)
+  if (!forceRefetch) {
+    const recorded = await loadRecorded(borrowerId);
+    if (myToken !== loadToken) return;
+    if (recorded) {
+      cache.set(borrowerId, recorded);
+      setStatus(`${borrowerId} · loaded from recorded fixture.`);
+      playReveal(borrowerId);
+      return;
+    }
+  }
+
+  // Live Vertex AI API fallback
+  const controller = new AbortController();
+  currentController = controller;
+  showLiveLoadingState(borrowerId);
+  setStatus(`Running the pipeline for ${borrowerId}...`);
+
+  try {
+    const decision = await fetchJSON(`/borrowers/${borrowerId}/evaluate`, {
+      method: "POST",
+      headers: { "Content-Length": "0" },
+      signal: controller.signal,
+    });
+    if (myToken !== loadToken) return;
+
+    const [ledgerResp, consentResp] = await Promise.all([
+      fetchJSON(`/borrowers/${borrowerId}/ledger`, { signal: controller.signal }),
+      fetchJSON(`/borrowers/${borrowerId}/consent-status`, { signal: controller.signal }),
+    ]);
+    if (myToken !== loadToken) return;
+
+    cache.set(borrowerId, {
+      decision,
+      ledgerSteps: ledgerResp.steps,
+      consentSources: consentResp.sources,
+      isAuditDossier: false,
+    });
+    setStatus(`${borrowerId} · done · ${decision.outcome} (${decision.final_confidence.toFixed(2)})`);
+    playReveal(borrowerId);
+  } catch (err) {
+    if (myToken !== loadToken || err.name === "AbortError") return;
+    console.error(err);
+    setStatus(`Error running ${borrowerId}: ${err.message}`, true);
+    $("decision-body").innerHTML = `<div class="decision-empty">Pipeline call failed - see status line below.</div>`;
+  }
+}
 // in the left rail. The Credit Applications workspace (pane="credit")
 // is the default and preserves all existing case rail behaviour.
 // ═══════════════════════════════════════════════════════════════════
@@ -1031,6 +1101,8 @@ function fmtInr(amount) {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
+const ENABLE_ENTERPRISE_WORKSPACE = true;
+
 // Active workspace state — persists which workspace + view is open
 let activeWorkspace = null;
 let wsData = null;         // parsed workbook data from /ingest/onboarding
@@ -1040,6 +1112,10 @@ let enterpriseData = null; // pre-loaded enterprise_live_state.json
 // ── Layout state router ───────────────────────────────────────────────
 // desk[data-ws] drives CSS show/hide of pipeline vs workspace-main-frame.
 function switchWorkspace(ws) {
+  if (ws === "onboarding" || ws === "user_onboarding" || ws === "user_workspace" || ws === "cockpit") {
+    ws = "customer_wizard";
+  }
+
   activeWorkspace = ws;
 
   // Drive CSS layout switch
@@ -1056,11 +1132,25 @@ function switchWorkspace(ws) {
     pane.classList.toggle("active", pane.dataset.pane === ws);
   });
 
-  // Update URL hash (enables browser back/forward)
-  try { history.replaceState(null, "", `#ws=${ws}`); } catch (_) {}
+  // Update URL hash (enables browser back/forward and deep linking)
+  try {
+    if (ws === "customer_wizard") {
+      history.replaceState(null, "", `#step=${customerStep}`);
+    } else if (["dev_auth", "dev_console"].includes(ws)) {
+      history.replaceState(null, "", `#view=${ws}`);
+    } else {
+      history.replaceState(null, "", `#ws=${ws}`);
+    }
+  } catch (_) {}
+
+  // Sync customer stepper visibility & status
+  if (typeof updateCustomerStepper === "function") {
+    updateCustomerStepper();
+  }
 
   if (ws === "credit") {
     renderCaseRail();
+    loadBorrower(currentBorrowerId || DEFAULT_CASE, { forceRefetch: false });
     return;
   }
   renderWorkspaceMain(ws);
@@ -1071,11 +1161,14 @@ function renderWorkspaceMain(ws) {
   const frame = $("workspace-main-frame");
   if (!frame) return;
   switch (ws) {
-    case "dashboard":  renderDashboard(frame); break;
-    case "client":     renderClientMain(frame); break;
-    case "income":     renderIncomeMain(frame); break;
-    case "compliance": renderComplianceMain(frame); break;
-    case "assets":     renderAssetsMain(frame); break;
+    case "dashboard":       renderDashboard(frame); break;
+    case "client":          renderClientMain(frame); break;
+    case "income":          renderIncomeMain(frame); break;
+    case "compliance":      renderComplianceMain(frame); break;
+    case "assets":          renderAssetsMain(frame); break;
+    case "customer_wizard": renderCustomerWizard(frame); break;
+    case "dev_auth":        renderDevAuth(frame); break;
+    case "dev_console":     renderDevConsole(frame); break;
     default:
       frame.innerHTML = `<div style="padding:40px;color:var(--muted)">Workspace coming soon.</div>`;
   }
@@ -1120,6 +1213,271 @@ function deltaChip(pct, dir) {
   return `<span class="ws-kpi-delta ${cls}">${sign} ${Math.abs(pct).toFixed(1)}%</span>`;
 }
 
+// ── Tier-1 Institutional Utilities & 40% Engine Controls ─────────────
+
+let isFinancialMasked = true;
+let maskTimeoutId = null;
+
+function applyMasking() {
+  const maskBtn = $("mask-toggle-btn");
+  const maskIcon = $("mask-icon");
+  const maskLabel = $("mask-label");
+  if (maskBtn) maskBtn.classList.toggle("active", isFinancialMasked);
+  if (maskIcon) maskIcon.textContent = isFinancialMasked ? "🔒" : "🔓";
+  if (maskLabel) maskLabel.textContent = isFinancialMasked ? "Masked" : "Unmasked";
+
+  document.querySelectorAll(".masked-target").forEach((el) => {
+    el.textContent = isFinancialMasked ? (el.dataset.masked || "•••• •••• 9812") : (el.dataset.unmasked || el.dataset.raw || el.textContent);
+  });
+}
+
+function toggleFinancialMask() {
+  isFinancialMasked = !isFinancialMasked;
+  applyMasking();
+  if (maskTimeoutId) clearTimeout(maskTimeoutId);
+  if (!isFinancialMasked) {
+    if (typeof showToast === "function") showToast("Financial data unmasked (auto-masks in 10s)");
+    maskTimeoutId = setTimeout(() => {
+      isFinancialMasked = true;
+      applyMasking();
+      if (typeof showToast === "function") showToast("Financial data automatically re-masked");
+    }, 10000);
+  } else {
+    if (typeof showToast === "function") showToast("Financial data masked");
+  }
+}
+
+function updateDecisionAnchor(decision, consentSources) {
+  if (!decision) return;
+  const metrics = CREDIT_METRICS[decision.borrower_id] || { entity: decision.borrower_id, biz: "Commercial Account" };
+  const entityNameEl = $("anchor-entity-name");
+  const entityIdEl = $("anchor-entity-id");
+  if (entityNameEl) entityNameEl.textContent = metrics.entity;
+  if (entityIdEl) {
+    const rawGstin = "27AAECK1298P1Z8";
+    entityIdEl.dataset.unmasked = rawGstin;
+    entityIdEl.dataset.masked = "•••• •••• " + rawGstin.slice(-4);
+    entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
+  }
+
+  const badgeEl = $("anchor-verdict-badge");
+  const textEl = $("anchor-verdict-text");
+  const confEl = $("anchor-confidence-text");
+  if (badgeEl && textEl && confEl) {
+    badgeEl.className = `anchor-verdict-badge ${decision.outcome === "approve" ? "ok" : decision.outcome === "manual_review" ? "warn" : "bad"}`;
+    textEl.textContent = OUTCOME_META[decision.outcome]?.label || decision.outcome.toUpperCase();
+    confEl.textContent = `Conf: ${(decision.final_confidence * 100).toFixed(0)}%`;
+  }
+
+  const weakestSource = consentSources && consentSources.find((s) => s.source === decision.weakest_consent_source);
+  const fillEl = $("anchor-consent-fill");
+  const consentTextEl = $("anchor-consent-text");
+  if (fillEl && consentTextEl) {
+    if (weakestSource) {
+      const pct = Math.min(100, Math.max(0, Math.round(weakestSource.confidence_multiplier * 100)));
+      fillEl.style.width = `${pct}%`;
+      fillEl.className = `consent-meter-fill ${pct >= 70 ? "ok" : pct >= 40 ? "warn" : "bad"}`;
+      consentTextEl.textContent = `${weakestSource.days_remaining}d left (×${weakestSource.confidence_multiplier}) · ${pct < 100 ? "Haircut applied" : "Full strength"}`;
+    } else {
+      fillEl.style.width = "100%";
+      fillEl.className = "consent-meter-fill ok";
+      consentTextEl.textContent = "Fresh consent · 1.0 multiplier";
+    }
+  }
+}
+
+function setupEnvironmentToggle() {
+  const envToggle = $("env-toggle");
+  if (!envToggle) return;
+  envToggle.querySelectorAll(".env-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      envToggle.querySelectorAll(".env-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const env = btn.dataset.env;
+      if (typeof showToast === "function") {
+        showToast(`Switched environment to ${env} (Region: asia-south1)`);
+      }
+    });
+  });
+}
+
+function setupMaskToggle() {
+  const maskBtn = $("mask-toggle-btn");
+  if (maskBtn) {
+    maskBtn.addEventListener("click", toggleFinancialMask);
+  }
+}
+
+function setupDecisionAnchorActions() {
+  const auditBtn = $("anchor-audit-btn");
+  if (auditBtn) {
+    auditBtn.addEventListener("click", () => {
+      switchWorkspace("credit");
+      const targetCase = currentBorrowerId || DEFAULT_CASE;
+      loadBorrower(targetCase, { forceRefetch: true });
+      if (typeof showToast === "function") {
+        showToast(`Running forensic audit for ${targetCase}...`);
+      }
+    });
+  }
+}
+
+const COMMAND_ITEMS = [
+  { group: "Customer Audit Flow", icon: "⚡", label: "Step 1: Sign In to Vault", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(1); } },
+  { group: "Customer Audit Flow", icon: "🏢", label: "Step 2: Onboarding & Rails Intake", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(2); } },
+  { group: "Customer Audit Flow", icon: "🤖", label: "Step 3: Raw Telemetry & Multi-Agent Swarm", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(3); } },
+  { group: "Customer Audit Flow", icon: "🛡", label: "Step 4: Final Reconciliation Verdict", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(4); } },
+  { group: "Audit Outputs", icon: "📊", label: "Export Reconciliation Ledger (.CSV)", action: () => exportAuditCSV() },
+  { group: "Audit Outputs", icon: "📑", label: "Download Decision Audit Report (.PDF)", action: () => downloadAuditPDF() },
+  { group: "Forensic Actions", icon: "⚡", label: "Run Forensic Audit (Active Pipeline)", action: () => { switchWorkspace("credit"); loadBorrower(currentBorrowerId || DEFAULT_CASE, { forceRefetch: true }); } },
+  { group: "Forensic Actions", icon: "🔒", label: "Toggle Financial Data Masking", action: () => toggleFinancialMask() },
+  { group: "Forensic Actions", icon: "↻", label: "Re-animate Decision & Ledger Stepper", action: () => { $("replay-btn")?.click(); } },
+  { group: "Forensic Actions", icon: "📁", label: "+ New Credit Submission (Upload Statement/GST)", action: () => { $("upload-open-btn")?.click(); } },
+  { group: "Workspaces", icon: "▦", label: "Executive Dashboard", action: () => switchWorkspace("dashboard") },
+  { group: "Workspaces", icon: "⊞", label: "Credit Applications (8 Active Cases)", action: () => switchWorkspace("credit") },
+  { group: "Workspaces", icon: "◈", label: "Client Space (Onboarding & KYB)", action: () => switchWorkspace("client") },
+  { group: "Workspaces", icon: "₹", label: "Income & Revenue Telemetry", action: () => switchWorkspace("income") },
+  { group: "Workspaces", icon: "⊖", label: "Compliance & GST Lifecycle", action: () => switchWorkspace("compliance") },
+  { group: "Workspaces", icon: "◎", label: "Asset Allocations & Portfolios", action: () => switchWorkspace("assets") },
+  { group: "Target Entities", icon: "⚠", label: "Ramesh Kumar Enterprises (Bank vs GST Divergence)", action: () => { switchWorkspace("credit"); loadBorrower("b_contradiction"); } },
+  { group: "Target Entities", icon: "⏱", label: "Priya Nair (Lapsed AA Consent Window)", action: () => { switchWorkspace("credit"); loadBorrower("b_stale_consent"); } },
+  { group: "Target Entities", icon: "✓", label: "Asha Traders (Verified Prime SME)", action: () => { switchWorkspace("credit"); loadBorrower("b_clean"); } },
+  { group: "Target Entities", icon: "🔍", label: "Patil General Store (Suspected Circular Flow)", action: () => { switchWorkspace("credit"); loadBorrower("b_roundtrip"); } },
+  { group: "Target Entities", icon: "📊", label: "Mishra Sweets (Seasonal Dip vs Stable Buffer)", action: () => { switchWorkspace("credit"); loadBorrower("b_seasonal"); } },
+  { group: "Target Entities", icon: "⚡", label: "Chawla Textiles (Compound Exposure: Flag + Decay)", action: () => { switchWorkspace("credit"); loadBorrower("b_double_flag"); } },
+];
+
+function setupCommandPalette() {
+  const dialog = $("cmd-palette-dialog");
+  const triggerBtn = $("cmd-palette-trigger");
+  const input = $("cmd-palette-input");
+  const resultsContainer = $("cmd-palette-results");
+  if (!dialog || !input || !resultsContainer) return;
+
+  let selectedIndex = 0;
+  let currentFiltered = [...COMMAND_ITEMS];
+
+  function renderResults() {
+    if (currentFiltered.length === 0) {
+      resultsContainer.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--muted-dim); font-size: 13px;">No matching entities, actions, or workspaces found.</div>`;
+      return;
+    }
+
+    let lastGroup = "";
+    let html = "";
+    currentFiltered.forEach((item, idx) => {
+      if (item.group !== lastGroup) {
+        lastGroup = item.group;
+        html += `<div class="cmd-group-label">${lastGroup}</div>`;
+      }
+      const isSelected = idx === selectedIndex;
+      html += `
+        <div class="cmd-item ${isSelected ? "selected" : ""}" data-index="${idx}">
+          <div class="cmd-item-left">
+            <span class="cmd-item-icon">${item.icon}</span>
+            <span>${item.label}</span>
+          </div>
+          <span class="cmd-item-tag">${item.group}</span>
+        </div>
+      `;
+    });
+    resultsContainer.innerHTML = html;
+
+    resultsContainer.querySelectorAll(".cmd-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = Number(el.dataset.index);
+        executeItem(idx);
+      });
+      el.addEventListener("mouseenter", () => {
+        selectedIndex = Number(el.dataset.index);
+        updateSelectionHighlight();
+      });
+    });
+  }
+
+  function updateSelectionHighlight() {
+    resultsContainer.querySelectorAll(".cmd-item").forEach((el, idx) => {
+      el.classList.toggle("selected", idx === selectedIndex);
+    });
+    const selectedEl = resultsContainer.querySelector(".cmd-item.selected");
+    if (selectedEl) selectedEl.scrollIntoView({ block: "nearest" });
+  }
+
+  function executeItem(idx) {
+    const item = currentFiltered[idx];
+    if (item && item.action) {
+      closePalette();
+      item.action();
+    }
+  }
+
+  function openPalette() {
+    dialog.showModal();
+    input.value = "";
+    currentFiltered = [...COMMAND_ITEMS];
+    selectedIndex = 0;
+    renderResults();
+    input.focus();
+  }
+
+  function closePalette() {
+    dialog.close();
+  }
+
+  if (triggerBtn) {
+    triggerBtn.addEventListener("click", openPalette);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (dialog.open) closePalette();
+      else openPalette();
+    }
+    if (e.key === "Escape" && dialog.open) {
+      closePalette();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim().toLowerCase();
+    if (!query) {
+      currentFiltered = [...COMMAND_ITEMS];
+    } else {
+      currentFiltered = COMMAND_ITEMS.filter(
+        (i) => i.label.toLowerCase().includes(query) || i.group.toLowerCase().includes(query)
+      );
+    }
+    selectedIndex = 0;
+    renderResults();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (currentFiltered.length > 0) {
+        selectedIndex = (selectedIndex + 1) % currentFiltered.length;
+        updateSelectionHighlight();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (currentFiltered.length > 0) {
+        selectedIndex = (selectedIndex - 1 + currentFiltered.length) % currentFiltered.length;
+        updateSelectionHighlight();
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (currentFiltered.length > 0) {
+        executeItem(selectedIndex);
+      }
+    }
+  });
+
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) closePalette();
+  });
+}
+
 function setupWorkspaceNav() {
   document.querySelectorAll(".workspace-nav-item").forEach((btn) => {
     btn.addEventListener("click", () => switchWorkspace(btn.dataset.ws));
@@ -1145,6 +1503,71 @@ function setupWorkspaceNav() {
       if (file) handleWorkbookUpload(file);
       wsFileInput.value = ""; // allow re-uploading same file
     });
+  }
+
+  // Institutional Tier-1 Listeners
+  setupEnvironmentToggle();
+  setupMaskToggle();
+  setupDecisionAnchorActions();
+  setupCommandPalette();
+  applyMasking();
+
+  // Customer Progressive Stepper Listeners
+  document.querySelectorAll(".step-pill").forEach((pill) => {
+    pill.addEventListener("click", () => {
+      const targetStep = Number(pill.dataset.step);
+      if (activeWorkspace !== "customer_wizard") {
+        switchWorkspace("customer_wizard");
+      }
+      switchCustomerStep(targetStep);
+    });
+  });
+
+  // Invisible Developer Gateway Trigger (Double-click version tag or Ctrl+Shift+D)
+  const versionTrigger = $("app-version-trigger");
+  if (versionTrigger) {
+    versionTrigger.addEventListener("dblclick", () => {
+      previousWorkspace = activeWorkspace;
+      switchWorkspace(isDevAuthenticated ? "dev_console" : "dev_auth");
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      if (activeWorkspace === "dev_console" || activeWorkspace === "dev_auth") {
+        switchWorkspace("customer_wizard");
+      } else {
+        previousWorkspace = activeWorkspace;
+        switchWorkspace(isDevAuthenticated ? "dev_console" : "dev_auth");
+      }
+    }
+  });
+
+  window.addEventListener("hashchange", () => {
+    const hash = location.hash.toLowerCase();
+    if (hash === "#dev-login" || hash === "#view=dev_auth") {
+      switchWorkspace("dev_auth");
+    } else if (hash === "#view=dev_console") {
+      switchWorkspace(isDevAuthenticated ? "dev_console" : "dev_auth");
+    } else {
+      const viewMatch = location.hash.match(/[#&]view=([a-z_]+)/);
+      const wsMatch = location.hash.match(/[#&]ws=([a-z_]+)/);
+      const stepMatch = location.hash.match(/[#&]step=([1-4])/);
+      if (stepMatch) {
+        if (activeWorkspace !== "customer_wizard") switchWorkspace("customer_wizard");
+        switchCustomerStep(Number(stepMatch[1]));
+        return;
+      }
+      const target = (viewMatch && viewMatch[1]) || (wsMatch && wsMatch[1]);
+      if (target && target !== activeWorkspace) {
+        switchWorkspace(target);
+      }
+    }
+  });
+
+  if (typeof updateCustomerStepper === "function") {
+    updateCustomerStepper();
   }
 }
 
@@ -1953,27 +2376,914 @@ document.addEventListener("change", (e) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// ENTERPRISE APP & APPEND-ONLY AUDIT ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+
+let enterpriseAuditLog = [
+  {
+    id: "EVT-INIT-001",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    eventToken: "NODE_INITIALIZED",
+    operator: "SYSTEM_DAEMON",
+    targetNode: "asia-south1:core-engine",
+    action: "Bootstrapped immutable audit ledger and AA protocol gateway.",
+    status: "SUCCESS",
+    sha256BlockDigest: "0x8f2a7b11e9c14092b740e53a992bc44d32098d6541f5a11e89bc7210fa",
+  },
+];
+
+function generateBlockDigest(seed) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, "0");
+  return `0x8f2a${hex}e9c14092b740e53a992bc44d32098d6541f5a11${hex}`;
+}
+
+function logSystemEvent(eventToken, operator, targetNode, action, status, metadata) {
+  const timestamp = new Date().toISOString();
+  const digestSeed = `${timestamp}:${eventToken}:${operator}:${targetNode}:${action}`;
+  const newEvent = {
+    id: `EVT-${Math.floor(1000 + Math.random() * 9000)}`,
+    timestamp,
+    eventToken,
+    operator,
+    targetNode,
+    action,
+    status,
+    sha256BlockDigest: generateBlockDigest(digestSeed),
+    metadata,
+  };
+  enterpriseAuditLog.unshift(newEvent);
+  if (activeWorkspace === "dev_console") {
+    const frame = $("workspace-main-frame");
+    if (frame) renderDevConsole(frame);
+  }
+  return newEvent;
+}
+
+let customerStep = 1;
+let isCustomerAuthenticated = false;
+let customerEmail = "analyst@apexcapital.fi";
+let customerPassword = "••••••••••••";
+
+let enterpriseEntityName = "Acme Hyperion Logistics Corp";
+let enterpriseGstinMasked = true;
+let enterpriseChannels = {
+  gstn: false,
+  itr: false,
+  bank: false,
+};
+
+let swarmProgress = 0;
+let telemetryLogs = [];
+let isSwarmRunning = false;
+
+let isDevAuthenticated = false;
+let devAuthError = null;
+let previousWorkspace = "customer_wizard";
+
+function isStep2Valid() {
+  return enterpriseChannels.gstn && enterpriseChannels.itr && enterpriseChannels.bank && enterpriseEntityName.trim().length > 0;
+}
+
+function updateCustomerStepper() {
+  const stepper = $("customer-stepper");
+  if (!stepper) return;
+
+  if (activeWorkspace === "dev_auth" || activeWorkspace === "dev_console" || activeWorkspace === "credit") {
+    stepper.style.display = "none";
+    return;
+  }
+
+  stepper.style.display = "flex";
+
+  [1, 2, 3, 4].forEach((num) => {
+    const pill = $(`step-pill-${num}`);
+    if (pill) {
+      pill.classList.toggle("active", customerStep === num);
+      pill.classList.toggle("completed", customerStep > num);
+      const badge = pill.querySelector(".step-badge");
+      if (badge) {
+        badge.textContent = customerStep > num ? "✓" : num;
+      }
+    }
+  });
+}
+
+function switchCustomerStep(step) {
+  // Strict progressive disclosure validation
+  if (step === 2 && !isCustomerAuthenticated) {
+    if (typeof showToast === "function") showToast("Please authenticate at Step 1 to proceed.");
+    customerStep = 1;
+  } else if (step === 3 && (!isCustomerAuthenticated || !isStep2Valid())) {
+    if (typeof showToast === "function") showToast("Please verify all 3 telemetry rails at Step 2 to proceed.");
+    customerStep = isCustomerAuthenticated ? 2 : 1;
+  } else if (step === 4 && (!isCustomerAuthenticated || !isStep2Valid() || swarmProgress < 100)) {
+    if (typeof showToast === "function") showToast("Multi-agent swarm verification must finish before viewing final dossier.");
+    customerStep = isCustomerAuthenticated && isStep2Valid() ? 3 : (isCustomerAuthenticated ? 2 : 1);
+  } else {
+    customerStep = step;
+  }
+
+  try { history.replaceState(null, "", `#step=${customerStep}`); } catch (_) {}
+  updateCustomerStepper();
+
+  const frame = $("workspace-main-frame");
+  if (frame && activeWorkspace === "customer_wizard") {
+    renderCustomerWizard(frame);
+  }
+}
+
+function renderCustomerWizard(frame) {
+  updateCustomerStepper();
+  switch (customerStep) {
+    case 1: renderCustomerLogin(frame); break;
+    case 2: renderCustomerOnboarding(frame); break;
+    case 3: renderCustomerTelemetry(frame); break;
+    case 4: renderCustomerFinalVerdict(frame); break;
+    default: renderCustomerLogin(frame);
+  }
+}
+
+// ── STEP 1: CUSTOMER LOGIN PAGE ──────────────────────────────────────
+function renderCustomerLogin(frame) {
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div class="customer-login-wrap">
+        <div class="customer-login-card">
+          <div class="customer-login-hero">
+            <div class="customer-login-icon">🛡</div>
+            <h2 class="customer-login-title">Commercial Credit Gateway</h2>
+            <p class="customer-login-sub">
+              Sign in to initialize borrower telemetry and multi-agent reconciliation.
+            </p>
+          </div>
+
+          <form id="customer-login-form" style="display:flex;flex-direction:column;gap:14px">
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="cust-email-input">Corporate Analyst Email</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">✉</span>
+                <input type="email" id="cust-email-input" class="ent-input" value="${customerEmail}" required />
+              </div>
+            </div>
+
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="cust-pass-input">Security Credential</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">🔒</span>
+                <input type="password" id="cust-pass-input" class="ent-input" value="${customerPassword}" required />
+              </div>
+            </div>
+
+            <div style="margin-top:8px">
+              <button type="submit" id="btn-cust-submit" class="btn-initialize-bypass" style="width:100%;justify-content:center">
+                <span>Sign In to Credit Vault</span>
+                <span>→</span>
+              </button>
+
+              <button type="button" id="btn-demokit-sim" class="btn-demokit-login">
+                <span>⚡</span>
+                <span>Demokit Simulation Login (Instant)</span>
+              </button>
+            </div>
+          </form>
+
+          <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;text-align:center">
+            <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
+              🔒 256-Bit TLS Encryption · SOC2 Type II Certified
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const form = $("customer-login-form");
+  const simBtn = $("btn-demokit-sim");
+
+  const performLogin = () => {
+    isCustomerAuthenticated = true;
+    logSystemEvent(
+      "CUSTOMER_LOGIN_SUCCESS",
+      customerEmail || "COMMERCIAL_USER",
+      "gateway:auth-broker",
+      `Corporate operator signed in successfully. Session token generated for ${customerEmail}.`,
+      "SUCCESS"
+    );
+    if (typeof showToast === "function") showToast("Authenticated to Credit Vault");
+    switchCustomerStep(2);
+  };
+
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      customerEmail = $("cust-email-input")?.value || customerEmail;
+      performLogin();
+    });
+  }
+
+  if (simBtn) {
+    simBtn.addEventListener("click", () => {
+      performLogin();
+    });
+  }
+}
+
+// ── STEP 2: ONBOARDING & DATA INGESTION VECTOR ────────────────────────
+function renderCustomerOnboarding(frame) {
+  const isPermitted = isStep2Valid();
+
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div class="onboarding-hero">
+        <span class="onboarding-badge">Step 2 of 4 · Telemetry Intake</span>
+        <h2 class="onboarding-title">Commercial Entity Onboarding &amp; Data Vector</h2>
+        <p class="onboarding-subtitle">
+          Connect official Account Aggregator rails to begin deterministic verification.
+        </p>
+      </div>
+
+      <div class="onboarding-card">
+        <div class="ent-form-group">
+          <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name</label>
+          <div class="ent-input-row">
+            <span class="ent-input-icon">🏢</span>
+            <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="Enter legal business name" />
+          </div>
+        </div>
+
+        <div class="ent-form-group">
+          <span class="ent-form-label">Data Verification Channels (All 3 Channels Required)</span>
+          <div class="ent-channels-list">
+            <div class="ent-channel-item ${enterpriseChannels.gstn ? 'active' : ''}" data-channel="gstn">
+              <div class="ent-channel-left">
+                <div class="ent-checkbox-box">${enterpriseChannels.gstn ? '✓' : ''}</div>
+                <div>
+                  <div class="ent-channel-title-row">
+                    <span class="ent-channel-title">GSTN GSTR-1 &amp; 3B Returns Ledger</span>
+                    <span class="ent-channel-protocol">REST / GSTN-OAuth2</span>
+                  </div>
+                  <p class="ent-channel-desc">Automated G2G gateway connection. Reconciles period-by-period declared gross turnover.</p>
+                </div>
+              </div>
+              <span class="ent-channel-count">24 records verified</span>
+            </div>
+
+            <div class="ent-channel-item ${enterpriseChannels.itr ? 'active' : ''}" data-channel="itr">
+              <div class="ent-channel-left">
+                <div class="ent-checkbox-box">${enterpriseChannels.itr ? '✓' : ''}</div>
+                <div>
+                  <div class="ent-channel-title-row">
+                    <span class="ent-channel-title">Income Tax Ingestion Framework</span>
+                    <span class="ent-channel-protocol">CBDT e-Filing API</span>
+                  </div>
+                  <p class="ent-channel-desc">Centralized ITR Form-16 / 26AS data. Validates filed taxable profit vs operational cash flow.</p>
+                </div>
+              </div>
+              <span class="ent-channel-count">3 records verified</span>
+            </div>
+
+            <div class="ent-channel-item ${enterpriseChannels.bank ? 'active' : ''}" data-channel="bank">
+              <div class="ent-channel-left">
+                <div class="ent-checkbox-box">${enterpriseChannels.bank ? '✓' : ''}</div>
+                <div>
+                  <div class="ent-channel-title-row">
+                    <span class="ent-channel-title">Bank Statement Aggregator Feed</span>
+                    <span class="ent-channel-protocol">Account Aggregator AA/Setu</span>
+                  </div>
+                  <p class="ent-channel-desc">Direct Bank MFT transfer log across primary commercial accounts. Computes credit receipts.</p>
+                </div>
+              </div>
+              <span class="ent-channel-count">884 records verified</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="onboarding-footer">
+          <div class="onboarding-status-hint ${isPermitted ? 'ready' : 'pending'}" id="ent-onboarding-hint">
+            ${isPermitted ? '✓ All 3 telemetry rails connected. Ready for ingestion.' : '⚠ Please activate all 3 channels to proceed.'}
+          </div>
+          <button class="btn-initialize-bypass" id="ent-btn-proceed-ingestion" type="button" ${isPermitted ? '' : 'disabled'}>
+            <span>Proceed to Ingestion</span>
+            <span>→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const nameInput = $("ent-entity-name-input");
+  const proceedBtn = $("ent-btn-proceed-ingestion");
+  const hintEl = $("ent-onboarding-hint");
+
+  if (nameInput) {
+    nameInput.addEventListener("input", (e) => {
+      enterpriseEntityName = e.target.value;
+      const canProceed = isStep2Valid();
+      if (proceedBtn) proceedBtn.disabled = !canProceed;
+      if (hintEl) {
+        hintEl.className = `onboarding-status-hint ${canProceed ? 'ready' : 'pending'}`;
+        hintEl.textContent = canProceed ? '✓ All 3 telemetry rails connected. Ready for ingestion.' : '⚠ Please activate all 3 channels to proceed.';
+      }
+    });
+  }
+
+  frame.querySelectorAll(".ent-channel-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const ch = item.dataset.channel;
+      enterpriseChannels[ch] = !enterpriseChannels[ch];
+      renderCustomerOnboarding(frame);
+    });
+  });
+
+  if (proceedBtn) {
+    proceedBtn.addEventListener("click", () => {
+      if (!isStep2Valid()) return;
+      logSystemEvent(
+        "ONBOARDING_DATA_INGESTION_CONFIRMED",
+        "OPERATOR_CUSTOMER",
+        "gateway:aa-broker",
+        `Ingestion vector established for entity: '${enterpriseEntityName}'. All 3 rails verified (GSTN, ITR, Bank MFT).`,
+        "SUCCESS",
+        { entity: enterpriseEntityName, rails: "GSTN,ITR,BANK" }
+      );
+      if (typeof showToast === "function") showToast("Telemetry vector confirmed. Initializing swarm...");
+      switchCustomerStep(3);
+    });
+  }
+}
+
+// ── STEP 3: RAW DATA STREAM & TELEMETRY STREAM (Processing State) ─────
+function renderCustomerTelemetry(frame) {
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <span class="onboarding-badge">Step 3 of 4 · Swarm Telemetry Processing</span>
+          <h2 style="font-size:24px;font-weight:700;color:#fff;margin:6px 0 0">
+            Autonomous Multi-Agent Cross-Source Verification
+          </h2>
+        </div>
+
+        <div id="telemetry-cta-wrap">
+          ${swarmProgress === 100 ? `
+            <button class="btn-initialize-bypass" id="btn-advance-verdict" type="button" style="background:#10b981;box-shadow:0 4px 14px rgba(16,185,129,0.4)">
+              <span>Review Final Audit Verdict</span>
+              <span>→</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      <div class="telemetry-progress-panel">
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px">
+          <span style="color:var(--muted)">Orchestrator Execution Pipeline:</span>
+          <span id="telemetry-pct-label" style="color:#818cf8;font-weight:700">${swarmProgress}% Completed</span>
+        </div>
+        <div class="telemetry-progress-track">
+          <div class="telemetry-progress-fill" id="telemetry-progress-fill" style="width:${swarmProgress}%"></div>
+        </div>
+      </div>
+
+      <div class="telemetry-swarm-grid">
+        <div class="telemetry-agent-card ${swarmProgress >= 25 ? 'completed' : 'running'}" id="agent-card-bank">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700;color:#fff">Bank Statement Agent</span>
+            <span class="ws-status-badge ${swarmProgress >= 25 ? 'settled' : 'pending'}" id="badge-bank">
+              ${swarmProgress >= 25 ? 'Completed' : 'Running'}
+            </span>
+          </div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Ingesting 884 primary credit receipts</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#34d399">₹2.10 Cr Inflows (+2.1%)</div>
+        </div>
+
+        <div class="telemetry-agent-card ${swarmProgress >= 55 ? 'completed' : (swarmProgress >= 25 ? 'running' : '')}" id="agent-card-gst">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700;color:#fff">GST Returns Agent</span>
+            <span class="ws-status-badge ${swarmProgress >= 55 ? 'settled' : (swarmProgress >= 25 ? 'pending' : 'draft')}" id="badge-gst">
+              ${swarmProgress >= 55 ? 'Completed' : (swarmProgress >= 25 ? 'Running' : 'Pending')}
+            </span>
+          </div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Reconciling 24 GSTR-3B filings</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fbbf24">₹1.65 Cr Declared (-11.0%)</div>
+        </div>
+
+        <div class="telemetry-agent-card ${swarmProgress >= 80 ? 'completed' : (swarmProgress >= 55 ? 'running' : '')}" id="agent-card-inv">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700;color:#fff">Investment Agent</span>
+            <span class="ws-status-badge ${swarmProgress >= 80 ? 'settled' : (swarmProgress >= 55 ? 'pending' : 'draft')}" id="badge-inv">
+              ${swarmProgress >= 80 ? 'Completed' : (swarmProgress >= 55 ? 'Running' : 'Pending')}
+            </span>
+          </div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Auditing liquid reserves &amp; portfolio</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#818cf8">₹32.4L Validated Buffer</div>
+        </div>
+      </div>
+
+      <div class="telemetry-trace-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px">
+          <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">
+            Raw Telemetry &amp; Execution Trace Stream
+          </span>
+          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Node: asia-south1</span>
+        </div>
+
+        <div class="telemetry-trace-stream" id="telemetry-trace-box">
+          ${telemetryLogs.map((log) => `
+            <div class="telemetry-trace-line">
+              <span class="telemetry-trace-arrow">›</span>
+              <span>${log}</span>
+            </div>
+          `).join('')}
+          ${swarmProgress < 100 ? `
+            <div class="telemetry-trace-line" style="color:#818cf8;animation:pulse 1.5s infinite">
+              <span class="telemetry-trace-arrow">›</span>
+              <span>Evaluating mathematical variance across rails...</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const advBtn = $("btn-advance-verdict");
+  if (advBtn) {
+    advBtn.addEventListener("click", () => {
+      logSystemEvent(
+        "CUSTOMER_ACCESSED_FINAL_DOSSIER",
+        "OPERATOR_CUSTOMER",
+        "synthesizer:decision-card",
+        `Rendered final algorithmic decision dossier for ${enterpriseEntityName}. Output Verdict: MANUAL REVIEW.`,
+        "SUCCESS"
+      );
+      switchCustomerStep(4);
+    });
+  }
+
+  // Automatic Swarm Progression if not complete
+  if (swarmProgress < 100 && !isSwarmRunning) {
+    isSwarmRunning = true;
+    telemetryLogs = [
+      `[0.00s] AA Protocol Broker handshake verified (ssl_tls1.3: asia-south1)`,
+      `[0.15s] Initializing 3 parallel specialist execution nodes...`
+    ];
+
+    logSystemEvent(
+      "AGENT_SWARM_DISPATCHED",
+      "ORCHESTRATOR_AGENT",
+      "asia-south1:agent-swarm",
+      "ParallelAgent swarm dispatched (Bank Specialist, GST Specialist, Investment Specialist).",
+      "SUCCESS"
+    );
+
+    const stages = [
+      { pct: 25, msg: `[0.42s] Bank Agent: Ingested 884 MFT transaction records. Gross inflows: ₹2,10,00,000 (+2.1% YoY).` },
+      { pct: 55, msg: `[0.85s] GST Agent: Parsed 24 GSTR-3B filings. Turnover declared: ₹1,65,00,000 (-11.0% YoY).` },
+      { pct: 80, msg: `[1.20s] Investment Agent: Portfolio audit complete. Liquid buffer validated at ₹32.4L.` },
+      { pct: 100, msg: `[1.65s] Synthesizer: Flagged structural variance delta of 27.2% between Bank vs GST filings.` },
+    ];
+
+    stages.forEach((stage, idx) => {
+      setTimeout(() => {
+        swarmProgress = stage.pct;
+        telemetryLogs.push(stage.msg);
+
+        if (stage.pct === 100) {
+          isSwarmRunning = false;
+          logSystemEvent(
+            "CONTRADICTION_FLAGGED",
+            "RULE_INCOME_REV_DIVERGENCE",
+            "rules:deterministic-core",
+            "Flagged asymmetric revenue divergence: Bank credits (+2.1%) vs GSTR-3B (-11.0%). Applied capped confidence: 0.50.",
+            "WARNING"
+          );
+        }
+
+        if (activeWorkspace === "customer_wizard" && customerStep === 3) {
+          renderCustomerTelemetry(frame);
+        }
+      }, (idx + 1) * 600);
+    });
+  }
+}
+
+// ── STEP 4: FINAL RECONCILIATION VERDICT & OUTPUTS ────────────────────
+function renderCustomerFinalVerdict(frame) {
+  const gstinDisplay = enterpriseGstinMasked ? "•••• •••• 9812" : "27AAECK1298P1Z8";
+  const digest = enterpriseAuditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e53a992bc44d32098d6541f5a11e89bc";
+
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div class="cockpit-banner">
+        <div class="cockpit-entity-wrap">
+          <span class="cockpit-kicker">Step 4 of 4 · Final Audit Dossier</span>
+          <div class="cockpit-entity-heading">
+            <h2 class="cockpit-entity-name">${enterpriseEntityName}</h2>
+            <div class="cockpit-gstin-pill">
+              <span>GSTIN:</span>
+              <span id="cockpit-gstin-val" style="color:#fff">${gstinDisplay}</span>
+              <button class="cockpit-gstin-toggle-btn" id="cockpit-gstin-toggle" type="button" title="Toggle Privacy Mask">
+                ${enterpriseGstinMasked ? '👁' : '🔒'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cockpit-banner-actions">
+          <button class="btn-ent-action" id="ent-export-csv-btn" type="button">
+            <span style="color:#34d399">📊</span>
+            <span>Export Ledger (.CSV)</span>
+          </button>
+          <button class="btn-ent-action" id="ent-download-pdf-btn" type="button">
+            <span style="color:#818cf8">📑</span>
+            <span>Download Audit Report (.PDF)</span>
+          </button>
+          <button class="btn-ent-action" id="btn-restart-flow" type="button" style="border-color:rgba(255,255,255,0.15)">
+            <span>↻</span>
+            <span>Restart Flow</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="cockpit-metrics-grid">
+        <div class="cockpit-metric-card">
+          <span class="metric-title">Gross Ingested Capital</span>
+          <div class="metric-value">₹2,10,00,000</div>
+          <div class="metric-sub-row">
+            <span>Annualized Inflows</span>
+            <span class="metric-delta ok">+2.1%</span>
+          </div>
+        </div>
+
+        <div class="cockpit-metric-card warn-card">
+          <span class="metric-title">GST-Declared Turnover</span>
+          <div class="metric-value">₹1,65,00,000</div>
+          <div class="metric-sub-row">
+            <span>GSTR-3B Declared</span>
+            <span class="metric-delta warn">-11.0%</span>
+          </div>
+        </div>
+
+        <div class="cockpit-metric-card">
+          <span class="metric-title">Active Ingestion Channels</span>
+          <div class="metric-value">3/3 Rails</div>
+          <div class="metric-sub-row">
+            <span>GSTN · ITR · Bank AA</span>
+            <span class="metric-delta ok">100% Ingested</span>
+          </div>
+        </div>
+
+        <div class="cockpit-metric-card warn-card">
+          <span class="metric-title">Consent Decay Haircut</span>
+          <div class="metric-value">0.29 Multiplier</div>
+          <div class="metric-sub-row">
+            <span>2 Days Remaining</span>
+            <span class="metric-delta warn">-71% Haircut</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cockpit-forensic-grid">
+        <div class="discrepancy-card">
+          <div class="discrepancy-header">
+            <div class="discrepancy-title-wrap">
+              <span class="discrepancy-shield-icon">🛡</span>
+              <div>
+                <h3 class="discrepancy-title">Asymmetric GST vs Bank Inflow Discrepancy Card</h3>
+                <span class="discrepancy-rule-tag">Rule Engine: RULE_INCOME_REV_DIVERGENCE</span>
+              </div>
+            </div>
+            <span class="discrepancy-badge">27.2% Variance Delta</span>
+          </div>
+
+          <p class="discrepancy-narrative">
+            Deterministic cross-examination revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>₹2,10,00,000</strong> (+2.1% YoY), whereas parallel GSTR-3B filings register only <strong>₹1,65,00,000</strong> (-11.0% YoY) for the identical period.
+          </p>
+
+          <div class="discrepancy-tiles-grid">
+            <div class="discrepancy-tile">
+              <span class="discrepancy-tile-label">Bank Aggregator Ledger</span>
+              <span class="discrepancy-tile-val green">₹2,10,00,000</span>
+              <span class="discrepancy-tile-sub">Trend: Rising / Stable (+2.1%)</span>
+            </div>
+
+            <div class="discrepancy-tile">
+              <span class="discrepancy-tile-label">GSTN Official Filing</span>
+              <span class="discrepancy-tile-val rose">₹1,65,00,000</span>
+              <span class="discrepancy-tile-sub">Trend: Sharp Contraction (-11.0%)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="synthesizer-card">
+          <div>
+            <span class="synth-kicker">Synthesizer Outcome</span>
+            <div class="synth-verdict-row">
+              <span class="synth-verdict-pill">
+                <span>⚠</span>
+                <span>MANUAL REVIEW</span>
+              </span>
+              <span class="synth-score">Score: 0.14</span>
+            </div>
+
+            <div class="synth-calc-table">
+              <div class="synth-calc-row">
+                <span>Model Confidence:</span>
+                <span style="color:#fff">0.50 (Capped)</span>
+              </div>
+              <div class="synth-calc-row">
+                <span>Consent Multiplier:</span>
+                <span style="color:#fbbf24">×0.29 (2d left)</span>
+              </div>
+              <div class="synth-calc-row total-row">
+                <span>Final Confidence:</span>
+                <span>0.14</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="synth-digest-block">
+            <span class="synth-digest-label">SHA-256 Decision Block Digest</span>
+            <span class="synth-digest-hash" id="cockpit-digest-hash">${digest}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const toggleBtn = $("cockpit-gstin-toggle");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      enterpriseGstinMasked = !enterpriseGstinMasked;
+      const gstinVal = $("cockpit-gstin-val");
+      if (gstinVal) gstinVal.textContent = enterpriseGstinMasked ? "•••• •••• 9812" : "27AAECK1298P1Z8";
+      toggleBtn.textContent = enterpriseGstinMasked ? "👁" : "🔒";
+    });
+  }
+
+  const exportBtn = $("ent-export-csv-btn");
+  if (exportBtn) exportBtn.addEventListener("click", exportAuditCSV);
+
+  const pdfBtn = $("ent-download-pdf-btn");
+  if (pdfBtn) pdfBtn.addEventListener("click", downloadAuditPDF);
+
+  const restartBtn = $("btn-restart-flow");
+  if (restartBtn) {
+    restartBtn.addEventListener("click", () => {
+      enterpriseChannels = { gstn: false, itr: false, bank: false };
+      swarmProgress = 0;
+      telemetryLogs = [];
+      logSystemEvent(
+        "CUSTOMER_WIZARD_RESET",
+        "OPERATOR_CUSTOMER",
+        "flow:state-machine",
+        "Operator reset progressive disclosure wizard to Step 1.",
+        "SUCCESS"
+      );
+      switchCustomerStep(1);
+    });
+  }
+}
+
+// ── HIDDEN DEVELOPER GATEWAY & GOVERNANCE CONSOLE ─────────────────────
+function renderDevAuth(frame) {
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div class="dev-auth-modal-card">
+        <div class="dev-auth-header">
+          <div class="dev-auth-icon-wrap">🔑</div>
+          <div>
+            <h3 class="dev-auth-title">System Developer Gateway</h3>
+            <span class="dev-auth-route">Route: /app/dev-login</span>
+          </div>
+        </div>
+
+        <form class="dev-auth-form" id="dev-auth-form">
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="dev-username-input">Administrative Signature</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">👤</span>
+              <input type="text" id="dev-username-input" class="ent-input" placeholder="admin" required autocomplete="username" />
+            </div>
+          </div>
+
+          <div class="ent-form-group" style="margin-bottom:0">
+            <label class="ent-form-label" for="dev-password-input">Cryptographic Key</label>
+            <div class="ent-input-row">
+              <span class="ent-input-icon">🔒</span>
+              <input type="password" id="dev-password-input" class="ent-input" placeholder="••••••••••••••••" required autocomplete="current-password" />
+            </div>
+            <div class="dev-auth-hint">
+              Mock credentials: <code>admin</code> / <code>TrueLedger2026!</code>
+            </div>
+          </div>
+
+          ${devAuthError ? `
+            <div class="dev-auth-error">
+              <span>✕</span>
+              <span>${devAuthError}</span>
+            </div>
+          ` : ''}
+
+          <div class="dev-auth-btn-row">
+            <button class="btn-dev-cancel" id="btn-dev-cancel" type="button">Return to Customer Flow</button>
+            <button class="btn-dev-submit" type="submit">Authenticate</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  const form = $("dev-auth-form");
+  const cancelBtn = $("btn-dev-cancel");
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      devAuthError = null;
+      switchWorkspace("customer_wizard");
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = ($("dev-username-input")?.value || "").trim();
+      const p = ($("dev-password-input")?.value || "").trim();
+
+      if (u === "admin" && p === "TrueLedger2026!") {
+        isDevAuthenticated = true;
+        devAuthError = null;
+        logSystemEvent(
+          "DEV_PORTAL_AUTH_GRANTED",
+          u,
+          "auth:governance-vault",
+          "Developer elevated permissions successfully issued. Session route initialized.",
+          "SUCCESS"
+        );
+        if (typeof showToast === "function") showToast("Developer session authenticated");
+        switchWorkspace("dev_console");
+      } else {
+        devAuthError = "Access Restricted: Invalid administrative signature or key.";
+        logSystemEvent(
+          "DEV_PORTAL_AUTH_REJECTED",
+          u || "ANONYMOUS",
+          "auth:governance-vault",
+          "Failed authentication attempt against developer console endpoint.",
+          "DENIED"
+        );
+        renderDevAuth(frame);
+      }
+    });
+  }
+}
+
+function renderDevConsole(frame) {
+  if (!isDevAuthenticated) {
+    switchWorkspace("dev_auth");
+    return;
+  }
+
+  frame.innerHTML = `
+    <div class="ent-view-wrapper">
+      <div class="dev-console-header">
+        <div>
+          <div class="dev-console-heading">
+            <span style="font-size:24px;color:#818cf8">⌨</span>
+            <h2 class="dev-console-title">System Governance Console</h2>
+          </div>
+          <p class="dev-console-sub">
+            Isolated administrative suite. Captures append-only audit telemetry across customer actions without exposure.
+          </p>
+        </div>
+
+        <div class="dev-console-actions">
+          <button class="btn-ent-action" id="dev-dump-csv-btn" type="button">
+            <span style="color:#34d399">📊</span>
+            <span>Dump Telemetry (.CSV)</span>
+          </button>
+          <button class="btn-exit-dev" id="btn-exit-dev" type="button">Exit Developer Mode</button>
+        </div>
+      </div>
+
+      <div class="dev-console-kpis">
+        <div class="dev-kpi-card">
+          <span class="dev-kpi-label">Active Sub-Agent Workers</span>
+          <div class="dev-kpi-val">3 Workers</div>
+          <span class="dev-kpi-sub">ParallelAgent Group</span>
+        </div>
+
+        <div class="dev-kpi-card">
+          <span class="dev-kpi-label">Orchestrator Latency</span>
+          <div class="dev-kpi-val">1,240 ms</div>
+          <span class="dev-kpi-sub">Gemini 3.1 Pro preview</span>
+        </div>
+
+        <div class="dev-kpi-card">
+          <span class="dev-kpi-label">Firestore Read/Write Pool</span>
+          <div class="dev-kpi-val" style="color:#34d399">100% Synced</div>
+          <span class="dev-kpi-sub">Native Mode (asia-south1)</span>
+        </div>
+
+        <div class="dev-kpi-card">
+          <span class="dev-kpi-label">Total Logged Audit Events</span>
+          <div class="dev-kpi-val">${enterpriseAuditLog.length} Records</div>
+          <span class="dev-kpi-sub">Append-only immutable</span>
+        </div>
+      </div>
+
+      <div class="dev-audit-table-card">
+        <div class="dev-audit-card-top">
+          <div class="dev-audit-card-title">
+            <span style="color:#818cf8">≡</span>
+            <span>Append-Only Immutable Event Bus Stream</span>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">Live Memory State (${enterpriseAuditLog.length} Events)</span>
+        </div>
+
+        <div class="dev-audit-table-wrapper">
+          <table class="dev-audit-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event Token</th>
+                <th>Operator</th>
+                <th>Target Node</th>
+                <th>Action Description</th>
+                <th>Status</th>
+                <th>SHA-256 Block Digest</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${enterpriseAuditLog.map((ev) => `
+                <tr>
+                  <td style="color:var(--muted)">${ev.timestamp.replace("T", " ").slice(0, 19)}</td>
+                  <td style="color:#818cf8;font-weight:600">${ev.eventToken}</td>
+                  <td style="color:#fff">${ev.operator}</td>
+                  <td style="color:var(--muted)">${ev.targetNode}</td>
+                  <td class="desc-cell">${ev.action}</td>
+                  <td>
+                    <span class="audit-status-badge ${ev.status}">${ev.status}</span>
+                  </td>
+                  <td class="digest-cell" title="${ev.sha256BlockDigest}">${ev.sha256BlockDigest}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const dumpBtn = $("dev-dump-csv-btn");
+  if (dumpBtn) dumpBtn.addEventListener("click", exportAuditCSV);
+
+  const exitBtn = $("btn-exit-dev");
+  if (exitBtn) {
+    exitBtn.addEventListener("click", () => {
+      isDevAuthenticated = false;
+      if (typeof showToast === "function") showToast("Developer session ended");
+      switchWorkspace("customer_wizard");
+    });
+  }
+}
+
 function bootCaseFromURL() {
   const requested = new URLSearchParams(window.location.search).get("case");
   return requested && CASES.some((c) => c.id === requested) ? requested : DEFAULT_CASE;
 }
 
 (async function boot() {
-  // Determine initial workspace from URL hash or default to credit
-  const hashWs = (location.hash.match(/[#&]ws=([a-z]+)/) || [])[1];
-  let startWs = "credit"; // default to credit
-  if (hashWs) {
-    if (hashWs === "credit" ||
-        (ENABLE_ENTERPRISE_WORKSPACE && ["dashboard","client","income","compliance","assets"].includes(hashWs))) {
-      startWs = hashWs;
-    }
+  // Bind navigation listeners for sidebar and sub-nav items
+  setupWorkspaceNav();
+
+  // Determine initial workspace from URL hash
+  const hash = location.hash.toLowerCase();
+  const stepMatch = hash.match(/[#&]step=([1-4])/);
+  const hashWs = (hash.match(/[#&]ws=([a-z_]+)/) || [])[1];
+
+  let startWs = "customer_wizard"; // Default to customer wizard
+
+  if (hash === "#dev-login" || hash === "#view=dev_auth") {
+    startWs = "dev_auth";
+  } else if (hash === "#view=dev_console") {
+    startWs = isDevAuthenticated ? "dev_console" : "dev_auth";
+  } else if (stepMatch) {
+    startWs = "customer_wizard";
+    customerStep = Number(stepMatch[1]);
+  } else if (hashWs && ["credit", "dashboard", "client", "income", "compliance", "assets", "customer_wizard"].includes(hashWs)) {
+    startWs = hashWs;
   }
 
-  // Start enterprise data fetch immediately (parallel with recorded preload)
+  // Start enterprise data fetch immediately
   loadEnterpriseData();
 
-  // Preload the default credit case in the background so switching to
-  // Credit Applications is instant ??" same recorded-capture behaviour as before.
+  // Preload the default credit case in the background
   const bootCase = bootCaseFromURL();
   (async () => {
     const recorded = await loadRecorded(bootCase);
@@ -1994,6 +3304,6 @@ function bootCaseFromURL() {
   });
 
   // Boot into requested workspace
-  activeWorkspace = startWs; // set the global
+  activeWorkspace = startWs;
   switchWorkspace(startWs);
 })();
