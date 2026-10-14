@@ -2496,6 +2496,137 @@ let isCustomerAuthenticated = false;
 let customerEmail = "analyst@trueledger.com";
 let customerPassword = "••••••••••••";
 
+// 5 Industry Benchmark Use Cases with pre-filled Synthetic Datasets & Excel Files
+const BENCHMARK_CASES = [
+  {
+    id: "kaveri",
+    name: "Kaveri Agro Commodities Ltd",
+    sector: "Agriculture & Agro-Trading",
+    pan: "AABCK4812G",
+    gstin: "36AABCK4812G1Z2",
+    loan: "₹8,50,00,000",
+    bank_inflows: "₹46,80,00,000",
+    gst_turnover: "₹45,20,00,000",
+    trend_bank: "+3.5%",
+    trend_gst: "+3.1%",
+    variance: "0.4%",
+    verdict: "APPROVE",
+    final_confidence: 0.88,
+    model_confidence: 0.88,
+    consent_multiplier: 1.0,
+    consent_days: 90,
+    badge_class: "ok",
+    files: {
+      gstn: "kaveri_gstr_returns.xlsx",
+      itr: "kaveri_itr_filings.xlsx",
+      bank: "kaveri_bank_statement.xlsx"
+    },
+    narrative: "Consistent alignment between Account Aggregator bank deposits (INR 46.8 Cr) and GSTR-3B filings (INR 45.2 Cr). APMC electronic receipt verification validates genuine farmgate grain trade volume without divergence."
+  },
+  {
+    id: "deccan",
+    name: "Deccan Cements & Infrastructure Ltd",
+    sector: "Cement & Heavy Building Materials",
+    pan: "AADCD7891K",
+    gstin: "37AADCD7891K1Z9",
+    loan: "₹14,00,00,000",
+    bank_inflows: "₹76,00,00,000",
+    gst_turnover: "₹78,50,00,000",
+    trend_bank: "-2.1%",
+    trend_gst: "-2.4%",
+    variance: "0.3%",
+    verdict: "APPROVE",
+    final_confidence: 0.82,
+    model_confidence: 0.82,
+    consent_multiplier: 1.0,
+    consent_days: 75,
+    badge_class: "ok",
+    files: {
+      gstn: "deccan_gstr_returns.xlsx",
+      itr: "deccan_itr_filings.xlsx",
+      bank: "deccan_bank_statement.xlsx"
+    },
+    narrative: "Verified rail-freight e-way bill volume matches GSTR-1 inter-state dispatches. Clinker procurement and plant power consumption correlate precisely with filed turnover."
+  },
+  {
+    id: "kalyani",
+    name: "Kalyani Speciality Steels Ltd",
+    sector: "Steel & Metallurgy Manufacturing",
+    pan: "AABCK9921E",
+    gstin: "27AABCK9921E1Z3",
+    loan: "₹9,50,00,000",
+    bank_inflows: "₹52,00,00,000",
+    gst_turnover: "₹38,00,00,000",
+    trend_bank: "+5.4%",
+    trend_gst: "-21.8%",
+    variance: "27.2%",
+    verdict: "MANUAL REVIEW",
+    final_confidence: 0.14,
+    model_confidence: 0.50,
+    consent_multiplier: 0.29,
+    consent_days: 2,
+    badge_class: "warn",
+    files: {
+      gstn: "kalyani_gstr_returns.xlsx",
+      itr: "kalyani_itr_filings.xlsx",
+      bank: "kalyani_bank_statement.xlsx"
+    },
+    narrative: "Flagged RULE_INCOME_REV_DIVERGENCE: Commercial bank deposits indicate INR 52.0 Cr inflows (+5.4%) while GSTR-3B tax declarations contract to INR 38.0 Cr (-21.8%). Potential circular routing or unreported scrap liquidation."
+  },
+  {
+    id: "bharat",
+    name: "Bharat Capital & Trade Finance Ltd",
+    sector: "Financial Services & NBFC",
+    pan: "AABCB6619M",
+    gstin: "27AABCB6619M1Z1",
+    loan: "₹6,00,00,000",
+    bank_inflows: "₹12,80,00,000",
+    gst_turnover: "₹12,50,00,000",
+    trend_bank: "+1.2%",
+    trend_gst: "+0.8%",
+    variance: "0.4%",
+    verdict: "APPROVE",
+    final_confidence: 0.85,
+    model_confidence: 0.85,
+    consent_multiplier: 1.0,
+    consent_days: 120,
+    badge_class: "ok",
+    files: {
+      gstn: "bharat_gstr_returns.xlsx",
+      itr: "bharat_itr_filings.xlsx",
+      bank: "bharat_bank_statement.xlsx"
+    },
+    narrative: "Loan origination fee collection and structured interest cashflow reconcile across AA bank feeds and GSTR-9 annual summary. Liquidity coverage ratio (LCR) exceeds regulatory hurdle."
+  },
+  {
+    id: "zenith",
+    name: "Zenith Chemicals & Agrochemicals Ltd",
+    sector: "Chemicals & Crop Protection",
+    pan: "AACZ7712Q",
+    gstin: "24AACZ7712Q1Z4",
+    loan: "₹7,50,00,000",
+    bank_inflows: "₹29,50,00,000",
+    gst_turnover: "₹21,00,00,000",
+    trend_bank: "+7.8%",
+    trend_gst: "-18.2%",
+    variance: "26.0%",
+    verdict: "MANUAL REVIEW",
+    final_confidence: 0.15,
+    model_confidence: 0.50,
+    consent_multiplier: 0.31,
+    consent_days: 3,
+    badge_class: "warn",
+    files: {
+      gstn: "zenith_gstr_returns.xlsx",
+      itr: "zenith_itr_filings.xlsx",
+      bank: "zenith_bank_statement.xlsx"
+    },
+    narrative: "Critical variance detected between inward e-way bill raw chemical purchases and reported GSTR-3B sales. Primary current account shows unmapped round-tripping transactions."
+  }
+];
+
+let activeBenchmarkId = null; // null means custom applicant mode
+
 let enterpriseEntityName = "";
 let enterprisePan = "";
 let enterpriseGstin = "";
@@ -2683,6 +2814,7 @@ function renderCustomerLogin(frame) {
 // ── STEP 2: ONBOARDING & DATA INGESTION VECTOR ────────────────────────
 function renderCustomerOnboarding(frame) {
   const isPermitted = isStep2Valid();
+  const activeCase = BENCHMARK_CASES.find(b => b.id === activeBenchmarkId) || null;
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
@@ -2690,126 +2822,204 @@ function renderCustomerOnboarding(frame) {
         <span class="onboarding-badge">Step 2 of 4 · Entity Intake &amp; Data Integration</span>
         <h2 class="onboarding-title">Commercial Entity Intake &amp; Document Ingestion</h2>
         <p class="onboarding-subtitle">
-          Specify applicant entity credentials and upload or connect the 3 primary financial records for deterministic reconciliation.
+          Select an industry benchmark profile or input custom entity credentials, then connect or import the 3 primary financial records for deterministic reconciliation.
         </p>
       </div>
 
-      <div class="onboarding-card">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-          <div class="ent-form-group" style="margin-bottom:0">
-            <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name *</label>
-            <div class="ent-input-row">
-              <span class="ent-input-icon">🏢</span>
-              <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="e.g. ABC Enterprises Pvt Ltd" required />
-            </div>
+      <div class="onboarding-split-layout">
+        <!-- Left Column: 5 Sector Benchmark Use Cases -->
+        <div class="benchmark-panel">
+          <div class="benchmark-header">
+            <span class="benchmark-kicker">Industry Benchmarks</span>
+            <h3 class="benchmark-title">Select Sector Portfolio</h3>
+            <p style="font-size:11px;color:var(--muted);margin:4px 0 0">
+              Pre-populated with verified enterprise filings &amp; downloadable Excel workbooks.
+            </p>
           </div>
 
-          <div class="ent-form-group" style="margin-bottom:0">
-            <label class="ent-form-label" for="ent-loan-amount-input">Requested Credit Facility (INR)</label>
-            <div class="ent-input-row">
-              <span class="ent-input-icon">₹</span>
-              <input type="text" id="ent-loan-amount-input" class="ent-input" value="${enterpriseLoanAmount.replace(/"/g, '&quot;')}" placeholder="e.g. ₹50,00,000" />
-            </div>
-          </div>
-
-          <div class="ent-form-group" style="margin-bottom:0">
-            <label class="ent-form-label" for="ent-pan-input">Corporate PAN (10-Digit Alphanumeric)</label>
-            <div class="ent-input-row">
-              <span class="ent-input-icon">📄</span>
-              <input type="text" id="ent-pan-input" class="ent-input" value="${enterprisePan.replace(/"/g, '&quot;')}" placeholder="e.g. ABCDE1234F" />
-            </div>
-          </div>
-
-          <div class="ent-form-group" style="margin-bottom:0">
-            <label class="ent-form-label" for="ent-gstin-input">GSTIN (15-Digit Identifier)</label>
-            <div class="ent-input-row">
-              <span class="ent-input-icon">🏛</span>
-              <input type="text" id="ent-gstin-input" class="ent-input" value="${enterpriseGstin.replace(/"/g, '&quot;')}" placeholder="e.g. 27ABCDE1234F1Z5" />
-            </div>
-          </div>
-        </div>
-
-        <div class="ent-form-group">
-          <span class="ent-form-label">Data Ingestion Channels &amp; Verification (All 3 Channels Required)</span>
-          <div class="ent-channels-list">
-            
-            <!-- Channel 1: GST Returns -->
-            <div class="ent-channel-item ${enterpriseChannels.gstn ? 'active' : ''}" data-channel="gstn">
-              <div class="ent-channel-left">
-                <div class="ent-checkbox-box">${enterpriseChannels.gstn ? '✓' : ''}</div>
-                <div>
-                  <div class="ent-channel-title-row">
-                    <span class="ent-channel-title">GSTN GSTR-1 &amp; 3B Returns Ledger</span>
-                    <span class="ent-channel-protocol">REST / GSTN-OAuth2</span>
+          <div class="benchmark-card-list">
+            ${BENCHMARK_CASES.map(b => {
+              const isSelected = activeBenchmarkId === b.id;
+              return `
+                <div class="benchmark-card ${isSelected ? 'active' : ''}" data-benchmark-id="${b.id}">
+                  <div class="benchmark-card-top">
+                    <span class="benchmark-card-sector">${b.sector}</span>
+                    <span class="benchmark-card-verdict ${b.badge_class}">${b.verdict}</span>
                   </div>
-                  <p class="ent-channel-desc">Reconciles period-by-period declared gross turnover and filed input tax credit.</p>
-                </div>
-              </div>
-              <div class="ent-channel-right">
-                <input type="file" id="file-gstn-input" style="display:none" accept=".json,.csv,.pdf,.xlsx" />
-                <button type="button" class="ent-channel-upload-btn" id="btn-upload-gstn" title="Import GSTR file or payload">
-                  <span>📎</span>
-                  <span>${enterpriseUploadedFiles.gstn ? enterpriseUploadedFiles.gstn : 'Import GSTR File'}</span>
-                </button>
-                <span class="ent-channel-count">${enterpriseChannels.gstn ? (enterpriseUploadedFiles.gstn ? 'File Imported' : '24 records connected') : 'Pending'}</span>
-              </div>
-            </div>
-
-            <!-- Channel 2: ITR / CBDT -->
-            <div class="ent-channel-item ${enterpriseChannels.itr ? 'active' : ''}" data-channel="itr">
-              <div class="ent-channel-left">
-                <div class="ent-checkbox-box">${enterpriseChannels.itr ? '✓' : ''}</div>
-                <div>
-                  <div class="ent-channel-title-row">
-                    <span class="ent-channel-title">Income Tax Verification (ITR Form-16 / 26AS)</span>
-                    <span class="ent-channel-protocol">CBDT e-Filing API</span>
+                  <div class="benchmark-card-name">${b.name}</div>
+                  <div class="benchmark-card-sub">
+                    <span>${b.loan} Facility</span>
+                    <span>Var: ${b.variance}</span>
                   </div>
-                  <p class="ent-channel-desc">Cross-references declared operating profits and annual tax filings.</p>
                 </div>
-              </div>
-              <div class="ent-channel-right">
-                <input type="file" id="file-itr-input" style="display:none" accept=".json,.csv,.pdf,.xml" />
-                <button type="button" class="ent-channel-upload-btn" id="btn-upload-itr" title="Import ITR XML/JSON/PDF">
-                  <span>📎</span>
-                  <span>${enterpriseUploadedFiles.itr ? enterpriseUploadedFiles.itr : 'Import ITR Data'}</span>
-                </button>
-                <span class="ent-channel-count">${enterpriseChannels.itr ? (enterpriseUploadedFiles.itr ? 'File Imported' : '3 AY verified') : 'Pending'}</span>
-              </div>
-            </div>
-
-            <!-- Channel 3: Bank MFT / AA -->
-            <div class="ent-channel-item ${enterpriseChannels.bank ? 'active' : ''}" data-channel="bank">
-              <div class="ent-channel-left">
-                <div class="ent-checkbox-box">${enterpriseChannels.bank ? '✓' : ''}</div>
-                <div>
-                  <div class="ent-channel-title-row">
-                    <span class="ent-channel-title">Bank Statement Aggregator Feed</span>
-                    <span class="ent-channel-protocol">Account Aggregator Protocol</span>
-                  </div>
-                  <p class="ent-channel-desc">Direct banking statement verification across primary operating accounts.</p>
-                </div>
-              </div>
-              <div class="ent-channel-right">
-                <input type="file" id="file-bank-input" style="display:none" accept=".json,.csv,.pdf" />
-                <button type="button" class="ent-channel-upload-btn" id="btn-upload-bank" title="Import Bank Statement CSV/PDF">
-                  <span>📎</span>
-                  <span>${enterpriseUploadedFiles.bank ? enterpriseUploadedFiles.bank : 'Import Statement'}</span>
-                </button>
-                <span class="ent-channel-count">${enterpriseChannels.bank ? (enterpriseUploadedFiles.bank ? 'File Imported' : '884 txns verified') : 'Pending'}</span>
-              </div>
-            </div>
-
+              `;
+            }).join('')}
           </div>
-        </div>
 
-        <div class="onboarding-footer">
-          <div class="onboarding-status-hint ${isPermitted ? 'ready' : 'pending'}" id="ent-onboarding-hint">
-            ${isPermitted ? '✓ Entity details and all 3 data channels connected. Ready for cross-verification.' : '⚠ Please enter entity name and connect / import all 3 channels to proceed.'}
-          </div>
-          <button class="btn-initialize-bypass" id="ent-btn-proceed-ingestion" type="button" ${isPermitted ? '' : 'disabled'}>
-            <span>Proceed to Cross-Verification</span>
-            <span>→</span>
+          <button type="button" class="benchmark-custom-btn ${activeBenchmarkId === null ? 'active' : ''}" id="btn-custom-applicant">
+            <span>✎</span>
+            <span>+ Add Custom Applicant / Manual Input</span>
           </button>
+        </div>
+
+        <!-- Right Column: Intake Form & File Channels -->
+        <div class="onboarding-card" style="margin-top:0">
+          ${activeCase ? `
+            <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;color:#818cf8;font-weight:700">Benchmark Active · ${activeCase.sector}</span>
+                <div style="font-size:13px;font-weight:600;color:#fff">${activeCase.name}</div>
+              </div>
+              <span class="benchmark-card-verdict ${activeCase.badge_class}">${activeCase.verdict} (${activeCase.variance} delta)</span>
+            </div>
+          ` : ''}
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name *</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">🏢</span>
+                <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="e.g. ABC Enterprises Pvt Ltd" required />
+              </div>
+            </div>
+
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="ent-loan-amount-input">Requested Credit Facility (INR)</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">₹</span>
+                <input type="text" id="ent-loan-amount-input" class="ent-input" value="${enterpriseLoanAmount.replace(/"/g, '&quot;')}" placeholder="e.g. ₹50,00,000" />
+              </div>
+            </div>
+
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="ent-pan-input">Corporate PAN (10-Digit Alphanumeric)</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">📄</span>
+                <input type="text" id="ent-pan-input" class="ent-input" value="${enterprisePan.replace(/"/g, '&quot;')}" placeholder="e.g. ABCDE1234F" />
+              </div>
+            </div>
+
+            <div class="ent-form-group" style="margin-bottom:0">
+              <label class="ent-form-label" for="ent-gstin-input">GSTIN (15-Digit Identifier)</label>
+              <div class="ent-input-row">
+                <span class="ent-input-icon">🏛</span>
+                <input type="text" id="ent-gstin-input" class="ent-input" value="${enterpriseGstin.replace(/"/g, '&quot;')}" placeholder="e.g. 27ABCDE1234F1Z5" />
+              </div>
+            </div>
+          </div>
+
+          <div class="ent-form-group">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span class="ent-form-label" style="margin-bottom:0">Data Ingestion Channels &amp; Verification (All 3 Channels Required)</span>
+              ${activeCase ? `
+                <span style="font-size:11px;color:#34d399;font-family:var(--font-mono)">✓ 3 Benchmark Excel Workbooks Attached</span>
+              ` : ''}
+            </div>
+
+            <div class="ent-channels-list">
+              
+              <!-- Channel 1: GST Returns -->
+              <div class="ent-channel-item ${enterpriseChannels.gstn ? 'active' : ''}" data-channel="gstn">
+                <div class="ent-channel-left">
+                  <div class="ent-checkbox-box">${enterpriseChannels.gstn ? '✓' : ''}</div>
+                  <div>
+                    <div class="ent-channel-title-row">
+                      <span class="ent-channel-title">GSTN GSTR-1 &amp; 3B Returns Ledger</span>
+                      <span class="ent-channel-protocol">REST / GSTN-OAuth2</span>
+                    </div>
+                    <p class="ent-channel-desc">Reconciles period-by-period declared gross turnover and filed input tax credit.</p>
+                    ${activeCase ? `
+                      <div class="sample-excel-links">
+                        <a href="/data/samples/${activeCase.files.gstn}" download class="sample-excel-pill" title="Download Excel Workbook" onclick="event.stopPropagation()">
+                          <span>📥</span>
+                          <span>${activeCase.files.gstn}</span>
+                        </a>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+                <div class="ent-channel-right">
+                  <input type="file" id="file-gstn-input" style="display:none" accept=".json,.csv,.pdf,.xlsx" />
+                  <button type="button" class="ent-channel-upload-btn" id="btn-upload-gstn" title="Import GSTR file or payload">
+                    <span>📎</span>
+                    <span>${enterpriseUploadedFiles.gstn ? enterpriseUploadedFiles.gstn : 'Import GSTR File'}</span>
+                  </button>
+                  <span class="ent-channel-count">${enterpriseChannels.gstn ? (enterpriseUploadedFiles.gstn ? 'File Imported' : '24 records connected') : 'Pending'}</span>
+                </div>
+              </div>
+
+              <!-- Channel 2: ITR / CBDT -->
+              <div class="ent-channel-item ${enterpriseChannels.itr ? 'active' : ''}" data-channel="itr">
+                <div class="ent-channel-left">
+                  <div class="ent-checkbox-box">${enterpriseChannels.itr ? '✓' : ''}</div>
+                  <div>
+                    <div class="ent-channel-title-row">
+                      <span class="ent-channel-title">Income Tax Verification (ITR Form-16 / 26AS)</span>
+                      <span class="ent-channel-protocol">CBDT e-Filing API</span>
+                    </div>
+                    <p class="ent-channel-desc">Cross-references declared operating profits and annual tax filings.</p>
+                    ${activeCase ? `
+                      <div class="sample-excel-links">
+                        <a href="/data/samples/${activeCase.files.itr}" download class="sample-excel-pill" title="Download Excel Workbook" onclick="event.stopPropagation()">
+                          <span>📥</span>
+                          <span>${activeCase.files.itr}</span>
+                        </a>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+                <div class="ent-channel-right">
+                  <input type="file" id="file-itr-input" style="display:none" accept=".json,.csv,.pdf,.xml,.xlsx" />
+                  <button type="button" class="ent-channel-upload-btn" id="btn-upload-itr" title="Import ITR XML/JSON/PDF/XLSX">
+                    <span>📎</span>
+                    <span>${enterpriseUploadedFiles.itr ? enterpriseUploadedFiles.itr : 'Import ITR Data'}</span>
+                  </button>
+                  <span class="ent-channel-count">${enterpriseChannels.itr ? (enterpriseUploadedFiles.itr ? 'File Imported' : '3 AY verified') : 'Pending'}</span>
+                </div>
+              </div>
+
+              <!-- Channel 3: Bank MFT / AA -->
+              <div class="ent-channel-item ${enterpriseChannels.bank ? 'active' : ''}" data-channel="bank">
+                <div class="ent-channel-left">
+                  <div class="ent-checkbox-box">${enterpriseChannels.bank ? '✓' : ''}</div>
+                  <div>
+                    <div class="ent-channel-title-row">
+                      <span class="ent-channel-title">Bank Statement Aggregator Feed</span>
+                      <span class="ent-channel-protocol">Account Aggregator Protocol</span>
+                    </div>
+                    <p class="ent-channel-desc">Direct banking statement verification across primary operating accounts.</p>
+                    ${activeCase ? `
+                      <div class="sample-excel-links">
+                        <a href="/data/samples/${activeCase.files.bank}" download class="sample-excel-pill" title="Download Excel Workbook" onclick="event.stopPropagation()">
+                          <span>📥</span>
+                          <span>${activeCase.files.bank}</span>
+                        </a>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+                <div class="ent-channel-right">
+                  <input type="file" id="file-bank-input" style="display:none" accept=".json,.csv,.pdf,.xlsx" />
+                  <button type="button" class="ent-channel-upload-btn" id="btn-upload-bank" title="Import Bank Statement CSV/PDF/XLSX">
+                    <span>📎</span>
+                    <span>${enterpriseUploadedFiles.bank ? enterpriseUploadedFiles.bank : 'Import Statement'}</span>
+                  </button>
+                  <span class="ent-channel-count">${enterpriseChannels.bank ? (enterpriseUploadedFiles.bank ? 'File Imported' : '884 txns verified') : 'Pending'}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="onboarding-footer">
+            <div class="onboarding-status-hint ${isPermitted ? 'ready' : 'pending'}" id="ent-onboarding-hint">
+              ${isPermitted ? '✓ Entity details and all 3 data channels connected. Ready for cross-verification.' : '⚠ Please enter entity name and connect / import all 3 channels to proceed.'}
+            </div>
+            <button class="btn-initialize-bypass" id="ent-btn-proceed-ingestion" type="button" ${isPermitted ? '' : 'disabled'}>
+              <span>Proceed to Cross-Verification</span>
+              <span>→</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -2843,6 +3053,50 @@ function renderCustomerOnboarding(frame) {
   if (gstinInput) gstinInput.addEventListener("input", syncStateAndUI);
   if (loanInput) loanInput.addEventListener("input", syncStateAndUI);
 
+  // Bind Benchmark card selections
+  frame.querySelectorAll(".benchmark-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const bId = card.dataset.benchmarkId;
+      const b = BENCHMARK_CASES.find(item => item.id === bId);
+      if (!b) return;
+
+      activeBenchmarkId = b.id;
+      enterpriseEntityName = b.name;
+      enterprisePan = b.pan;
+      enterpriseGstin = b.gstin;
+      enterpriseLoanAmount = b.loan;
+      enterpriseChannels = { gstn: true, itr: true, bank: true };
+      enterpriseUploadedFiles = {
+        gstn: b.files.gstn,
+        itr: b.files.itr,
+        bank: b.files.bank
+      };
+
+      if (typeof showToast === "function") {
+        showToast(`Loaded benchmark dataset: ${b.name}`);
+      }
+      renderCustomerOnboarding(frame);
+    });
+  });
+
+  // Custom applicant button
+  const customBtn = $("btn-custom-applicant");
+  if (customBtn) {
+    customBtn.addEventListener("click", () => {
+      activeBenchmarkId = null;
+      enterpriseEntityName = "";
+      enterprisePan = "";
+      enterpriseGstin = "";
+      enterpriseLoanAmount = "";
+      enterpriseChannels = { gstn: false, itr: false, bank: false };
+      enterpriseUploadedFiles = { gstn: null, itr: null, bank: null };
+      if (typeof showToast === "function") {
+        showToast("Switched to Custom Applicant mode");
+      }
+      renderCustomerOnboarding(frame);
+    });
+  }
+
   // Bind file import triggers
   const setupChannelUpload = (channelKey, btnId, inputId) => {
     const btn = $(btnId);
@@ -2873,8 +3127,8 @@ function renderCustomerOnboarding(frame) {
 
   frame.querySelectorAll(".ent-channel-item").forEach((item) => {
     item.addEventListener("click", (e) => {
-      // Don't toggle if clicking on upload button
-      if (e.target.closest(".ent-channel-upload-btn")) return;
+      // Don't toggle if clicking on upload button or sample excel link
+      if (e.target.closest(".ent-channel-upload-btn") || e.target.closest(".sample-excel-pill")) return;
       const ch = item.dataset.channel;
       enterpriseChannels[ch] = !enterpriseChannels[ch];
       renderCustomerOnboarding(frame);
@@ -2906,7 +3160,7 @@ function renderCustomerOnboarding(frame) {
         "gateway:underwriting-intake",
         `Intake profile created for '${enterpriseEntityName}'. All 3 regulatory streams connected.`,
         "SUCCESS",
-        { entity: enterpriseEntityName, pan: enterprisePan, gstin: enterpriseGstin, files: enterpriseUploadedFiles }
+        { entity: enterpriseEntityName, pan: enterprisePan, gstin: enterpriseGstin, files: enterpriseUploadedFiles, benchmark: activeBenchmarkId }
       );
       if (typeof showToast === "function") showToast(`Verified ${enterpriseEntityName}. Initializing cross-verification...`);
       switchCustomerStep(3);
@@ -2917,6 +3171,13 @@ function renderCustomerOnboarding(frame) {
 // ── STEP 3: CROSS-SOURCE VERIFICATION (Processing State) ──────────────
 function renderCustomerTelemetry(frame) {
   const currentEntity = enterpriseEntityName || "Commercial Borrower";
+  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
+
+  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
+  const bankTrend = b ? b.trend_bank : "+2.1%";
+  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
+  const gstTrend = b ? b.trend_gst : "-11.0%";
+  const varianceVal = b ? b.variance : "27.2%";
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
@@ -2959,8 +3220,8 @@ function renderCustomerTelemetry(frame) {
               ${swarmProgress >= 25 ? 'Reconciled' : 'Auditing'}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Audited 884 primary credit receipts</p>
-          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#34d399">₹2.10 Cr Inflows (+2.1%)</div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Audited operating credit receipts</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#34d399">${bankVal} Inflows (${bankTrend})</div>
         </div>
 
         <div class="telemetry-agent-card ${swarmProgress >= 55 ? 'completed' : (swarmProgress >= 25 ? 'running' : '')}" id="agent-card-gst">
@@ -2970,8 +3231,8 @@ function renderCustomerTelemetry(frame) {
               ${swarmProgress >= 55 ? 'Reconciled' : (swarmProgress >= 25 ? 'Auditing' : 'Pending')}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Reconciled 24 GSTR-3B filings</p>
-          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fbbf24">₹1.65 Cr Declared (-11.0%)</div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Reconciled GSTR-3B filings</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:${b && b.verdict === 'APPROVE' ? '#34d399' : '#fbbf24'}">${gstVal} Declared (${gstTrend})</div>
         </div>
 
         <div class="telemetry-agent-card ${swarmProgress >= 80 ? 'completed' : (swarmProgress >= 55 ? 'running' : '')}" id="agent-card-inv">
@@ -2981,8 +3242,8 @@ function renderCustomerTelemetry(frame) {
               ${swarmProgress >= 80 ? 'Reconciled' : (swarmProgress >= 55 ? 'Auditing' : 'Pending')}
             </span>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Auditing pledgeable mutual funds &amp; securities</p>
-          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#818cf8">₹32.4L Validated Buffer</div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 10px">Auditing pledgeable securities &amp; reserves</p>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:#818cf8">Validated Statutory Buffer</div>
         </div>
       </div>
 
@@ -3015,11 +3276,12 @@ function renderCustomerTelemetry(frame) {
   const advBtn = $("btn-advance-verdict");
   if (advBtn) {
     advBtn.addEventListener("click", () => {
+      const outcome = b ? b.verdict : "MANUAL REVIEW";
       logSystemEvent(
         "CUSTOMER_ACCESSED_FINAL_DOSSIER",
         "OPERATOR_CUSTOMER",
         "synthesizer:decision-card",
-        `Rendered final credit assessment for ${currentEntity}. Decision Verdict: MANUAL REVIEW.`,
+        `Rendered final credit assessment for ${currentEntity}. Decision Verdict: ${outcome}.`,
         "SUCCESS"
       );
       switchCustomerStep(4);
@@ -3042,11 +3304,15 @@ function renderCustomerTelemetry(frame) {
       "SUCCESS"
     );
 
+    const isApprove = b && b.verdict === "APPROVE";
     const stages = [
-      { pct: 25, msg: `[0.42s] Banking Analyzer: Ingested 884 transaction records. Gross commercial inflows: ₹2,10,00,000 (+2.1% YoY).` },
-      { pct: 55, msg: `[0.85s] Tax Analyzer: Reconciled 24 GSTR-3B filings. Turnover declared: ₹1,65,00,000 (-11.0% YoY).` },
-      { pct: 80, msg: `[1.20s] Collateral Analyzer: Reserve audit complete. Liquid buffer validated at ₹32.4L.` },
-      { pct: 100, msg: `[1.65s] Cross-Source Reconciler: Flagged structural variance delta of 27.2% between Bank vs GST filings.` },
+      { pct: 25, msg: `[0.42s] Banking Analyzer: Ingested primary transaction records. Gross commercial inflows: ${bankVal} (${bankTrend}).` },
+      { pct: 55, msg: `[0.85s] Tax Analyzer: Reconciled GSTR-3B filings. Turnover declared: ${gstVal} (${gstTrend}).` },
+      { pct: 80, msg: `[1.20s] Collateral Analyzer: Reserve audit complete. Statutory liquidity buffer validated.` },
+      { pct: 100, msg: isApprove
+        ? `[1.65s] Cross-Source Reconciler: Validated high alignment (Variance delta ${varianceVal}). All sources verified.`
+        : `[1.65s] Cross-Source Reconciler: Flagged structural variance delta of ${varianceVal} between Bank vs GST filings.`
+      },
     ];
 
     stages.forEach((stage, idx) => {
@@ -3056,13 +3322,23 @@ function renderCustomerTelemetry(frame) {
 
         if (stage.pct === 100) {
           isSwarmRunning = false;
-          logSystemEvent(
-            "CONTRADICTION_FLAGGED",
-            "RULE_INCOME_REV_DIVERGENCE",
-            "rules:deterministic-core",
-            `Flagged asymmetric revenue divergence for ${currentEntity}: Bank credits (+2.1%) vs GSTR-3B (-11.0%). Applied capped confidence: 0.50.`,
-            "WARNING"
-          );
+          if (isApprove) {
+            logSystemEvent(
+              "ALL_SOURCES_VERIFIED",
+              "RULE_ALL_SOURCES_AGREE",
+              "rules:deterministic-core",
+              `Reconciliation confirmed for ${currentEntity}: Inflows and GST turnover match within ${varianceVal}. Approved.`,
+              "SUCCESS"
+            );
+          } else {
+            logSystemEvent(
+              "CONTRADICTION_FLAGGED",
+              "RULE_INCOME_REV_DIVERGENCE",
+              "rules:deterministic-core",
+              `Flagged asymmetric revenue divergence for ${currentEntity}: Bank credits (${bankTrend}) vs GSTR-3B (${gstTrend}). Applied capped confidence: 0.50.`,
+              "WARNING"
+            );
+          }
         }
 
         if (activeWorkspace === "customer_wizard" && customerStep === 3) {
@@ -3076,10 +3352,28 @@ function renderCustomerTelemetry(frame) {
 // ── STEP 4: FINAL RECONCILIATION VERDICT & OUTPUTS ────────────────────
 function renderCustomerFinalVerdict(frame) {
   const currentEntity = enterpriseEntityName || "Commercial Borrower";
-  const rawGstin = enterpriseGstin || "27AAECK1298P1Z8";
+  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
+
+  const rawGstin = enterpriseGstin || (b ? b.gstin : "27AAECK1298P1Z8");
   const maskedGstin = "•••• •••• " + (rawGstin.length >= 4 ? rawGstin.slice(-4) : "9812");
   const gstinDisplay = enterpriseGstinMasked ? maskedGstin : rawGstin;
   const digest = enterpriseAuditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e53a992bc44d32098d6541f5a11e89bc";
+
+  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
+  const bankTrend = b ? b.trend_bank : "+2.1%";
+  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
+  const gstTrend = b ? b.trend_gst : "-11.0%";
+  const varianceVal = b ? b.variance : "27.2%";
+  const verdictLabel = b ? b.verdict : "MANUAL REVIEW";
+  const finalConf = b ? b.final_confidence.toFixed(2) : "0.14";
+  const modelConf = b ? b.model_confidence.toFixed(2) : "0.50";
+  const consentMult = b ? b.consent_multiplier.toFixed(2) : "0.29";
+  const consentDays = b ? b.consent_days : 2;
+  const isApprove = verdictLabel === "APPROVE";
+
+  const narrativeText = b
+    ? b.narrative
+    : `Deterministic cross-examination for <strong>${currentEntity}</strong> revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>${bankVal}</strong> (${bankTrend} YoY), whereas parallel GSTR-3B filings register only <strong>${gstVal}</strong> (${gstTrend} YoY) for the identical period.`;
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
@@ -3099,6 +3393,12 @@ function renderCustomerFinalVerdict(frame) {
               <div class="cockpit-gstin-pill" style="margin-left:8px">
                 <span>PAN:</span>
                 <span style="color:#fff">${enterprisePan}</span>
+              </div>
+            ` : ''}
+            ${b ? `
+              <div class="cockpit-gstin-pill" style="margin-left:8px;border-color:rgba(99,102,241,0.4);color:#a5b4fc">
+                <span>SECTOR:</span>
+                <span style="color:#fff">${b.sector}</span>
               </div>
             ` : ''}
           </div>
@@ -3123,19 +3423,19 @@ function renderCustomerFinalVerdict(frame) {
       <div class="cockpit-metrics-grid">
         <div class="cockpit-metric-card">
           <span class="metric-title">Gross Banking Inflows</span>
-          <div class="metric-value">₹2,10,00,000</div>
+          <div class="metric-value">${bankVal}</div>
           <div class="metric-sub-row">
             <span>Annualized Receipts</span>
-            <span class="metric-delta ok">+2.1%</span>
+            <span class="metric-delta ok">${bankTrend}</span>
           </div>
         </div>
 
-        <div class="cockpit-metric-card warn-card">
+        <div class="cockpit-metric-card ${isApprove ? '' : 'warn-card'}">
           <span class="metric-title">GST-Declared Turnover</span>
-          <div class="metric-value">₹1,65,00,000</div>
+          <div class="metric-value">${gstVal}</div>
           <div class="metric-sub-row">
             <span>GSTR-3B Declared</span>
-            <span class="metric-delta warn">-11.0%</span>
+            <span class="metric-delta ${isApprove ? 'ok' : 'warn'}">${gstTrend}</span>
           </div>
         </div>
 
@@ -3148,12 +3448,12 @@ function renderCustomerFinalVerdict(frame) {
           </div>
         </div>
 
-        <div class="cockpit-metric-card warn-card">
-          <span class="metric-title">Consent Decay Haircut</span>
-          <div class="metric-value">0.29 Multiplier</div>
+        <div class="cockpit-metric-card ${isApprove ? '' : 'warn-card'}">
+          <span class="metric-title">Consent Multipier &amp; Decay</span>
+          <div class="metric-value">${consentMult} Multiplier</div>
           <div class="metric-sub-row">
-            <span>2 Days Remaining</span>
-            <span class="metric-delta warn">-71% Haircut</span>
+            <span>${consentDays} Days Remaining</span>
+            <span class="metric-delta ${isApprove ? 'ok' : 'warn'}">${isApprove ? 'Active Valid Consent' : '-71% Haircut'}</span>
           </div>
         </div>
       </div>
@@ -3162,30 +3462,30 @@ function renderCustomerFinalVerdict(frame) {
         <div class="discrepancy-card">
           <div class="discrepancy-header">
             <div class="discrepancy-title-wrap">
-              <span class="discrepancy-shield-icon">🛡</span>
+              <span class="discrepancy-shield-icon">${isApprove ? '✓' : '🛡'}</span>
               <div>
-                <h3 class="discrepancy-title">Asymmetric GST vs Bank Inflow Discrepancy Card</h3>
-                <span class="discrepancy-rule-tag">Rule Engine: RULE_INCOME_REV_DIVERGENCE</span>
+                <h3 class="discrepancy-title">${isApprove ? 'Verified Tripartite Inflow & Turnover Reconciliation' : 'Asymmetric GST vs Bank Inflow Discrepancy Card'}</h3>
+                <span class="discrepancy-rule-tag">Rule Engine: ${isApprove ? 'RULE_ALL_SOURCES_AGREE' : 'RULE_INCOME_REV_DIVERGENCE'}</span>
               </div>
             </div>
-            <span class="discrepancy-badge">27.2% Variance Delta</span>
+            <span class="discrepancy-badge" style="${isApprove ? 'background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3);color:#34d399' : ''}">${varianceVal} Variance Delta</span>
           </div>
 
           <p class="discrepancy-narrative">
-            Deterministic cross-examination for <strong>${currentEntity}</strong> revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>₹2,10,00,000</strong> (+2.1% YoY), whereas parallel GSTR-3B filings register only <strong>₹1,65,00,000</strong> (-11.0% YoY) for the identical period.
+            ${narrativeText}
           </p>
 
           <div class="discrepancy-tiles-grid">
             <div class="discrepancy-tile">
               <span class="discrepancy-tile-label">Bank Aggregator Ledger</span>
-              <span class="discrepancy-tile-val green">₹2,10,00,000</span>
-              <span class="discrepancy-tile-sub">Trend: Rising / Stable (+2.1%)</span>
+              <span class="discrepancy-tile-val green">${bankVal}</span>
+              <span class="discrepancy-tile-sub">Trend: ${bankTrend}</span>
             </div>
 
             <div class="discrepancy-tile">
               <span class="discrepancy-tile-label">GSTN Official Filing</span>
-              <span class="discrepancy-tile-val rose">₹1,65,00,000</span>
-              <span class="discrepancy-tile-sub">Trend: Sharp Contraction (-11.0%)</span>
+              <span class="discrepancy-tile-val ${isApprove ? 'green' : 'rose'}">${gstVal}</span>
+              <span class="discrepancy-tile-sub">Trend: ${gstTrend}</span>
             </div>
           </div>
         </div>
@@ -3194,25 +3494,25 @@ function renderCustomerFinalVerdict(frame) {
           <div>
             <span class="synth-kicker">Synthesizer Outcome</span>
             <div class="synth-verdict-row">
-              <span class="synth-verdict-pill">
-                <span>⚠</span>
-                <span>MANUAL REVIEW</span>
+              <span class="synth-verdict-pill ${isApprove ? 'outcome-approve' : ''}" style="${isApprove ? 'background:rgba(16,185,129,0.2);border:1px solid #10b981;color:#34d399' : ''}">
+                <span>${isApprove ? '✓' : '⚠'}</span>
+                <span>${verdictLabel}</span>
               </span>
-              <span class="synth-score">Score: 0.14</span>
+              <span class="synth-score">Score: ${finalConf}</span>
             </div>
 
             <div class="synth-calc-table">
               <div class="synth-calc-row">
                 <span>Model Confidence:</span>
-                <span style="color:#fff">0.50 (Capped)</span>
+                <span style="color:#fff">${modelConf}</span>
               </div>
               <div class="synth-calc-row">
                 <span>Consent Multiplier:</span>
-                <span style="color:#fbbf24">×0.29 (2d left)</span>
+                <span style="color:${isApprove ? '#34d399' : '#fbbf24'}">×${consentMult} (${consentDays}d left)</span>
               </div>
               <div class="synth-calc-row total-row">
                 <span>Final Confidence:</span>
-                <span>0.14</span>
+                <span>${finalConf}</span>
               </div>
             </div>
           </div>
@@ -3248,6 +3548,7 @@ function renderCustomerFinalVerdict(frame) {
   if (restartBtn) {
     restartBtn.addEventListener("click", () => {
       // Reset all state for a clean new applicant intake
+      activeBenchmarkId = null;
       enterpriseEntityName = "";
       enterprisePan = "";
       enterpriseGstin = "";
@@ -3313,8 +3614,13 @@ function exportAuditCSV() {
 
 function downloadAuditPDF() {
   const entity = enterpriseEntityName || "Commercial Borrower";
-  const gstin = enterpriseGstin || "27AAECK1298P1Z8";
-  const pan = enterprisePan || "AAECK1298P";
+  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
+  const gstin = enterpriseGstin || (b ? b.gstin : "27AAECK1298P1Z8");
+  const pan = enterprisePan || (b ? b.pan : "AAECK1298P");
+  const verdict = b ? b.verdict : "MANUAL REVIEW";
+  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
+  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
+  const variance = b ? b.variance : "27.2%";
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     if (typeof showToast === "function") showToast("Please allow popups to download audit report");
@@ -3360,13 +3666,13 @@ function downloadAuditPDF() {
           <div class="item"><div class="label">Legal Business Entity</div><div class="val">${entity}</div></div>
           <div class="item"><div class="label">GSTIN / Tax ID</div><div class="val">${gstin}</div></div>
           <div class="item"><div class="label">Permanent Account Number (PAN)</div><div class="val">${pan}</div></div>
-          <div class="item"><div class="label">Underwriting Verdict</div><div class="val" style="color: #d97706;">MANUAL REVIEW (Capped 0.50)</div></div>
+          <div class="item"><div class="label">Underwriting Verdict</div><div class="val" style="color: ${verdict === 'APPROVE' ? '#059669' : '#d97706'};">${verdict}</div></div>
         </div>
       </div>
 
-      <div class="alert-box">
-        <strong>Discrepancy Flag: RULE_INCOME_REV_DIVERGENCE</strong><br/>
-        Bank Aggregator credits show steady inflows of ₹2,10,00,000 (+2.1% YoY), while GSTN GSTR-3B filings register a sharp contraction to ₹1,65,00,000 (-11.0% YoY). Structural variance delta: 27.2%.
+      <div class="alert-box" style="${verdict === 'APPROVE' ? 'background:#ecfdf5;border-left-color:#10b981;color:#065f46' : ''}">
+        <strong>${verdict === 'APPROVE' ? 'Reconciliation Confirmed: RULE_ALL_SOURCES_AGREE' : 'Discrepancy Flag: RULE_INCOME_REV_DIVERGENCE'}</strong><br/>
+        Bank Aggregator credits: ${bankVal}. GSTN GSTR-3B filings: ${gstVal}. Structural variance delta: ${variance}.
       </div>
 
       <div class="section">
