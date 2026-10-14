@@ -2506,6 +2506,11 @@ let enterpriseChannels = {
   itr: false,
   bank: false,
 };
+let enterpriseUploadedFiles = {
+  gstn: null,
+  itr: null,
+  bank: null,
+};
 
 let swarmProgress = 0;
 let telemetryLogs = [];
@@ -2592,24 +2597,29 @@ function renderCustomerLogin(frame) {
       <div class="customer-login-wrap">
         <div class="customer-login-card">
           <div class="customer-login-hero">
-            <div class="customer-login-icon">🛡</div>
-            <h2 class="customer-login-title">Commercial Underwriting Portal</h2>
+            <div class="customer-login-icon" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h2 class="customer-login-title">Institutional Underwriting Portal</h2>
             <p class="customer-login-sub">
-              Sign in with institutional credentials to initiate borrower verification and automated reconciliation.
+              Authorized Credit Officer &amp; Risk Analyst Gateway
             </p>
           </div>
 
           <form id="customer-login-form" style="display:flex;flex-direction:column;gap:14px">
             <div class="ent-form-group" style="margin-bottom:0">
-              <label class="ent-form-label" for="cust-email-input">Corporate Analyst Email</label>
+              <label class="ent-form-label" for="cust-email-input">Officer Email / Identifier</label>
               <div class="ent-input-row">
                 <span class="ent-input-icon">✉</span>
-                <input type="email" id="cust-email-input" class="ent-input" value="${customerEmail}" placeholder="analyst@institution.com" required />
+                <input type="email" id="cust-email-input" class="ent-input" value="${customerEmail}" placeholder="credit.officer@institution.com" required />
               </div>
             </div>
 
             <div class="ent-form-group" style="margin-bottom:0">
-              <label class="ent-form-label" for="cust-pass-input">Security Credential</label>
+              <label class="ent-form-label" for="cust-pass-input">Security Credential / MFA Key</label>
               <div class="ent-input-row">
                 <span class="ent-input-icon">🔒</span>
                 <input type="password" id="cust-pass-input" class="ent-input" value="${customerPassword}" placeholder="••••••••••••" required />
@@ -2618,20 +2628,20 @@ function renderCustomerLogin(frame) {
 
             <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px">
               <button type="submit" id="btn-cust-submit" class="btn-initialize-bypass" style="width:100%;justify-content:center">
-                <span>Sign In to Credit Vault</span>
+                <span>Sign In with Credentials</span>
                 <span>→</span>
               </button>
 
               <button type="button" id="btn-instant-sso" class="btn-demokit-login" style="width:100%;justify-content:center">
                 <span>⚡</span>
-                <span>Instant Login (Single Sign-On)</span>
+                <span>Instant Enterprise Login (Single Sign-On)</span>
               </button>
             </div>
           </form>
 
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;text-align:center">
             <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified · Production Gateway
+              🔒 256-Bit TLS Encryption · SOC2 Type II Certified · Production Underwriting Environment
             </span>
           </div>
         </div>
@@ -2677,10 +2687,10 @@ function renderCustomerOnboarding(frame) {
   frame.innerHTML = `
     <div class="ent-view-wrapper">
       <div class="onboarding-hero">
-        <span class="onboarding-badge">Step 2 of 4 · Entity Intake &amp; Verification Rails</span>
-        <h2 class="onboarding-title">Borrower Entity Intake &amp; Data Integration</h2>
+        <span class="onboarding-badge">Step 2 of 4 · Entity Intake &amp; Data Integration</span>
+        <h2 class="onboarding-title">Commercial Entity Intake &amp; Document Ingestion</h2>
         <p class="onboarding-subtitle">
-          Input corporate entity details and link regulatory data sources to initiate cross-verification.
+          Specify applicant entity credentials and upload or connect the 3 primary financial records for deterministic reconciliation.
         </p>
       </div>
 
@@ -2690,7 +2700,7 @@ function renderCustomerOnboarding(frame) {
             <label class="ent-form-label" for="ent-entity-name-input">Legal Business Entity Name *</label>
             <div class="ent-input-row">
               <span class="ent-input-icon">🏢</span>
-              <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="e.g. Acme Logistics Pvt Ltd" required />
+              <input type="text" id="ent-entity-name-input" class="ent-input" value="${enterpriseEntityName.replace(/"/g, '&quot;')}" placeholder="e.g. ABC Enterprises Pvt Ltd" required />
             </div>
           </div>
 
@@ -2703,10 +2713,10 @@ function renderCustomerOnboarding(frame) {
           </div>
 
           <div class="ent-form-group" style="margin-bottom:0">
-            <label class="ent-form-label" for="ent-pan-input">Corporate PAN</label>
+            <label class="ent-form-label" for="ent-pan-input">Corporate PAN (10-Digit Alphanumeric)</label>
             <div class="ent-input-row">
               <span class="ent-input-icon">📄</span>
-              <input type="text" id="ent-pan-input" class="ent-input" value="${enterprisePan.replace(/"/g, '&quot;')}" placeholder="e.g. AAECK1298P" />
+              <input type="text" id="ent-pan-input" class="ent-input" value="${enterprisePan.replace(/"/g, '&quot;')}" placeholder="e.g. ABCDE1234F" />
             </div>
           </div>
 
@@ -2714,14 +2724,16 @@ function renderCustomerOnboarding(frame) {
             <label class="ent-form-label" for="ent-gstin-input">GSTIN (15-Digit Identifier)</label>
             <div class="ent-input-row">
               <span class="ent-input-icon">🏛</span>
-              <input type="text" id="ent-gstin-input" class="ent-input" value="${enterpriseGstin.replace(/"/g, '&quot;')}" placeholder="e.g. 27AAECK1298P1Z8" />
+              <input type="text" id="ent-gstin-input" class="ent-input" value="${enterpriseGstin.replace(/"/g, '&quot;')}" placeholder="e.g. 27ABCDE1234F1Z5" />
             </div>
           </div>
         </div>
 
         <div class="ent-form-group">
-          <span class="ent-form-label">Data Verification Channels (All 3 Channels Required)</span>
+          <span class="ent-form-label">Data Ingestion Channels &amp; Verification (All 3 Channels Required)</span>
           <div class="ent-channels-list">
+            
+            <!-- Channel 1: GST Returns -->
             <div class="ent-channel-item ${enterpriseChannels.gstn ? 'active' : ''}" data-channel="gstn">
               <div class="ent-channel-left">
                 <div class="ent-checkbox-box">${enterpriseChannels.gstn ? '✓' : ''}</div>
@@ -2730,12 +2742,20 @@ function renderCustomerOnboarding(frame) {
                     <span class="ent-channel-title">GSTN GSTR-1 &amp; 3B Returns Ledger</span>
                     <span class="ent-channel-protocol">REST / GSTN-OAuth2</span>
                   </div>
-                  <p class="ent-channel-desc">Automated regulatory connection. Reconciles period-by-period declared gross turnover.</p>
+                  <p class="ent-channel-desc">Reconciles period-by-period declared gross turnover and filed input tax credit.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">24 filings ready</span>
+              <div class="ent-channel-right">
+                <input type="file" id="file-gstn-input" style="display:none" accept=".json,.csv,.pdf,.xlsx" />
+                <button type="button" class="ent-channel-upload-btn" id="btn-upload-gstn" title="Import GSTR file or payload">
+                  <span>📎</span>
+                  <span>${enterpriseUploadedFiles.gstn ? enterpriseUploadedFiles.gstn : 'Import GSTR File'}</span>
+                </button>
+                <span class="ent-channel-count">${enterpriseChannels.gstn ? (enterpriseUploadedFiles.gstn ? 'File Imported' : '24 records connected') : 'Pending'}</span>
+              </div>
             </div>
 
+            <!-- Channel 2: ITR / CBDT -->
             <div class="ent-channel-item ${enterpriseChannels.itr ? 'active' : ''}" data-channel="itr">
               <div class="ent-channel-left">
                 <div class="ent-checkbox-box">${enterpriseChannels.itr ? '✓' : ''}</div>
@@ -2744,12 +2764,20 @@ function renderCustomerOnboarding(frame) {
                     <span class="ent-channel-title">Income Tax Verification (ITR Form-16 / 26AS)</span>
                     <span class="ent-channel-protocol">CBDT e-Filing API</span>
                   </div>
-                  <p class="ent-channel-desc">Centralized tax filings. Validates filed taxable profit vs operational cash flow.</p>
+                  <p class="ent-channel-desc">Cross-references declared operating profits and annual tax filings.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">3 AY records ready</span>
+              <div class="ent-channel-right">
+                <input type="file" id="file-itr-input" style="display:none" accept=".json,.csv,.pdf,.xml" />
+                <button type="button" class="ent-channel-upload-btn" id="btn-upload-itr" title="Import ITR XML/JSON/PDF">
+                  <span>📎</span>
+                  <span>${enterpriseUploadedFiles.itr ? enterpriseUploadedFiles.itr : 'Import ITR Data'}</span>
+                </button>
+                <span class="ent-channel-count">${enterpriseChannels.itr ? (enterpriseUploadedFiles.itr ? 'File Imported' : '3 AY verified') : 'Pending'}</span>
+              </div>
             </div>
 
+            <!-- Channel 3: Bank MFT / AA -->
             <div class="ent-channel-item ${enterpriseChannels.bank ? 'active' : ''}" data-channel="bank">
               <div class="ent-channel-left">
                 <div class="ent-checkbox-box">${enterpriseChannels.bank ? '✓' : ''}</div>
@@ -2758,17 +2786,25 @@ function renderCustomerOnboarding(frame) {
                     <span class="ent-channel-title">Bank Statement Aggregator Feed</span>
                     <span class="ent-channel-protocol">Account Aggregator Protocol</span>
                   </div>
-                  <p class="ent-channel-desc">Direct banking statement verification across primary commercial operating accounts.</p>
+                  <p class="ent-channel-desc">Direct banking statement verification across primary operating accounts.</p>
                 </div>
               </div>
-              <span class="ent-channel-count">884 transactions ready</span>
+              <div class="ent-channel-right">
+                <input type="file" id="file-bank-input" style="display:none" accept=".json,.csv,.pdf" />
+                <button type="button" class="ent-channel-upload-btn" id="btn-upload-bank" title="Import Bank Statement CSV/PDF">
+                  <span>📎</span>
+                  <span>${enterpriseUploadedFiles.bank ? enterpriseUploadedFiles.bank : 'Import Statement'}</span>
+                </button>
+                <span class="ent-channel-count">${enterpriseChannels.bank ? (enterpriseUploadedFiles.bank ? 'File Imported' : '884 txns verified') : 'Pending'}</span>
+              </div>
             </div>
+
           </div>
         </div>
 
         <div class="onboarding-footer">
           <div class="onboarding-status-hint ${isPermitted ? 'ready' : 'pending'}" id="ent-onboarding-hint">
-            ${isPermitted ? '✓ Entity details and all 3 channels verified. Ready for cross-verification.' : '⚠ Please enter entity name and connect all 3 channels to proceed.'}
+            ${isPermitted ? '✓ Entity details and all 3 data channels connected. Ready for cross-verification.' : '⚠ Please enter entity name and connect / import all 3 channels to proceed.'}
           </div>
           <button class="btn-initialize-bypass" id="ent-btn-proceed-ingestion" type="button" ${isPermitted ? '' : 'disabled'}>
             <span>Proceed to Cross-Verification</span>
@@ -2797,8 +2833,8 @@ function renderCustomerOnboarding(frame) {
     if (hintEl) {
       hintEl.className = `onboarding-status-hint ${canProceed ? 'ready' : 'pending'}`;
       hintEl.textContent = canProceed
-        ? '✓ Entity details and all 3 channels verified. Ready for cross-verification.'
-        : '⚠ Please enter entity name and connect all 3 channels to proceed.';
+        ? '✓ Entity details and all 3 data channels connected. Ready for cross-verification.'
+        : '⚠ Please enter entity name and connect / import all 3 channels to proceed.';
     }
   };
 
@@ -2807,8 +2843,38 @@ function renderCustomerOnboarding(frame) {
   if (gstinInput) gstinInput.addEventListener("input", syncStateAndUI);
   if (loanInput) loanInput.addEventListener("input", syncStateAndUI);
 
+  // Bind file import triggers
+  const setupChannelUpload = (channelKey, btnId, inputId) => {
+    const btn = $(btnId);
+    const inp = $(inputId);
+    if (!btn || !inp) return;
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      inp.click();
+    });
+
+    inp.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        enterpriseUploadedFiles[channelKey] = file.name;
+        enterpriseChannels[channelKey] = true;
+        if (typeof showToast === "function") {
+          showToast(`Imported ${file.name} for ${channelKey.toUpperCase()}`);
+        }
+        renderCustomerOnboarding(frame);
+      }
+    });
+  };
+
+  setupChannelUpload("gstn", "btn-upload-gstn", "file-gstn-input");
+  setupChannelUpload("itr", "btn-upload-itr", "file-itr-input");
+  setupChannelUpload("bank", "btn-upload-bank", "file-bank-input");
+
   frame.querySelectorAll(".ent-channel-item").forEach((item) => {
-    item.addEventListener("click", () => {
+    item.addEventListener("click", (e) => {
+      // Don't toggle if clicking on upload button
+      if (e.target.closest(".ent-channel-upload-btn")) return;
       const ch = item.dataset.channel;
       enterpriseChannels[ch] = !enterpriseChannels[ch];
       renderCustomerOnboarding(frame);
@@ -2840,7 +2906,7 @@ function renderCustomerOnboarding(frame) {
         "gateway:underwriting-intake",
         `Intake profile created for '${enterpriseEntityName}'. All 3 regulatory streams connected.`,
         "SUCCESS",
-        { entity: enterpriseEntityName, pan: enterprisePan, gstin: enterpriseGstin }
+        { entity: enterpriseEntityName, pan: enterprisePan, gstin: enterpriseGstin, files: enterpriseUploadedFiles }
       );
       if (typeof showToast === "function") showToast(`Verified ${enterpriseEntityName}. Initializing cross-verification...`);
       switchCustomerStep(3);
@@ -3187,6 +3253,7 @@ function renderCustomerFinalVerdict(frame) {
       enterpriseGstin = "";
       enterpriseLoanAmount = "";
       enterpriseChannels = { gstn: false, itr: false, bank: false };
+      enterpriseUploadedFiles = { gstn: null, itr: null, bank: null };
       swarmProgress = 0;
       telemetryLogs = [];
 

@@ -7295,3 +7295,41 @@ body[data-milestone="dev_gateway"] #topbar-case-ctx {
   background: #818cf8;
   animation: pulse 1.5s infinite;
 }
+
+/* Data verification channel upload & badges */
+.ent-channel-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ent-channel-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--border-strong);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ent-channel-upload-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #fff;
+}
+
+.ent-channel-file-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
