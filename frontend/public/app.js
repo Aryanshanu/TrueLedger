@@ -1589,6 +1589,12 @@ function setupWorkspaceNav() {
       if (!parentPane) return;
       parentPane.querySelectorAll(".ws-sub-nav-link").forEach((l) => l.classList.remove("active"));
       link.classList.add("active");
+      // Persist selected view and re-render the main frame
+      const view = link.dataset.wsView;
+      if (view && activeWorkspace) {
+        wsActiveViews[activeWorkspace] = view;
+        renderWorkspaceMain(activeWorkspace);
+      }
     });
   });
 
@@ -1895,7 +1901,115 @@ function renderClientMain(frame) {
   const data = enterpriseData;
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
   const entity = buildActiveEntity(data.entity);
+  const view = wsActiveViews["client"] || "onboarding";
 
+  if (view === "kyb") {
+    // KYB Profile Validation — structural checks on the active entity
+    const pan = entity.pan || "";
+    const gstin = entity.gstin || "";
+    const panOk = /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan);
+    const { valid: gstinOk, error: gstinErr } = validateGSTIN(gstin);
+    const checks = [
+      { label: "PAN Format",           pass: panOk,              detail: panOk ? pan : `${pan} — invalid format` },
+      { label: "GSTIN Format",         pass: gstinOk,            detail: gstinOk ? gstin : gstinErr },
+      { label: "GSTIN ↔ PAN Linkage", pass: gstin.slice(2, 12) === pan, detail: gstin.slice(2, 12) === pan ? "PAN embedded in GSTIN matches" : "PAN segment mismatch" },
+      { label: "Entity Type on File",  pass: !!entity.entity_type, detail: entity.entity_type || "Not available" },
+      { label: "Banker on File",       pass: !!entity.banker,    detail: entity.banker || "Not provided" },
+      { label: "CA / Auditor Firm",    pass: !!entity.ca_firm,   detail: entity.ca_firm || "Not provided" },
+      { label: "FY Reference",         pass: !!entity.fy,        detail: entity.fy || "—" },
+    ];
+    const rows = checks.map(c => `<tr>
+      <td style="font-size:12px;color:var(--muted)">${c.label}</td>
+      <td><span class="c-badge ${c.pass ? "filed" : "action-required"}">${c.pass ? "✓ Pass" : "✗ Fail"}</span></td>
+      <td style="font-size:12px;color:${c.pass ? "var(--ok)" : "var(--warn)"}">${c.detail}</td>
+    </tr>`).join("");
+    const passed = checks.filter(c => c.pass).length;
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        <div class="ws-main-kpi-row">
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">KYB Score</div>
+            <div class="ws-main-kpi-cell-value ${passed === checks.length ? "ok" : "warn"}">${passed}/${checks.length}</div>
+          </div>
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">Entity</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:4px">${entity.name}</div>
+          </div>
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">Industry</div>
+            <div style="font-size:12px;color:var(--muted-dim);margin-top:4px">${entity.industry}</div>
+          </div>
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">State</div>
+            <div style="font-size:12px;color:var(--muted-dim);margin-top:4px">${entity.state_code} · ${entity.state}</div>
+          </div>
+        </div>
+        <div class="ws-main-section-title">KYB Verification Checks</div>
+        <div style="overflow-x:auto">
+          <table class="ws-data-table">
+            <thead><tr>
+              <th style="width:200px">Check</th>
+              <th style="width:110px">Result</th>
+              <th>Detail</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (view === "vault") {
+    // Document Vault — channel files from the active session
+    const s = activeSession || {};
+    const files = s.files || enterpriseUploadedFiles || {};
+    const channels = s.channels || enterpriseChannels || {};
+    const vaultRows = [
+      { key: "gstn",  label: "GSTN GSTR-1 & 3B",          icon: "⊖", connected: !!channels.gstn, file: files.gstn },
+      { key: "itr",   label: "Income Tax / ITR Form-16",    icon: "₹", connected: !!channels.itr,  file: files.itr  },
+      { key: "bank",  label: "Bank Statement Aggregator",   icon: "▦", connected: !!channels.bank, file: files.bank },
+    ].map(r => {
+      const status = r.connected ? (r.file ? "File Imported" : "Live Connected") : "Not Connected";
+      const badge  = r.connected ? "filed" : "pending";
+      return `<tr>
+        <td style="font-size:13px">${r.icon} ${r.label}</td>
+        <td><span class="c-badge ${badge}">${status}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${r.file || (r.connected ? "AA Gateway" : "—")}</td>
+      </tr>`;
+    }).join("");
+    const anyConnected = Object.values(channels).some(Boolean);
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        <div class="ws-main-kpi-row">
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">Channels Connected</div>
+            <div class="ws-main-kpi-cell-value ${anyConnected ? "ok" : "warn"}">${Object.values(channels).filter(Boolean).length} / 3</div>
+          </div>
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">Entity</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:4px">${entity.name}</div>
+          </div>
+          <div class="ws-main-kpi-cell">
+            <div class="ws-main-kpi-cell-label">As of</div>
+            <div style="font-size:12px;color:var(--muted-dim);margin-top:4px">${entity.as_of}</div>
+          </div>
+        </div>
+        <div class="ws-main-section-title">Document Vault — Ingested Source Files</div>
+        <div style="overflow-x:auto">
+          <table class="ws-data-table">
+            <thead><tr>
+              <th style="width:260px">Channel</th>
+              <th style="width:140px">Status</th>
+              <th>Source / File</th>
+            </tr></thead>
+            <tbody>${vaultRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Default: onboarding view — entity profile + upload
   frame.innerHTML = `
     <div class="ws-main-section">
       <div class="ws-main-section-title">KYB Entity Profile</div>
@@ -1931,7 +2045,7 @@ function renderClientMain(frame) {
             ["CA Firm",       entity.ca_firm],
             ["FY",            entity.fy],
             ["As of Date",    entity.as_of],
-          ].map(([k, v]) => `<tr><td style="color:var(--muted);font-size:11.5px">${k}</td><td>${v}</td></tr>`).join("")}
+          ].map(([k, v]) => `<tr><td style="color:var(--muted);font-size:11.5px">${k}</td><td>${v || "—"}</td></tr>`).join("")}
         </tbody>
       </table>
 
@@ -1954,12 +2068,12 @@ function renderIncomeMain(frame) {
   const data = enterpriseData;
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
   const { invoices, tds, summary } = data;
+  const view = wsActiveViews["income"] || "invoices";
 
-  const totalGross    = invoices.reduce((s, i) => s + (i.gstin_valid ? i.amount_inr : 0), 0);
-  const totalSettled  = invoices.filter((i) => i.status === "Settled").reduce((s, i) => s + i.amount_inr, 0);
-  const totalPending  = invoices.filter((i) => i.status === "Pending").reduce((s, i) => s + i.amount_inr, 0);
-  const totalOverdue  = invoices.filter((i) => i.status === "Overdue").reduce((s, i) => s + i.amount_inr, 0);
-  const invalidCount  = invoices.filter((i) => !i.gstin_valid).length;
+  const totalSettled = invoices.filter((i) => i.status === "Settled").reduce((s, i) => s + i.amount_inr, 0);
+  const totalPending = invoices.filter((i) => i.status === "Pending").reduce((s, i) => s + i.amount_inr, 0);
+  const totalOverdue = invoices.filter((i) => i.status === "Overdue").reduce((s, i) => s + i.amount_inr, 0);
+  const invalidCount = invoices.filter((i) => !i.gstin_valid).length;
 
   const kpiRow = `
     <div class="ws-main-kpi-row">
@@ -1981,6 +2095,122 @@ function renderIncomeMain(frame) {
       </div>
     </div>`;
 
+  if (view === "tds") {
+    // TDS Ledger — Form 26AS standalone view
+    const totalTds    = tds.reduce((s, t) => s + t.amount_inr, 0);
+    const unmatched   = tds.filter((t) => t.status === "Unmatched");
+    const matched     = tds.filter((t) => t.status === "Matched");
+    const tdsByQuarter = [...new Set(tds.map(t => t.quarter))];
+    const tdsKpi = `
+      <div class="ws-main-kpi-row">
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Total TDS Receivable</div>
+          <div class="ws-main-kpi-cell-value">${fmtInrMain(totalTds)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Unmatched Entries</div>
+          <div class="ws-main-kpi-cell-value warn">${unmatched.length}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Matched / Reconciled</div>
+          <div class="ws-main-kpi-cell-value ok">${matched.length}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Quarters on Record</div>
+          <div class="ws-main-kpi-cell-value">${tdsByQuarter.length}</div>
+        </div>
+      </div>`;
+    const tdsRows = tds.map((t) => `<tr>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${t.traces_ref}</td>
+      <td>${t.deductor}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${t.quarter}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${t.period}</td>
+      <td style="font-size:11px;color:var(--muted-dim)">${t.form}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(t.amount_inr)}</td>
+      <td><span class="ws-tds-${t.status.toLowerCase()}">${t.status}</span></td>
+    </tr>`).join("");
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        ${tdsKpi}
+        <div class="ws-main-section-title">TDS Ledger — Form 26AS Reconciliation</div>
+        <div style="overflow-x:auto">
+          <table class="ws-data-table">
+            <thead><tr>
+              <th style="width:110px">TRACES Ref</th>
+              <th style="width:200px">Deductor</th>
+              <th style="width:100px">Quarter</th>
+              <th style="width:120px">Period</th>
+              <th style="width:70px">Form</th>
+              <th style="width:110px;text-align:right">Amount</th>
+              <th style="width:110px">Status</th>
+            </tr></thead>
+            <tbody>${tdsRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (view === "cashflows") {
+    // Active Cash Flows — receivables timeline derived from invoices
+    const byMonth = {};
+    invoices.forEach((inv) => {
+      const m = inv.date.slice(0, 7);
+      if (!byMonth[m]) byMonth[m] = { settled: 0, pending: 0, overdue: 0 };
+      byMonth[m][inv.status.toLowerCase()] = (byMonth[m][inv.status.toLowerCase()] || 0) + inv.amount_inr;
+    });
+    const months = Object.keys(byMonth).sort().reverse();
+    const cfRows = months.map((m) => {
+      const row = byMonth[m];
+      const net = (row.settled || 0) - (row.overdue || 0);
+      return `<tr>
+        <td style="font-family:var(--font-mono);font-size:12px;font-weight:600">${m}</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:var(--ok)">${row.settled ? fmtInrMain(row.settled) : "—"}</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:var(--muted-dim)">${row.pending ? fmtInrMain(row.pending) : "—"}</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:var(--warn)">${row.overdue ? fmtInrMain(row.overdue) : "—"}</td>
+        <td style="text-align:right;font-family:var(--font-mono);color:${net >= 0 ? "var(--ok)" : "var(--warn)"}">${fmtInrMain(Math.abs(net))} ${net >= 0 ? "↑" : "↓"}</td>
+      </tr>`;
+    }).join("");
+    const cfKpi = `
+      <div class="ws-main-kpi-row">
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Net Realized</div>
+          <div class="ws-main-kpi-cell-value ok">${fmtInrMain(totalSettled)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Receivables At Risk</div>
+          <div class="ws-main-kpi-cell-value warn">${fmtInrMain(totalOverdue)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Pipeline (Pending)</div>
+          <div class="ws-main-kpi-cell-value">${fmtInrMain(totalPending)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Realized Revenue (Q2)</div>
+          <div class="ws-main-kpi-cell-value ok">${fmtInrMain(summary.realized_revenue.value)}</div>
+        </div>
+      </div>`;
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        ${cfKpi}
+        <div class="ws-main-section-title">Cash Flow Timeline — Monthly Receivables</div>
+        <div style="overflow-x:auto">
+          <table class="ws-data-table">
+            <thead><tr>
+              <th style="width:100px">Month</th>
+              <th style="width:130px;text-align:right">Settled</th>
+              <th style="width:130px;text-align:right">Pending</th>
+              <th style="width:130px;text-align:right">Overdue</th>
+              <th style="width:130px;text-align:right">Net Flow</th>
+            </tr></thead>
+            <tbody>${cfRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Default: invoices view
   const invoiceRows = invoices.map((inv) => {
     const { valid: gstinOk, error: gstinErr } = validateGSTIN(inv.buyer_gstin);
     const gstinCell = gstinOk
@@ -1992,7 +2222,6 @@ function renderIncomeMain(frame) {
             <span class="ws-gstin-error-text">${gstinErr}</span>
           </div>
         </div>`;
-
     const statusCls = { Settled: "filed", Pending: "pending", Overdue: "action-required", Draft: "draft" };
     return `<tr class="${!gstinOk ? "invalid-row" : ""}">
       <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${inv.id}</td>
@@ -2005,18 +2234,9 @@ function renderIncomeMain(frame) {
     </tr>`;
   }).join("");
 
-  const tdsRows = tds.map((t) => `<tr>
-    <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted-dim)">${t.traces_ref}</td>
-    <td>${t.deductor}</td>
-    <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${t.period}</td>
-    <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(t.amount_inr)}</td>
-    <td><span class="ws-tds-${t.status.toLowerCase()}">${t.status}</span></td>
-  </tr>`).join("");
-
   frame.innerHTML = `
     <div class="ws-main-section">
       ${kpiRow}
-
       <div class="ws-main-section-title">Invoice Pipeline — Last 30 Days</div>
       <div style="overflow-x:auto">
         <table class="ws-data-table">
@@ -2032,20 +2252,6 @@ function renderIncomeMain(frame) {
           <tbody>${invoiceRows}</tbody>
         </table>
       </div>
-
-      <div class="ws-main-section-title" style="margin-top:8px">TDS Tracker — Form 26AS</div>
-      <div style="overflow-x:auto">
-        <table class="ws-data-table">
-          <thead><tr>
-            <th style="width:110px">TRACES Ref</th>
-            <th style="width:220px">Deductor</th>
-            <th style="width:120px">Period</th>
-            <th style="width:100px;text-align:right">Amount</th>
-            <th>Status</th>
-          </tr></thead>
-          <tbody>${tdsRows}</tbody>
-        </table>
-      </div>
     </div>`;
 }
 
@@ -2055,12 +2261,19 @@ function renderComplianceMain(frame) {
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
   const { compliance } = data;
   const entity = buildActiveEntity(data.entity);
+  const view = wsActiveViews["compliance"] || "gst-lifecycle";
 
   const filed    = compliance.filter((r) => r.gstr1_status === "Filed" && r.gstr3b_status === "Filed").length;
   const draft    = compliance.filter((r) => r.gstr3b_status === "Draft").length;
   const pending  = compliance.filter((r) => r.gstr1_status === "Pending").length;
   const actions  = compliance.filter((r) => r.action_required).length;
   const totalItc = compliance.reduce((s, r) => s + r.itc_eligible_inr, 0);
+  const totalPayable = compliance.reduce((s, r) => s + r.net_payable_inr, 0);
+
+  function cBadge(s) {
+    const m = { Filed: "filed", Draft: "draft", Pending: "pending" };
+    return `<span class="c-badge ${m[s] || "pending"}">${s}</span>`;
+  }
 
   const kpiRow = `
     <div class="ws-main-kpi-row">
@@ -2082,11 +2295,73 @@ function renderComplianceMain(frame) {
       </div>
     </div>`;
 
-  function cBadge(s) {
-    const m = { Filed: "filed", Draft: "draft", Pending: "pending" };
-    return `<span class="c-badge ${m[s] || "pending"}">${s}</span>`;
+  if (view === "itc") {
+    // ITC Optimizers — ITC credit utilisation and offset analysis
+    const itcRows = compliance
+      .filter((r) => r.itc_eligible_inr > 0 || r.net_payable_inr > 0)
+      .map((r) => {
+        const offset = r.itc_eligible_inr > 0 && r.net_payable_inr > 0
+          ? Math.min(r.itc_eligible_inr, r.net_payable_inr)
+          : 0;
+        const netAfterOffset = r.net_payable_inr - offset;
+        const efficiency = r.net_payable_inr > 0 && r.itc_eligible_inr > 0
+          ? ((r.itc_eligible_inr / r.net_payable_inr) * 100).toFixed(0) + "%"
+          : "—";
+        const blocked = r.gstr3b_status !== "Filed" && r.itc_eligible_inr > 0;
+        return `<tr class="${blocked ? "action-row" : ""}">
+          <td style="font-family:var(--font-mono);font-weight:600;font-size:12px">${r.period}</td>
+          <td>${cBadge(r.gstr3b_status)}</td>
+          <td style="text-align:right;font-family:var(--font-mono);color:var(--ok)">${r.itc_eligible_inr > 0 ? fmtInrMain(r.itc_eligible_inr) : "—"}</td>
+          <td style="text-align:right;font-family:var(--font-mono)">${r.net_payable_inr > 0 ? fmtInrMain(r.net_payable_inr) : "—"}</td>
+          <td style="text-align:right;font-family:var(--font-mono);color:var(--ok)">${offset > 0 ? fmtInrMain(offset) : "—"}</td>
+          <td style="text-align:right;font-family:var(--font-mono);color:${netAfterOffset > 0 ? "var(--warn)" : "var(--ok)"}">${netAfterOffset > 0 ? fmtInrMain(netAfterOffset) : "Nil"}</td>
+          <td style="text-align:right;font-size:12px">${efficiency}</td>
+          <td style="font-size:11px;color:${blocked ? "var(--warn)" : "var(--muted-dim)"}">${blocked ? "⚑ GSTR-3B not filed — ITC offset blocked" : (r.action_note || "—")}</td>
+        </tr>`;
+      }).join("");
+    const itcKpi = `
+      <div class="ws-main-kpi-row">
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Total ITC Available</div>
+          <div class="ws-main-kpi-cell-value ok">${fmtInrMain(totalItc)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Total GST Payable</div>
+          <div class="ws-main-kpi-cell-value">${fmtInrMain(totalPayable)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Blocked ITC</div>
+          <div class="ws-main-kpi-cell-value ${actions > 0 ? "warn" : "ok"}">${fmtInrMain(compliance.filter(r => r.action_required).reduce((s, r) => s + r.itc_eligible_inr, 0))}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Net After Offset</div>
+          <div class="ws-main-kpi-cell-value">${fmtInrMain(Math.max(0, totalPayable - totalItc))}</div>
+        </div>
+      </div>`;
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        ${itcKpi}
+        <div class="ws-main-section-title">ITC Offset Analysis — ${entity.gstin}</div>
+        <div style="overflow-x:auto">
+          <table class="ws-compliance-table" style="min-width:700px">
+            <thead><tr>
+              <th style="width:90px">Period</th>
+              <th style="width:90px">GSTR-3B</th>
+              <th style="width:110px;text-align:right">ITC Eligible</th>
+              <th style="width:110px;text-align:right">GST Payable</th>
+              <th style="width:110px;text-align:right">Offset Used</th>
+              <th style="width:110px;text-align:right">Net Liability</th>
+              <th style="width:80px;text-align:right">Efficiency</th>
+              <th>Notes</th>
+            </tr></thead>
+            <tbody>${itcRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
   }
 
+  // Default: gst-lifecycle view
   const rows = compliance.map((r) => {
     const flag = r.action_required
       ? `<span class="c-action-flag">⚑ ${r.action_note}</span>`
@@ -2126,11 +2401,12 @@ function renderAssetsMain(frame) {
   const data = enterpriseData;
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
   const { mf_portfolio, summary } = data;
+  const view = wsActiveViews["assets"] || "mf-portfolios";
 
-  const totalAum    = mf_portfolio.reduce((s, f) => s + f.current_value_inr, 0);
-  const liquidAum   = mf_portfolio.filter((f) => f.type === "Liquid").reduce((s, f) => s + f.current_value_inr, 0);
-  const equityAum   = mf_portfolio.filter((f) => f.type === "Equity" || f.type === "ELSS").reduce((s, f) => s + f.current_value_inr, 0);
-  const avgXirr     = mf_portfolio.reduce((s, f) => s + f.xirr_pct, 0) / mf_portfolio.length;
+  const totalAum  = mf_portfolio.reduce((s, f) => s + f.current_value_inr, 0);
+  const liquidAum = mf_portfolio.filter((f) => f.type === "Liquid").reduce((s, f) => s + f.current_value_inr, 0);
+  const equityAum = mf_portfolio.filter((f) => f.type === "Equity" || f.type === "ELSS").reduce((s, f) => s + f.current_value_inr, 0);
+  const avgXirr   = mf_portfolio.reduce((s, f) => s + f.xirr_pct, 0) / mf_portfolio.length;
 
   const kpiRow = `
     <div class="ws-main-kpi-row">
@@ -2152,8 +2428,72 @@ function renderAssetsMain(frame) {
       </div>
     </div>`;
 
-  const fundTypeColor = { Liquid: "var(--ok)", Equity: "var(--signal-bank)", ELSS: "var(--signal-gst)", Debt: "var(--muted)", Hybrid: "var(--accent)" };
+  if (view === "capital") {
+    // Capital Inflow Decisions — pledge capacity, loan coverage, allocation guidance
+    const s = activeSession || {};
+    const loanAmt = s.loanAmount ? (parseFloat(String(s.loanAmount).replace(/[₹,\s]/g, "")) || 0) : 0;
+    const pledgePct = liquidAum > 0 ? ((liquidAum / totalAum) * 100).toFixed(1) : 0;
+    const loanCoverage = loanAmt > 0 ? ((liquidAum / loanAmt) * 100).toFixed(1) : null;
+    const byType = {};
+    mf_portfolio.forEach((f) => {
+      byType[f.type] = (byType[f.type] || 0) + f.current_value_inr;
+    });
+    const allocationRows = Object.entries(byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, val]) => {
+        const pct = ((val / totalAum) * 100).toFixed(1);
+        const barW = Math.round(parseFloat(pct) * 1.5);
+        const isPledgeable = type === "Liquid" || type === "Debt";
+        return `<tr>
+          <td style="font-weight:600">${type}</td>
+          <td style="text-align:right;font-family:var(--font-mono)">${fmtInrMain(val)}</td>
+          <td style="text-align:right;font-family:var(--font-mono)">${pct}%</td>
+          <td><span class="c-badge ${isPledgeable ? "filed" : "pending"}" style="font-size:10px">${isPledgeable ? "Pledgeable" : "Non-pledgeable"}</span></td>
+          <td><span style="display:inline-block;height:6px;width:${barW}px;background:${isPledgeable ? "var(--ok)" : "var(--muted)"};border-radius:3px"></span></td>
+        </tr>`;
+      }).join("");
+    const capKpi = `
+      <div class="ws-main-kpi-row">
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Pledgeable (Liquid)</div>
+          <div class="ws-main-kpi-cell-value ok">${fmtInrMain(liquidAum)}</div>
+        </div>
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Liquid % of AUM</div>
+          <div class="ws-main-kpi-cell-value ok">${pledgePct}%</div>
+        </div>
+        ${loanCoverage ? `
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Loan Coverage Ratio</div>
+          <div class="ws-main-kpi-cell-value ${parseFloat(loanCoverage) >= 100 ? "ok" : "warn"}">${loanCoverage}%</div>
+        </div>` : ""}
+        <div class="ws-main-kpi-cell">
+          <div class="ws-main-kpi-cell-label">Liquid MF AUM (Q2)</div>
+          <div class="ws-main-kpi-cell-value">${fmtInrMain(summary.mf_aum.value)} <span style="font-size:11px;color:var(--ok)">↑${summary.mf_aum.delta_pct}%</span></div>
+        </div>
+      </div>`;
+    frame.innerHTML = `
+      <div class="ws-main-section">
+        ${capKpi}
+        <div class="ws-main-section-title">Capital Allocation by Asset Type</div>
+        <div style="overflow-x:auto">
+          <table class="ws-data-table">
+            <thead><tr>
+              <th style="width:110px">Asset Type</th>
+              <th style="width:130px;text-align:right">Value</th>
+              <th style="width:80px;text-align:right">% of AUM</th>
+              <th style="width:130px">Pledgeability</th>
+              <th>Allocation Bar</th>
+            </tr></thead>
+            <tbody>${allocationRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    return;
+  }
 
+  // Default: mf-portfolios view
+  const fundTypeColor = { Liquid: "var(--ok)", Equity: "var(--signal-bank)", ELSS: "var(--signal-gst)", Debt: "var(--muted)", Hybrid: "var(--accent)" };
   const rows = mf_portfolio.map((f) => {
     const barW = Math.round((f.xirr_pct / 25) * 60);
     const color = fundTypeColor[f.type] || "var(--muted)";
@@ -2684,6 +3024,8 @@ let enterpriseChannels = {
   itr: false,
   bank: false,
 };
+// Tracks the active sub-view per workspace (persists across workspace switches)
+const wsActiveViews = {};
 let enterpriseUploadedFiles = {
   gstn: null,
   itr: null,
