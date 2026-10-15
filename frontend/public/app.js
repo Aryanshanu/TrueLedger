@@ -1859,7 +1859,7 @@ function renderDashboard(frame) {
         </div>
 
         <div class="ws-cmd-col">
-          <div class="ws-cmd-col-header">GST Compliance Tracker — FY2026-27</div>
+          <div class="ws-cmd-col-header">GST Compliance Tracker — ${entity.fy || "FY—"}</div>
           ${healthBar}
           <div style="overflow-x:auto;flex:1">
             <table class="ws-compliance-table">
@@ -1886,12 +1886,25 @@ function renderDashboard(frame) {
       </div>
     </div>`;
 
-  // Wire action trigger buttons — show a toast acknowledgement
+  // Wire action trigger buttons — navigate to the relevant workspace/sub-view
+  const ACTION_ROUTES = {
+    file_gstr3b_jul26:      { ws: "compliance", view: "gst-lifecycle" },
+    reconcile_gstr2b_aug26: { ws: "compliance", view: "itc" },
+    tds_sync_q2:            { ws: "income",     view: "tds" },
+    file_gstr1_sep26:       { ws: "compliance", view: "gst-lifecycle" },
+  };
   frame.querySelectorAll(".ws-action-trigger-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.actionId;
       const item = actions.find((a) => a.id === id);
-      if (item) showToast(`Initiated: ${item.label}`);
+      if (!item) return;
+      const route = ACTION_ROUTES[id];
+      if (route) {
+        wsActiveViews[route.ws] = route.view;
+        switchWorkspace(route.ws);
+      } else {
+        showToast(`Initiated: ${item.label}`);
+      }
     });
   });
 }
