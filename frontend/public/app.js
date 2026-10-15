@@ -320,7 +320,7 @@ function renderBookSummary() {
 
   el.innerHTML = `
     <span class="book-summary-label">Active Portfolio</span>
-    <span class="book-summary-count">Target: ${enterpriseEntityName || "Active Underwriting Intake"}</span>
+    <span class="book-summary-count">Target: ${(activeSession && activeSession.entityName) || enterpriseEntityName || "Active Underwriting Intake"}</span>
     <span class="book-summary-sep">&middot;</span>
     <span class="book-summary-stat warn">${counts.manual_review || 1} manual review</span>
     <span class="book-summary-sep">&middot;</span>
@@ -1256,6 +1256,40 @@ async function loadEnterpriseData() {
   }
 }
 
+// ── GSTIN state-code lookup (used by buildActiveEntity) ──────────────
+const GSTIN_STATE = {
+  "01":"Jammu & Kashmir","02":"Himachal Pradesh","03":"Punjab","04":"Chandigarh",
+  "05":"Uttarakhand","06":"Haryana","07":"Delhi","08":"Rajasthan","09":"Uttar Pradesh",
+  "10":"Bihar","11":"Sikkim","12":"Arunachal Pradesh","13":"Nagaland","14":"Manipur",
+  "15":"Mizoram","16":"Tripura","17":"Meghalaya","18":"Assam","19":"West Bengal",
+  "20":"Jharkhand","21":"Odisha","22":"Chhattisgarh","23":"Madhya Pradesh",
+  "24":"Gujarat","26":"Dadra & Nagar Haveli","27":"Maharashtra","28":"Andhra Pradesh",
+  "29":"Karnataka","30":"Goa","31":"Lakshadweep","32":"Kerala","33":"Tamil Nadu",
+  "34":"Puducherry","35":"Andaman & Nicobar","36":"Telangana","37":"Andhra Pradesh",
+  "38":"Ladakh","97":"Other Territory","99":"Centre Jurisdiction",
+};
+
+// Merges activeSession identity over enterpriseData.entity so every workspace
+// shows the applicant selected in onboarding, not the static JSON default.
+function buildActiveEntity(baseEntity) {
+  if (!baseEntity) return null;
+  if (!activeSession) return baseEntity;
+
+  const gstin = activeSession.gstin || baseEntity.gstin;
+  const stateCode = gstin ? gstin.slice(0, 2) : baseEntity.state_code;
+  const stateName = GSTIN_STATE[stateCode] || baseEntity.state;
+
+  return {
+    ...baseEntity,
+    name:       activeSession.entityName || baseEntity.name,
+    pan:        activeSession.pan        || baseEntity.pan,
+    gstin:      gstin,
+    state_code: stateCode,
+    state:      stateName,
+    industry:   activeSession.sector     || baseEntity.industry,
+  };
+}
+
 // ── GSTIN validation ─────────────────────────────────────────────────
 // Format: SSAAAAANNNNAAZC  (State 2d · PAN 10c · Entity 1c · Z · Check 1c)
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -1324,9 +1358,9 @@ function updateDecisionAnchor(decision, consentSources) {
   const entityIdEl = $("anchor-entity-id");
   if (entityNameEl) entityNameEl.textContent = metrics.entity;
   if (entityIdEl) {
-    const rawGstin = "27AAECK1298P1Z8";
+    const rawGstin = (activeSession && activeSession.gstin) || "—";
     entityIdEl.dataset.unmasked = rawGstin;
-    entityIdEl.dataset.masked = "•••• •••• " + rawGstin.slice(-4);
+    entityIdEl.dataset.masked = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";
     entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
   }
 
@@ -1409,7 +1443,7 @@ const COMMAND_ITEMS = [
   { group: "Workspaces", icon: "₹", label: "Income & Revenue Telemetry", action: () => switchWorkspace("income") },
   { group: "Workspaces", icon: "⊖", label: "Compliance & GST Lifecycle", action: () => switchWorkspace("compliance") },
   { group: "Workspaces", icon: "◎", label: "Asset Allocations & Portfolios", action: () => switchWorkspace("assets") },
-  { group: "Target Entities", icon: "⚠", label: "Active Applicant Assessment (Bank vs GST Divergence)", action: () => { switchWorkspace("credit"); loadBorrower("b_contradiction"); } },
+  { group: "Target Entities", icon: "⚠", label: "Active Applicant Assessment", action: () => { switchWorkspace("credit"); loadBorrower(activeSession ? activeSession.sessionKey : DEFAULT_CASE); } },
 ];
 
 function setupCommandPalette() {
@@ -1649,7 +1683,8 @@ function renderDashboard(frame) {
     </div>`;
     return;
   }
-  const { entity, summary, compliance, actions, invoices, mf_portfolio } = enterpriseData;
+  const entity = buildActiveEntity(enterpriseData.entity);
+  const { summary, compliance, actions, invoices, mf_portfolio } = enterpriseData;
 
   // ── Computed: overdue receivable, filing health, portfolio allocation ──
   const overdueInvs = (invoices || []).filter((i) => i.status === "Overdue");
@@ -1714,7 +1749,18 @@ function renderDashboard(frame) {
     </div>`;
 
   // ── Entity header ───────────────────────────────────────────────
+  // Show a banner when activeSession entity differs from the base JSON
+  // so the financial KPI panels are clearly labelled as reference data.
+  const isReferenceData = activeSession && activeSession.entityName &&
+    enterpriseData.entity && activeSession.entityName !== enterpriseData.entity.name;
+  const refBanner = isReferenceData ? `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:rgba(99,102,241,0.08);border-bottom:1px solid rgba(99,102,241,0.2);font-size:11.5px;color:#a5b4fc">
+      <span>ℹ</span>
+      <span>Financial KPIs below are reference dataset figures. Upload benchmark workbooks or run a live evaluation to populate entity-specific financials.</span>
+    </div>` : "";
+
   const header = `
+    ${refBanner}
     <div class="ws-entity-header">
       <div>
         <div class="ws-entity-name">${entity.name}</div>
@@ -1848,7 +1894,7 @@ function renderDashboard(frame) {
 function renderClientMain(frame) {
   const data = enterpriseData;
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
-  const { entity } = data;
+  const entity = buildActiveEntity(data.entity);
 
   frame.innerHTML = `
     <div class="ws-main-section">
@@ -2007,7 +2053,8 @@ function renderIncomeMain(frame) {
 function renderComplianceMain(frame) {
   const data = enterpriseData;
   if (!data) { frame.innerHTML = `<div class="ws-main-section"><p style="color:var(--muted)">Loading…</p></div>`; return; }
-  const { compliance, entity } = data;
+  const { compliance } = data;
+  const entity = buildActiveEntity(data.entity);
 
   const filed    = compliance.filter((r) => r.gstr1_status === "Filed" && r.gstr3b_status === "Filed").length;
   const draft    = compliance.filter((r) => r.gstr3b_status === "Draft").length;
@@ -2493,8 +2540,8 @@ function logSystemEvent(eventToken, operator, targetNode, action, status, metada
 
 let customerStep = 1;
 let isCustomerAuthenticated = false;
-let customerEmail = "analyst@trueledger.com";
-let customerPassword = "••••••••••••";
+let customerEmail = "";
+let customerPassword = "";
 
 // 5 Industry Benchmark Use Cases with pre-filled Synthetic Datasets & Excel Files
 const BENCHMARK_CASES = [
@@ -2642,6 +2689,26 @@ let enterpriseUploadedFiles = {
   itr: null,
   bank: null,
 };
+
+// Canonical session snapshot built at Step 2 commit. All Steps 3, 4, the
+// credit pipeline, anchor bar, and case rail read from this — not from the
+// scattered enterprise* form vars above. null until first Step 2 commit.
+let activeSession = null;
+
+function parseLoanAmount(str) {
+  if (!str) return 0;
+  const n = parseFloat(String(str).replace(/[₹,\s]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function deriveRiskTier(varianceStr, verdict) {
+  if (!verdict) return "medium";
+  if (verdict === "DECLINE") return "high";
+  const v = parseFloat(varianceStr) || 0;
+  if (verdict === "APPROVE" && v < 5) return "low";
+  if (v > 20) return "watch";
+  return "medium";
+}
 
 let swarmProgress = 0;
 let telemetryLogs = [];
@@ -3140,19 +3207,69 @@ function renderCustomerOnboarding(frame) {
       syncStateAndUI();
       if (!isStep2Valid()) return;
 
-      // Dynamically update the Top Decision Anchor
+      const b = activeBenchmarkId ? BENCHMARK_CASES.find(x => x.id === activeBenchmarkId) : null;
+      const sessionKey = activeBenchmarkId || ("custom_" + enterpriseEntityName.trim().toLowerCase().replace(/\s+/g, "_").slice(0, 24));
+
+      // Build canonical session snapshot — single source of truth for Steps 3, 4, pipeline
+      activeSession = {
+        benchmarkId:       activeBenchmarkId,
+        sessionKey,
+        entityName:        enterpriseEntityName,
+        pan:               enterprisePan,
+        gstin:             enterpriseGstin,
+        loanAmount:        enterpriseLoanAmount,
+        sector:            b ? b.sector : "",
+        bankInflows:       b ? b.bank_inflows : null,
+        bankTrend:         b ? b.trend_bank : null,
+        gstTurnover:       b ? b.gst_turnover : null,
+        gstTrend:          b ? b.trend_gst : null,
+        variance:          b ? b.variance : null,
+        verdict:           b ? b.verdict : null,
+        finalConf:         b ? b.final_confidence : null,
+        modelConf:         b ? b.model_confidence : null,
+        consentMultiplier: b ? b.consent_multiplier : null,
+        consentDays:       b ? b.consent_days : null,
+        narrative:         b ? b.narrative : "",
+        files:             { ...enterpriseUploadedFiles },
+        channels:          { ...enterpriseChannels },
+        gstinMasked:       true,
+      };
+
+      // Sync credit pipeline structures so the case rail and credit workspace reflect the active entity
+      CASES[0] = {
+        id:       sessionKey,
+        scenario: enterpriseEntityName + (activeSession.sector ? " · " + activeSession.sector : ""),
+        note:     b
+          ? `Bank ${activeSession.bankTrend} vs. GST ${activeSession.gstTrend} · Variance ${activeSession.variance}`
+          : "Custom applicant — run live forensic audit to generate findings",
+        group: "active",
+      };
+      CREDIT_METRICS[sessionKey] = {
+        entity:    enterpriseEntityName,
+        biz:       activeSession.sector || "Commercial Account",
+        loan:      parseLoanAmount(enterpriseLoanAmount),
+        tier:      deriveRiskTier(activeSession.variance, activeSession.verdict),
+        dscr:      b ? 2.51 : 0,
+        dti:       b ? 9.96 : 0,
+        mfPledge:  180000,
+        insurance: 600000,
+      };
+      currentBorrowerId = sessionKey;
+
+      // Update Decision Anchor bar from session
       const entityNameEl = $("anchor-entity-name");
       const entityIdEl = $("anchor-entity-id");
       if (entityNameEl) entityNameEl.textContent = enterpriseEntityName;
       if (entityIdEl) {
-        const rawGstin = enterpriseGstin || "27AAECK1298P1Z8";
+        const rawGstin = enterpriseGstin || "PENDING";
         entityIdEl.dataset.unmasked = rawGstin;
-        entityIdEl.dataset.masked = "•••• •••• " + (rawGstin.length >= 4 ? rawGstin.slice(-4) : "9812");
+        entityIdEl.dataset.masked = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";
         entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
       }
-      if (CREDIT_METRICS && CREDIT_METRICS.b_contradiction) {
-        CREDIT_METRICS.b_contradiction.entity = enterpriseEntityName;
-      }
+
+      // Update sidebar credit nav subtitle
+      const creditNavSub = $("nav-credit-sub");
+      if (creditNavSub) creditNavSub.textContent = "Active Dossier · " + enterpriseEntityName;
 
       logSystemEvent(
         "ONBOARDING_DATA_VERIFIED",
@@ -3170,14 +3287,14 @@ function renderCustomerOnboarding(frame) {
 
 // ── STEP 3: CROSS-SOURCE VERIFICATION (Processing State) ──────────────
 function renderCustomerTelemetry(frame) {
-  const currentEntity = enterpriseEntityName || "Commercial Borrower";
-  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
+  const currentEntity = (activeSession && activeSession.entityName) || enterpriseEntityName || "Commercial Borrower";
+  const b = activeBenchmarkId ? BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) : null;
 
-  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
-  const bankTrend = b ? b.trend_bank : "+2.1%";
-  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
-  const gstTrend = b ? b.trend_gst : "-11.0%";
-  const varianceVal = b ? b.variance : "27.2%";
+  const bankVal    = (activeSession && activeSession.bankInflows)  ?? "—";
+  const bankTrend  = (activeSession && activeSession.bankTrend)    ?? "—";
+  const gstVal     = (activeSession && activeSession.gstTurnover)  ?? "—";
+  const gstTrend   = (activeSession && activeSession.gstTrend)     ?? "—";
+  const varianceVal = (activeSession && activeSession.variance)    ?? "—";
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
@@ -3276,7 +3393,7 @@ function renderCustomerTelemetry(frame) {
   const advBtn = $("btn-advance-verdict");
   if (advBtn) {
     advBtn.addEventListener("click", () => {
-      const outcome = b ? b.verdict : "MANUAL REVIEW";
+      const outcome = (activeSession && activeSession.verdict) || (b ? b.verdict : "PENDING");
       logSystemEvent(
         "CUSTOMER_ACCESSED_FINAL_DOSSIER",
         "OPERATOR_CUSTOMER",
@@ -3304,14 +3421,16 @@ function renderCustomerTelemetry(frame) {
       "SUCCESS"
     );
 
-    const isApprove = b && b.verdict === "APPROVE";
+    const isApprove = activeSession ? activeSession.verdict === "APPROVE" : false;
     const stages = [
       { pct: 25, msg: `[0.42s] Banking Analyzer: Ingested primary transaction records. Gross commercial inflows: ${bankVal} (${bankTrend}).` },
       { pct: 55, msg: `[0.85s] Tax Analyzer: Reconciled GSTR-3B filings. Turnover declared: ${gstVal} (${gstTrend}).` },
       { pct: 80, msg: `[1.20s] Collateral Analyzer: Reserve audit complete. Statutory liquidity buffer validated.` },
-      { pct: 100, msg: isApprove
-        ? `[1.65s] Cross-Source Reconciler: Validated high alignment (Variance delta ${varianceVal}). All sources verified.`
-        : `[1.65s] Cross-Source Reconciler: Flagged structural variance delta of ${varianceVal} between Bank vs GST filings.`
+      { pct: 100, msg: activeSession && activeSession.verdict
+        ? (isApprove
+          ? `[1.65s] Cross-Source Reconciler: Validated high alignment (Variance delta ${varianceVal}). All sources verified.`
+          : `[1.65s] Cross-Source Reconciler: Flagged structural variance delta of ${varianceVal} between Bank vs GST filings.`)
+        : `[1.65s] Cross-Source Reconciler: Document intake complete. Run Forensic Audit to generate live findings.`
       },
     ];
 
@@ -3351,29 +3470,29 @@ function renderCustomerTelemetry(frame) {
 
 // ── STEP 4: FINAL RECONCILIATION VERDICT & OUTPUTS ────────────────────
 function renderCustomerFinalVerdict(frame) {
-  const currentEntity = enterpriseEntityName || "Commercial Borrower";
-  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
+  const currentEntity = (activeSession && activeSession.entityName) || enterpriseEntityName || "Commercial Borrower";
+  const s = activeSession || {};
 
-  const rawGstin = enterpriseGstin || (b ? b.gstin : "27AAECK1298P1Z8");
-  const maskedGstin = "•••• •••• " + (rawGstin.length >= 4 ? rawGstin.slice(-4) : "9812");
-  const gstinDisplay = enterpriseGstinMasked ? maskedGstin : rawGstin;
+  const rawGstin = s.gstin || enterpriseGstin || "PENDING";
+  const maskedGstin = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";
+  const gstinDisplay = (s.gstinMasked !== false && enterpriseGstinMasked) ? maskedGstin : rawGstin;
   const digest = enterpriseAuditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e53a992bc44d32098d6541f5a11e89bc";
 
-  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
-  const bankTrend = b ? b.trend_bank : "+2.1%";
-  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
-  const gstTrend = b ? b.trend_gst : "-11.0%";
-  const varianceVal = b ? b.variance : "27.2%";
-  const verdictLabel = b ? b.verdict : "MANUAL REVIEW";
-  const finalConf = b ? b.final_confidence.toFixed(2) : "0.14";
-  const modelConf = b ? b.model_confidence.toFixed(2) : "0.50";
-  const consentMult = b ? b.consent_multiplier.toFixed(2) : "0.29";
-  const consentDays = b ? b.consent_days : 2;
-  const isApprove = verdictLabel === "APPROVE";
+  const bankVal     = s.bankInflows  ?? "—";
+  const bankTrend   = s.bankTrend    ?? "—";
+  const gstVal      = s.gstTurnover  ?? "—";
+  const gstTrend    = s.gstTrend     ?? "—";
+  const varianceVal = s.variance     ?? "—";
+  const verdictLabel = s.verdict     ?? "PENDING";
+  const finalConf   = s.finalConf    != null ? Number(s.finalConf).toFixed(2)         : "—";
+  const modelConf   = s.modelConf    != null ? Number(s.modelConf).toFixed(2)         : "—";
+  const consentMult = s.consentMultiplier != null ? Number(s.consentMultiplier).toFixed(2) : "—";
+  const consentDays = s.consentDays  ?? "—";
+  const isApprove   = verdictLabel === "APPROVE";
 
-  const narrativeText = b
-    ? b.narrative
-    : `Deterministic cross-examination for <strong>${currentEntity}</strong> revealed a critical divergence: The primary commercial bank statement exhibits steady credit receipts totaling <strong>${bankVal}</strong> (${bankTrend} YoY), whereas parallel GSTR-3B filings register only <strong>${gstVal}</strong> (${gstTrend} YoY) for the identical period.`;
+  const narrativeText = s.narrative
+    ? s.narrative
+    : `Upload documents and run a live forensic audit to generate cross-source reconciliation findings for <strong>${currentEntity}</strong>. No pre-computed signals are available for custom applicant mode — use the Credit Applications workspace to trigger a live evaluation.`;
 
   frame.innerHTML = `
     <div class="ent-view-wrapper">
@@ -3389,16 +3508,16 @@ function renderCustomerFinalVerdict(frame) {
                 ${enterpriseGstinMasked ? '👁' : '🔒'}
               </button>
             </div>
-            ${enterprisePan ? `
+            ${(s.pan || enterprisePan) ? `
               <div class="cockpit-gstin-pill" style="margin-left:8px">
                 <span>PAN:</span>
-                <span style="color:#fff">${enterprisePan}</span>
+                <span style="color:#fff">${s.pan || enterprisePan}</span>
               </div>
             ` : ''}
-            ${b ? `
+            ${s.sector ? `
               <div class="cockpit-gstin-pill" style="margin-left:8px;border-color:rgba(99,102,241,0.4);color:#a5b4fc">
                 <span>SECTOR:</span>
-                <span style="color:#fff">${b.sector}</span>
+                <span style="color:#fff">${s.sector}</span>
               </div>
             ` : ''}
           </div>
@@ -3530,6 +3649,7 @@ function renderCustomerFinalVerdict(frame) {
   if (toggleBtn) {
     toggleBtn.addEventListener("click", () => {
       enterpriseGstinMasked = !enterpriseGstinMasked;
+      if (activeSession) activeSession.gstinMasked = enterpriseGstinMasked;
       const gstinVal = $("cockpit-gstin-val");
       if (gstinVal) {
         gstinVal.textContent = enterpriseGstinMasked ? maskedGstin : rawGstin;
@@ -3549,14 +3669,21 @@ function renderCustomerFinalVerdict(frame) {
     restartBtn.addEventListener("click", () => {
       // Reset all state for a clean new applicant intake
       activeBenchmarkId = null;
+      activeSession = null;
       enterpriseEntityName = "";
       enterprisePan = "";
       enterpriseGstin = "";
       enterpriseLoanAmount = "";
+      enterpriseGstinMasked = true;
       enterpriseChannels = { gstn: false, itr: false, bank: false };
       enterpriseUploadedFiles = { gstn: null, itr: null, bank: null };
       swarmProgress = 0;
+      isSwarmRunning = false;
       telemetryLogs = [];
+      currentBorrowerId = null;
+
+      // Restore CASES to the original prototype entry so credit pipeline stays coherent
+      CASES[0] = { id: "b_contradiction", scenario: "Bank vs. GST Revenue Divergence", note: "Bank credit receipts (+2.1%) vs. GST turnover (-11.0%) · Structural discrepancy", group: "active" };
 
       // Reset anchor bar
       const entityNameEl = $("anchor-entity-name");
@@ -3567,9 +3694,10 @@ function renderCustomerFinalVerdict(frame) {
         entityIdEl.dataset.masked = "•••• •••• ••••";
         entityIdEl.textContent = "•••• •••• ••••";
       }
-      if (CREDIT_METRICS && CREDIT_METRICS.b_contradiction) {
-        CREDIT_METRICS.b_contradiction.entity = "Awaiting Entity Intake";
-      }
+
+      // Reset sidebar credit nav subtitle
+      const creditNavSub = $("nav-credit-sub");
+      if (creditNavSub) creditNavSub.textContent = "No Active Dossier";
 
       logSystemEvent(
         "CUSTOMER_WIZARD_RESET",
@@ -3586,7 +3714,7 @@ function renderCustomerFinalVerdict(frame) {
 
 // ── AUDIT EXPORT & PDF GENERATORS ────────────────────────────────────
 function exportAuditCSV() {
-  const entity = enterpriseEntityName || "Underwriting_Dossier";
+  const entity = (activeSession && activeSession.entityName) || enterpriseEntityName || "Underwriting_Dossier";
   const rows = [
     ["Event ID", "Timestamp", "Operator", "Target Node", "Action", "Status", "SHA-256 Digest", "Target Entity"],
     ...enterpriseAuditLog.map(ev => [
@@ -3613,14 +3741,14 @@ function exportAuditCSV() {
 }
 
 function downloadAuditPDF() {
-  const entity = enterpriseEntityName || "Commercial Borrower";
-  const b = BENCHMARK_CASES.find(item => item.id === activeBenchmarkId) || null;
-  const gstin = enterpriseGstin || (b ? b.gstin : "27AAECK1298P1Z8");
-  const pan = enterprisePan || (b ? b.pan : "AAECK1298P");
-  const verdict = b ? b.verdict : "MANUAL REVIEW";
-  const bankVal = b ? b.bank_inflows : "₹2,10,00,000";
-  const gstVal = b ? b.gst_turnover : "₹1,65,00,000";
-  const variance = b ? b.variance : "27.2%";
+  const s = activeSession || {};
+  const entity  = s.entityName || enterpriseEntityName || "Commercial Borrower";
+  const gstin   = s.gstin   || enterpriseGstin  || "—";
+  const pan     = s.pan     || enterprisePan     || "—";
+  const verdict = s.verdict || "PENDING";
+  const bankVal = s.bankInflows  || "—";
+  const gstVal  = s.gstTurnover  || "—";
+  const variance = s.variance    || "—";
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     if (typeof showToast === "function") showToast("Please allow popups to download audit report");
