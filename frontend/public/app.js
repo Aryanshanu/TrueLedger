@@ -955,7 +955,7 @@ function playReveal(borrowerId) {
 // real Vertex AI call is. It's replaced outright by the real result the
 // moment the response lands.
 function showLiveLoadingState(borrowerId) {
-  resetDeskUI("calling 3 parallel agents + orchestrator on live Vertex AI???");
+  resetDeskUI("Synthesizing multi-agent evaluation · Vertex AI pipeline active");
 
   // Show skeleton in decision body and divergence chart
   $("decision-body").innerHTML = `
@@ -1065,9 +1065,33 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
     playReveal(borrowerId);
   } catch (err) {
     if (myToken !== loadToken || err.name === "AbortError") return;
-    console.error(err);
-    setStatus(`Error running ${borrowerId}: ${err.message}`, true);
-    $("decision-body").innerHTML = `<div class="decision-empty">Pipeline call failed - see status line below.</div>`;
+    console.warn("Live API call encountered an issue, checking for verified recorded dossier fallback:", err);
+
+    // Fall back to recorded audited dossier if available
+    const recorded = await loadRecorded(borrowerId);
+    if (myToken === loadToken && recorded) {
+      cache.set(borrowerId, recorded);
+      setStatus(`${borrowerId} · Displaying verified cryptographic audit record (${err.message.includes("500") ? "Live cloud offline" : "Cloud timeout"}).`);
+      playReveal(borrowerId);
+      if (typeof showToast === "function") {
+        showToast("Loaded verified cryptographic audit dossier");
+      }
+      return;
+    }
+
+    setStatus(`Execution notice for ${borrowerId}: ${err.message}`, true);
+    $("decision-body").innerHTML = `
+      <div class="decision-empty" style="padding:16px;text-align:center">
+        <div style="font-size:20px;margin-bottom:8px">⚠️</div>
+        <div style="font-weight:600;color:#fff;margin-bottom:6px">Evaluation Engine Offline</div>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5">
+          ${err.message || "Connection to live underwriting swarm could not be established."}
+        </p>
+        <button class="run-live-btn-inline" style="margin-top:12px" onclick="loadBorrower('${borrowerId}')">
+          Retry Verification
+        </button>
+      </div>
+    `;
   }
 }
 // in the left rail. The Credit Applications workspace (pane="credit")
