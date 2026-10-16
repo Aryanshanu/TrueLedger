@@ -10,7 +10,7 @@
       {
         "rule": "income_vs_revenue_divergence",
         "metric": "income_vs_revenue",
-        "finding": "Bank shows stable income (+0.7%); GST shows declining revenue (-13.9%)",
+        "finding": "Bank deposits show stable income growth (+0.7%) while GST-declared turnover fell sharply (-13.9%) over the same window — the two sources report opposite business trajectories. Possible revenue under-declaration or mismatched accounting periods. Reconciliation required before approval.",
         "evidence": [
           {
             "transaction_ids": null,
@@ -225,7 +225,7 @@
     {
       "claim": {
         "rule": "income_vs_revenue_divergence",
-        "finding": "Bank shows stable income (+0.7%); GST shows declining revenue (-13.9%)",
+        "finding": "Bank deposits show stable income growth (+0.7%) while GST-declared turnover fell sharply (-13.9%) over the same window — the two sources report opposite business trajectories. Possible revenue under-declaration or mismatched accounting periods. Reconciliation required before approval.",
         "metric": "income_vs_revenue",
         "action": "cap_confidence_0.5",
         "evidence": [
@@ -282,7 +282,7 @@
         "contradictions": [
           {
             "rule": "income_vs_revenue_divergence",
-            "finding": "Bank shows stable income (+0.7%); GST shows declining revenue (-13.9%)",
+            "finding": "Bank deposits show stable income growth (+0.7%) while GST-declared turnover fell sharply (-13.9%) over the same window — the two sources report opposite business trajectories. Possible revenue under-declaration or mismatched accounting periods. Reconciliation required before approval.",
             "metric": "income_vs_revenue",
             "action": "cap_confidence_0.5",
             "evidence": [

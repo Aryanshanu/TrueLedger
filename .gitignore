@@ -27,3 +27,10 @@ data/synthetic/output/
 .DS_Store
 .vscode/
 .idea/
+.gstack/
+
+# Local logs & generated scratch
+frontend/*.log
+frontend/*.err
+generated/
+rea/

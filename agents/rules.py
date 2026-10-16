@@ -24,6 +24,27 @@ from agents.schemas import AgentFindings, Claim, Contradiction, Evidence, RiskFa
 EMPTY_SPECIALIST_RULE = "specialist_produced_no_claims"
 
 
+def _fmt_inr(amount: float) -> str:
+    """Format amount as Indian Rupees with lakh/crore shorthand."""
+    amt = int(round(amount))
+    if amt >= 1_00_00_000:
+        return f"₹{amt / 1_00_00_000:.2f}Cr"
+    if amt >= 1_00_000:
+        return f"₹{amt / 1_00_000:.2f}L"
+    s = str(amt)
+    if len(s) <= 3:
+        return f"₹{s}"
+    last3 = s[-3:]
+    rest = s[:-3]
+    groups: list[str] = []
+    while len(rest) > 2:
+        groups.insert(0, rest[-2:])
+        rest = rest[:-2]
+    if rest:
+        groups.insert(0, rest)
+    return f"₹{','.join(groups)},{last3}"
+
+
 def _get_claim(findings: AgentFindings, metric: str) -> Claim | None:
     return next((c for c in findings.claims if c.metric == metric), None)
 
@@ -50,8 +71,11 @@ def detect_empty_specialists(
             rule=EMPTY_SPECIALIST_RULE,
             metric=f"{source}_empty",
             finding=(
-                f"The specialist reading {source.replace('_findings', '')} data returned no "
-                "findings for this borrower - that source could not be examined."
+                f"The {source.replace('_findings', '').replace('_', ' ').title()} agent could not "
+                f"extract any data from the uploaded document — this source was not examined. "
+                f"All cross-source rules depending on this source did not fire, which means this "
+                f"is not a clean result: it is an unexamined one. "
+                f"Manual review is required before any approval."
             ),
             evidence=[Evidence(source=source)],
         )
@@ -83,9 +107,11 @@ def evaluate_rules(
                 rule="income_vs_revenue_divergence",
                 metric="income_vs_revenue",
                 finding=(
-                    f"Bank shows {income.value} income "
-                    f"({income.magnitude_pct:+.1f}%); GST shows declining revenue "
-                    f"({revenue.magnitude_pct:+.1f}%)"
+                    f"Bank deposits show {income.value} income growth ({income.magnitude_pct:+.1f}%) "
+                    f"while GST-declared turnover fell sharply ({revenue.magnitude_pct:+.1f}%) over the "
+                    f"same window — the two sources report opposite business trajectories. Possible "
+                    f"revenue under-declaration or mismatched accounting periods. "
+                    f"Reconciliation required before approval."
                 ),
                 evidence=[
                     Evidence(source="bank_findings", field="income_trend"),
@@ -104,9 +130,12 @@ def evaluate_rules(
                 rule="declared_vs_actual_mismatch",
                 metric="declared_vs_actual_gap",
                 finding=(
-                    f"Declared GST turnover ({declared_vs_actual['declared_turnover_total']}) "
-                    f"vs. actual bank credits ({declared_vs_actual['actual_credits_total']}) "
-                    f"diverge by {declared_vs_actual['gap_pct']:.1f}%"
+                    f"Bank credits ({_fmt_inr(declared_vs_actual['actual_credits_total'])}) exceed "
+                    f"GST-declared turnover ({_fmt_inr(declared_vs_actual['declared_turnover_total'])}) "
+                    f"by {declared_vs_actual['gap_pct']:.1f}% — nearly "
+                    f"{declared_vs_actual['gap_pct'] / DECLARED_VS_ACTUAL_GAP_PCT:.1f}× the "
+                    f"{DECLARED_VS_ACTUAL_GAP_PCT}% threshold. Pattern is consistent with revenue "
+                    f"under-reporting. Manual reconciliation and borrower explanation required."
                 ),
                 evidence=[
                     Evidence(source="gst_findings", field="declared_turnover", period=p)
@@ -133,9 +162,10 @@ def evaluate_rules(
                 rule="asset_cushion_vs_cash_flow",
                 metric="liquid_assets_vs_cash_flow_volatility",
                 finding=(
-                    "High month-to-month cash-flow volatility claimed alongside a "
-                    "high liquid-asset cushion, with no drawdown evidence in the "
-                    "investment data to explain the gap"
+                    "Bank records show high monthly cash-flow swings, yet the investment account "
+                    "reports a large idle liquid buffer — with no corresponding withdrawals to "
+                    "explain where the buffer came from or why it is not smoothing the volatility. "
+                    "If the cushion is real and accessible, drawdown activity should appear in bank history."
                 ),
                 evidence=[
                     Evidence(source="investment_findings", field="liquid_assets"),
@@ -153,8 +183,9 @@ def evaluate_rules(
                 rule="insurance_coverage_gap",
                 metric="insurance_coverage",
                 finding=(
-                    f"Insurance coverage is well below the requested loan amount "
-                    f"of {loan_amount_requested}"
+                    f"Insurance coverage is insufficient for a loan of {_fmt_inr(loan_amount_requested)}. "
+                    f"Standard underwriting practice requires sum-assured ≥ 100% of the loan principal. "
+                    f"Recommend requiring the borrower to increase coverage or reduce the loan request."
                 ),
                 evidence=[Evidence(source="investment_findings", field="insurance_coverage")],
             )

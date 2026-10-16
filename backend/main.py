@@ -203,6 +203,222 @@ async def upload_documents(
     return {"borrower_id": borrower_id}
 
 
+@app.post("/ingest/onboarding")
+async def ingest_onboarding(workbook: UploadFile = File(...)) -> dict:
+    """Parse a 5-sheet onboarding Excel workbook and return a cross-referenced
+    client graph. Every downstream sheet is joined back to Sheet 1 via
+    Client_ID — invoices, GST filings, mutual fund folios, and expense records
+    are all grouped under their owning client profile.
+
+    Expected sheet layout (sheet names are matched by position, not by exact
+    title, for resilience against minor naming differences):
+      Sheet 1 — Client onboarding / KYB data
+      Sheet 2 — Income invoices (Client_ID FK)
+      Sheet 3 — GST filing periods (Client_ID FK)
+      Sheet 4 — Mutual fund folios (Client_ID FK)
+      Sheet 5 — Business expenses (Client_ID FK)
+
+    Returns a summary graph plus per-client aggregates (total income, GST
+    liability, portfolio value, expense total, ITC available) that the
+    frontend workspace panels display without additional computation.
+    """
+    import io
+    import openpyxl
+
+    if not workbook.filename:
+        raise HTTPException(status_code=422, detail="No file uploaded.")
+    fname = workbook.filename.lower()
+    if not (fname.endswith(".xlsx") or fname.endswith(".xlsm")):
+        raise HTTPException(
+            status_code=422,
+            detail="Onboarding workbook must be an .xlsx or .xlsm file.",
+        )
+
+    raw = await workbook.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="Uploaded workbook is empty.")
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not open workbook: {exc}") from exc
+
+    sheets = wb.worksheets
+    if len(sheets) < 1:
+        raise HTTPException(status_code=422, detail="Workbook contains no sheets.")
+
+    def _sheet_to_rows(ws) -> list[dict]:
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            return []
+        headers = [str(h).strip() if h is not None else f"col_{i}" for i, h in enumerate(rows[0])]
+        return [
+            {headers[i]: (row[i] if i < len(row) else None) for i in range(len(headers))}
+            for row in rows[1:]
+            if any(v is not None for v in row)
+        ]
+
+    raw_clients = _sheet_to_rows(sheets[0]) if len(sheets) > 0 else []
+    raw_invoices = _sheet_to_rows(sheets[1]) if len(sheets) > 1 else []
+    raw_gst = _sheet_to_rows(sheets[2]) if len(sheets) > 2 else []
+    raw_mf = _sheet_to_rows(sheets[3]) if len(sheets) > 3 else []
+    raw_expenses = _sheet_to_rows(sheets[4]) if len(sheets) > 4 else []
+
+    if not raw_clients:
+        raise HTTPException(
+            status_code=422,
+            detail="Sheet 1 (Client Onboarding) contains no data rows. "
+            "Ensure the first row is a header and subsequent rows are client records.",
+        )
+
+    # Detect the Client_ID column name (case-insensitive, underscore-tolerant)
+    def _find_col(row: dict, *candidates: str) -> str | None:
+        for key in row:
+            normalized = key.lower().replace(" ", "_").replace("-", "_")
+            for c in candidates:
+                if normalized == c.lower():
+                    return key
+        return None
+
+    sample = raw_clients[0] if raw_clients else {}
+    cid_col = _find_col(sample, "client_id", "clientid", "client id", "id")
+    if not cid_col:
+        raise HTTPException(
+            status_code=422,
+            detail="Sheet 1 must contain a 'Client_ID' column as the primary key.",
+        )
+
+    # Build client index from Sheet 1
+    client_index: dict[str, dict] = {}
+    for row in raw_clients:
+        cid = str(row.get(cid_col, "")).strip()
+        if cid:
+            client_index[cid] = {k: (str(v).strip() if v is not None else "") for k, v in row.items()}
+
+    if not client_index:
+        raise HTTPException(status_code=422, detail="No valid Client_ID values found in Sheet 1.")
+
+    def _group_by_client(rows: list[dict]) -> dict[str, list[dict]]:
+        grouped: dict[str, list[dict]] = {}
+        for row in rows:
+            sample_row = row
+            fk_col = _find_col(sample_row, "client_id", "clientid", "client id")
+            if fk_col is None:
+                continue
+            cid = str(row.get(fk_col, "")).strip()
+            if cid:
+                grouped.setdefault(cid, []).append(row)
+        return grouped
+
+    invoices_by_client = _group_by_client(raw_invoices)
+    gst_by_client = _group_by_client(raw_gst)
+    mf_by_client = _group_by_client(raw_mf)
+    expenses_by_client = _group_by_client(raw_expenses)
+
+    def _safe_float(v) -> float:
+        try:
+            return float(str(v).replace(",", "").replace("₹", "").strip()) if v is not None else 0.0
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _agg_invoices(rows: list[dict]) -> dict:
+        total_gross = sum(_safe_float(r.get("Gross_Amount_INR") or r.get("gross_amount_inr")) for r in rows)
+        total_tds = sum(_safe_float(r.get("TDS_Amount_INR") or r.get("tds_amount_inr")) for r in rows)
+        total_net = sum(_safe_float(r.get("Net_Receivable_INR") or r.get("net_receivable_inr")) for r in rows)
+        statuses: dict[str, int] = {}
+        for r in rows:
+            s = str(r.get("Status") or "").strip()
+            statuses[s] = statuses.get(s, 0) + 1
+        return {
+            "count": len(rows),
+            "total_gross_inr": round(total_gross, 2),
+            "total_tds_inr": round(total_tds, 2),
+            "total_net_receivable_inr": round(total_net, 2),
+            "status_breakdown": statuses,
+            "records": rows,
+        }
+
+    def _agg_gst(rows: list[dict]) -> dict:
+        total_payable = sum(_safe_float(r.get("Net_Payable_INR") or r.get("net_payable_inr")) for r in rows)
+        total_itc = sum(_safe_float(r.get("ITC_Claimed_INR") or r.get("itc_claimed_inr")) for r in rows)
+        total_turnover = sum(_safe_float(r.get("Turnover_INR") or r.get("turnover_inr")) for r in rows)
+        gstr1_statuses: dict[str, int] = {}
+        for r in rows:
+            s = str(r.get("GSTR1_Status") or r.get("gstr1_status") or "").strip()
+            gstr1_statuses[s] = gstr1_statuses.get(s, 0) + 1
+        return {
+            "periods": len(rows),
+            "total_turnover_inr": round(total_turnover, 2),
+            "total_gst_payable_inr": round(total_payable, 2),
+            "total_itc_claimed_inr": round(total_itc, 2),
+            "net_gst_liability_inr": round(total_payable, 2),
+            "gstr1_status_breakdown": gstr1_statuses,
+            "records": rows,
+        }
+
+    def _agg_mf(rows: list[dict]) -> dict:
+        total_value = sum(_safe_float(r.get("Current_Value_INR") or r.get("current_value_inr")) for r in rows)
+        total_sip = sum(_safe_float(r.get("SIP_Amount_INR") or r.get("sip_amount_inr")) for r in rows)
+        return {
+            "folio_count": len(rows),
+            "total_current_value_inr": round(total_value, 2),
+            "total_monthly_sip_inr": round(total_sip, 2),
+            "records": rows,
+        }
+
+    def _agg_expenses(rows: list[dict]) -> dict:
+        total_exp = sum(_safe_float(r.get("Amount_INR") or r.get("amount_inr")) for r in rows)
+        total_itc = sum(_safe_float(r.get("ITC_Amount_INR") or r.get("itc_amount_inr")) for r in rows)
+        cat_totals: dict[str, float] = {}
+        for r in rows:
+            cat = str(r.get("Category") or "").strip() or "Other"
+            cat_totals[cat] = cat_totals.get(cat, 0.0) + _safe_float(r.get("Amount_INR") or r.get("amount_inr"))
+        return {
+            "count": len(rows),
+            "total_expense_inr": round(total_exp, 2),
+            "total_itc_available_inr": round(total_itc, 2),
+            "category_breakdown": {k: round(v, 2) for k, v in cat_totals.items()},
+            "records": rows,
+        }
+
+    # Build the unified client graph
+    clients = []
+    for cid, profile in client_index.items():
+        inv = _agg_invoices(invoices_by_client.get(cid, []))
+        gst = _agg_gst(gst_by_client.get(cid, []))
+        mf = _agg_mf(mf_by_client.get(cid, []))
+        exp = _agg_expenses(expenses_by_client.get(cid, []))
+        clients.append({
+            "client_id": cid,
+            "profile": profile,
+            "summary": {
+                "total_gross_income_inr": inv["total_gross_inr"],
+                "total_tds_deducted_inr": inv["total_tds_inr"],
+                "net_gst_liability_inr": gst["net_gst_liability_inr"],
+                "total_itc_available_inr": exp["total_itc_available_inr"],
+                "portfolio_value_inr": mf["total_current_value_inr"],
+                "total_expenses_inr": exp["total_expense_inr"],
+            },
+            "income": inv,
+            "gst": gst,
+            "mutual_funds": mf,
+            "expenses": exp,
+        })
+
+    return {
+        "workbook": workbook.filename,
+        "client_count": len(clients),
+        "sheet_counts": {
+            "clients": len(raw_clients),
+            "invoices": len(raw_invoices),
+            "gst_filings": len(raw_gst),
+            "mutual_funds": len(raw_mf),
+            "expenses": len(raw_expenses),
+        },
+        "clients": clients,
+    }
+
+
 @app.get("/borrowers/{borrower_id}/decision")
 def decision(borrower_id: str) -> dict:
     """Convenience endpoint: the latest stored decision without re-running the pipeline."""

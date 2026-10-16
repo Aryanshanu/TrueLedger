@@ -117,7 +117,7 @@ class OrchestratorAgent(BaseAgent):
                 input_refs=[f"claims/{borrower_id}/{e.source}" for e in c.evidence if e.source],
                 claim=c.model_dump(),
                 confidence=0.5,
-                notes=f"Contradiction rule: {c.rule}",
+                notes=f"Deterministic rule fired: {c.rule}. Finding recorded in claim.finding.",
             )
         for r in risk_factors:
             write_entry(
@@ -127,7 +127,7 @@ class OrchestratorAgent(BaseAgent):
                 input_refs=[f"claims/{borrower_id}/{e.source}" for e in r.evidence if e.source],
                 claim=r.model_dump(),
                 confidence=0.7,
-                notes=f"Risk factor rule: {r.rule}",
+                notes=f"Risk factor noted: {r.rule}. Not a hard contradiction — does not cap confidence but contributes to manual_review threshold.",
             )
 
         # Step 2: subtler-reasoning LLM pass, delegated to the inner agent.
@@ -176,7 +176,11 @@ class OrchestratorAgent(BaseAgent):
                 "final_confidence": final_confidence,
             },
             confidence=final_confidence,
-            notes="c(d) = 1 if d>7, d/7 if 0<d<=7, 0 if d<=0; final = model_confidence * weakest source's c(d)",
+            notes=(
+                "AA consent decay applied. Formula: c(d) = 1 if d > 7 days, d/7 if 0 < d ≤ 7, 0 if expired. "
+                "Final confidence = model_confidence × weakest_source_multiplier. "
+                "One stale source caps the whole decision — it does not average with fresh sources."
+            ),
         )
 
         # Step 4: decide the outcome.
@@ -206,14 +210,23 @@ class OrchestratorAgent(BaseAgent):
             input_refs=[f"claims/{borrower_id}/bank_findings", f"claims/{borrower_id}/gst_findings", f"claims/{borrower_id}/investment_findings"],
             claim=decision.model_dump(),
             confidence=final_confidence,
-            notes=f"outcome={outcome}",
+            notes=(
+                f"Final outcome: {outcome}. "
+                f"model_confidence={model_confidence:.2f}, final_confidence={final_confidence:.2f}, "
+                f"contradictions={len(contradictions)}, risk_factors={len(risk_factors)}."
+            ),
         )
         decision.ledger_step_ids = [final_entry.step_id]
         set_decision(borrower_id, decision.model_dump())
 
+        contradiction_summary = (
+            f"{len(contradictions)} contradiction{'s' if len(contradictions) != 1 else ''}"
+            if contradictions else "no contradictions"
+        )
         summary = (
-            f"Decision for {borrower_id}: {outcome} "
-            f"(final_confidence={final_confidence}, contradictions={len(contradictions)})"
+            f"Underwriting decision for {borrower_id}: {outcome.upper().replace('_', ' ')}. "
+            f"Final confidence {final_confidence:.2f} (model {model_confidence:.2f}). "
+            f"{contradiction_summary.capitalize()}, {len(risk_factors)} risk factor{'s' if len(risk_factors) != 1 else ''}."
         )
         yield Event(
             invocation_id=ctx.invocation_id,

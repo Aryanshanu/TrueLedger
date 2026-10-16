@@ -98,3 +98,54 @@ You are an expert Google AI Builder Hackathon Engineering Partner. Operating as 
   #    used so far for frontend verification.
   ```
   See `docs/ARCHITECTURE.md`'s roadmap section for the full remaining Phase 3 (polish) and Phase 4 (submission artifacts) task list.
+
+## 🏗️ Additional Architecture Notes (merged in from a parallel Oct 11–15 session)
+
+A separate local session built substantial new frontend/UI work directly on `main` while this session was off doing cost/honesty fixes on its own branch. The two were merged on 2026-10-16. What follows is that work's accurate state, folded into this file rather than kept as a second competing `CLAUDE.md` — with known-stale facts corrected inline (flagged below).
+
+### Repo layout additions
+```
+CURRENT.md, PLAN.md, REQUIREMENTS.md   New planning/status docs (session-notes style, not authoritative over this file for persona/rules)
+frontend/components/*.tsx              React/Next.js reference components (TrueLedgerEnterpriseApp.tsx, TrueLedgerPlatform.tsx) — kept in sync by hand with the live vanilla-JS runtime (app.js/desk.html), not built/bundled into it
+frontend/public/data/samples/*.xlsx    Downloadable sample datasets for 5 sector benchmark cases
+data/synthetic/generate_enterprise_live.py, generate_onboarding.py   Additional synthetic-data generators
+```
+
+### Borrower benchmark suite (now 8 cases, all recorded)
+| Borrower | Outcome | Confidence | Key signal |
+|---|---|---|---|
+| `b_clean` | approve | 0.95 | No contradictions, fresh consent |
+| `b_contradiction` | manual_review | 0.50 | `income_vs_revenue_divergence` (+2.1% bank vs −11% GST) |
+| `b_stale_consent` | decline | 0.00 | Expired bank consent → decay → 0 |
+| `b_freelancer` | (recorded) | — | Thin file, regular SIP cushion |
+| `b_roundtrip` | (recorded) | — | Deposit surges vs flat GST |
+| `b_closing_consent` | (recorded) | — | 2d consent remaining → decay |
+| `b_seasonal` | (recorded) | — | Cyclical seasonal dip |
+| `b_double_flag` | (recorded) | — | Turnover divergence + decaying consent |
+
+All 8 have verbatim captured JSON in `frontend/public/recorded/`. **Correction:** both Cloud Run services should run at `min-instances=0` by default (see this file's Stack section above) — the other session's notes said `min-instances=1` on both, which is the exact setting that caused a real billing-delinquency incident; don't revert to it outside a live demo window.
+
+### Frontend UI architecture (4-step progressive wizard + 5-workspace dashboard shell)
+```
+Step 1: Sign In
+    └─► Step 2: Entity Intake + Benchmark Select
+              └─► [proceedBtn] builds activeSession snapshot
+                       └─► Step 3: Cross-Verification Telemetry
+                                └─► Step 4: Credit Assessment Dossier
+                                         └─► [Dashboard nav] switches to workspace shell
+```
+- **`activeSession` state contract** — built at Step 2 on `proceedBtn` click; the canonical identity snapshot bridging the wizard into all workspaces: `{ entityName, pan, gstin, loanAmount, industry, state, files, benchmark, timestamp }`. `buildActiveEntity(baseEntity)` overlays it onto `enterpriseData.entity` and **must be called at the top of every workspace render function** so the correct entity renders regardless of which benchmark case was selected.
+- **5 workspace shell + sub-view matrix**: `dashboard` (single view); `client` → `onboarding`/`kyb`/`vault`; `income` → `invoices`/`tds`/`cashflows`; `compliance` → `gst-lifecycle`/`itc`; `assets` → `mf-portfolios`/`capital`. Sub-view state persists per-workspace in module-level `wsActiveViews`.
+- **Dashboard action button routing** — each "Initiate →" button navigates to a workspace+sub-view, e.g. `file_gstr3b_jul26` → compliance/gst-lifecycle, `tds_sync_q2` → income/tds.
+- **Dev portal gate** — hidden behind `/app/dev-login`, `#dev-login`, `Ctrl+Shift+D`, or double-clicking the version tag; validates against a hardcoded `admin` / `TrueLedger2026!` in source. Fine for a hackathon demo gate, but don't treat it as real auth or reuse that pattern for anything beyond keeping judges out of the dev console.
+- **GSTIN state derivation** — `GSTIN_STATE` maps a GSTIN's 2-digit prefix to its Indian state name for display.
+
+### Key invariants (carried over, still accurate)
+- Ledger is append-only (`ledger.py:write_entry` never edits); `dedupLedgerSteps()` in `app.js` dedupes by `(agent, metric)` across multi-run histories.
+- Orchestrator always writes `flag_contradiction` per contradiction found and `apply_consent_decay` unconditionally.
+- Evidence chips in the ledger carry `data-jump-source`/`data-jump-field` pointing back to the specialist claim that sourced the signal.
+- Recorded captures are verbatim API response snapshots (`capturedAt` field) — labeled in the UI as a **"Cached Run"/"Last synced"** (not "Audited Dossier" — that wording overclaims an audit that hasn't happened; see the no-fabrication rule above).
+- Customer login (`customer-login-form`) accepts any valid email format by design — it's a demo gate, not real auth.
+
+### Phase status (as of Oct 16, post-merge)
+Phases 1–3 complete; Phase 4 (demo, polish, submit) is in progress, targeting Oct 17 submission. Open items: demo video (before/after framing — human underwriter turnaround vs. the agentic pipeline's), a PPT→PDF deck, final repo cleanup, and the submission checklist (public repo visibility, live Cloud Run URLs, video/PDF links, team details).

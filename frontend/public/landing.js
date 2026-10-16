@@ -15,18 +15,9 @@ const OUTCOME_META = {
   decline: { label: "DECLINE", icon: "✕" },
 };
 
-// Same 8 cases as the Desk's CASES array (app.js) - duplicated here
-// deliberately: this is a separate static page with no shared module
-// system, and the scenario copy is static text, not data.
+// Active Operational Dossier: Ramesh Kumar Enterprises (b_contradiction)
 const CASEBOOK = [
-  { id: "b_clean", scenario: "All sources verified", group: "Commercial" },
-  { id: "b_contradiction", scenario: "Bank vs. GST revenue divergence", group: "Audit Flag" },
-  { id: "b_stale_consent", scenario: "Lapsed consent window", group: "Compliance" },
-  { id: "b_freelancer", scenario: "Freelancer, thin file", group: "Commercial" },
-  { id: "b_roundtrip", scenario: "Inflated bank deposits", group: "Forensic" },
-  { id: "b_closing_consent", scenario: "Consent approaching expiry", group: "Compliance" },
-  { id: "b_seasonal", scenario: "Sweet shop, seasonal dip", group: "Commercial" },
-  { id: "b_double_flag", scenario: "Compound risk exposure", group: "Forensic" },
+  { id: "b_contradiction", scenario: "Bank vs. GST revenue divergence · Ramesh Kumar Enterprises", group: "Active Operational Dossier" },
 ];
 
 const $ = (id) => document.getElementById(id);

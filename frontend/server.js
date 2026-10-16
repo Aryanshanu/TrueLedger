@@ -20,6 +20,11 @@ app.get("/desk", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "desk.html"));
 });
 
+// Invisible Dev Login gateway route
+app.get("/app/dev-login", (_req, res) => {
+  res.redirect("/desk#view=dev_auth");
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {

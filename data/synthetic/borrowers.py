@@ -162,7 +162,14 @@ def build_b_contradiction(now: datetime | None = None) -> dict:
 
 
 def build_b_stale_consent(now: datetime | None = None) -> dict:
-    """Otherwise healthy (same shape as b_clean); bank consent has 2 days left."""
+    """Otherwise healthy (same shape as b_clean); bank consent already expired.
+
+    bank_days=-3 (expired 3 days ago) rather than a small positive number so
+    that c(d)=0 is guaranteed at any seed time - no race between when you
+    seed and when you capture. The case note ("Consent expired") and README
+    outcome (decline, 0.00) both require an expired consent, not a near-expiry
+    one; b_closing_consent covers the near-expiry / partial-decay demo.
+    """
     now = now or datetime.now(timezone.utc)
     base = build_b_clean(now)
     bank_txns = [dict(t, txn_id=t["txn_id"].replace("txn_c", "txn_s")) for t in base["sources"]["DEPOSIT"]["transactions"]]
@@ -170,7 +177,7 @@ def build_b_stale_consent(now: datetime | None = None) -> dict:
 
     return {
         "borrower_id": "b_stale_consent",
-        "display_name": "Healthy, but bank consent expiring in 2 days",
+        "display_name": "Healthy, but bank consent expired 3 days ago",
         "loan_amount_requested": 400000.0,
         "sources": {
             "DEPOSIT": _deposit_source(bank_txns, "Priya Nair", 312000.0),
@@ -178,8 +185,7 @@ def build_b_stale_consent(now: datetime | None = None) -> dict:
             "MUTUAL_FUNDS": _mf_source("Priya Nair", base["sources"]["MUTUAL_FUNDS"]["holdings"]),
             "INSURANCE_POLICIES": _insurance_source("Priya Nair", policies),
         },
-        # Bank consent close to expiry -> confidence decay + re-consent prompt.
-        "consent": _consent_block(now, bank_days=2, gst_days=30, investment_days=30),
+        "consent": _consent_block(now, bank_days=-3, gst_days=30, investment_days=30),
     }
 
 
