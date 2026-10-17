@@ -42,7 +42,7 @@ That gap is exactly where fraud and credit risk hide. In a single quarter (Q2 FY
 
 > *"The audit trail is the product, not a feature bolted on."*
 
-The reasoning engine itself isn't India-specific. India's Account Aggregator is one instance of a broader pattern — consent-based, multi-source open-finance data sharing — that also exists as Australia's Consumer Data Right and Singapore's SGFinDex. Swap the data adapter, keep the contradiction-detection engine, ship in a new market.
+The reasoning engine itself is designed to be adapter-agnostic: the consent-decay model and contradiction rules aren't coupled to any single data-source format. India's Account Aggregator is the only adapter actually implemented today.
 
 ---
 
@@ -170,11 +170,13 @@ Five sector cases, pre-loaded in the Desk UI with downloadable sample Excel work
 
 | Sector | Entity | Verdict | Confidence | Signal |
 |---|---|---|:---:|---|
-| Agriculture & Agro-Trading | Kaveri Agro Commodities Ltd | ✅ APPROVE | 0.88 | Bank +3.5% ≈ GST +3.1%, 0.4% variance |
-| Cement & Heavy Building Materials | Deccan Cements & Infrastructure Ltd | ✅ APPROVE | 0.82 | Bank −2.1% ≈ GST −2.4%, coordinated decline, 0.3% variance |
-| Financial Services & NBFC | Bharat Capital & Trade Finance Ltd | ✅ APPROVE | 0.85 | Bank +1.2% ≈ GST +0.8%, 0.4% variance |
-| Steel & Metallurgy Manufacturing | Kalyani Speciality Steels Ltd | ⚠️ MANUAL REVIEW | 0.14 | Bank +5.4% vs. GST −21.8% — 27.2% divergence; consent 2 days from expiry (×0.29) |
-| Chemicals & Crop Protection | Zenith Chemicals & Agrochemicals Ltd | ⚠️ MANUAL REVIEW | 0.15 | Bank +7.8% vs. GST −18.2% — 26.0% divergence; consent 3 days from expiry (×0.31) |
+| Agriculture & Agro-Trading | Annapurna Agro Commodities Pvt Ltd | ✅ APPROVE | 0.88 | Bank +3.5% ≈ GST +3.1%, 0.4% variance |
+| Cement & Heavy Building Materials | Trisara Cements & Infrastructure Pvt Ltd | ✅ APPROVE | 0.82 | Bank −2.1% ≈ GST −2.4%, coordinated decline, 0.3% variance |
+| Financial Services & NBFC | Aravind Capital & Trade Finance Pvt Ltd | ✅ APPROVE | 0.85 | Bank +1.2% ≈ GST +0.8%, 0.4% variance |
+| Steel & Metallurgy Manufacturing | Virelion Specialty Metals Pvt Ltd | ⚠️ MANUAL REVIEW | 0.14 | Bank +5.4% vs. GST −21.8% — 27.2% divergence; consent 2 days from expiry (×0.29) |
+| Chemicals & Crop Protection | Nexvara Chemicals & Agrochemicals Pvt Ltd | ⚠️ MANUAL REVIEW | 0.15 | Bank +7.8% vs. GST −18.2% — 26.0% divergence; consent 3 days from expiry (×0.31) |
+
+All five are clearly fictional entities (not real companies) used to exercise the pipeline against a range of sectors and outcomes.
 
 Both flagged cases show the *same signature*: bank income rising while GST-declared revenue falls — rule 1 firing exactly as designed, independently caught before any human reconciliation.
 

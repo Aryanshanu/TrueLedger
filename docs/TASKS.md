@@ -83,11 +83,11 @@ Architectural split by layer. Both phases gate on the shared Definition of Done 
 
 **Deadline: Oct 16 (submit one day early)**
 
-- [ ] **Demo video** — "5 days by a human underwriter" vs "8 seconds + full contradiction trail"
-  - Open with the JAPAC reframe: AA is adapter 1 of N; same engine ships in AU (CDR), SG (SGFinDex), KR/JP
-  - Show the wizard flow end-to-end with a contradiction case (Deccan Cements)
+- [ ] **Demo video** — show wizard flow end-to-end with a contradiction case
+  - Show the wizard flow end-to-end (b_contradiction / Deccan case)
   - Highlight the ledger's bidirectional evidence jump (contradiction card → transaction row)
   - Show the multi-agent swarm telemetry
+  - Note: AA is the only implemented adapter; engine is designed to be adapter-agnostic
 - [ ] **PPT → PDF** — slide deck: problem, solution, architecture, benchmark results, JAPAC roadmap
 - [ ] **Repo cleanup** — verify no stale prototype artifacts, final README accuracy check
 - [ ] **Submission checklist**

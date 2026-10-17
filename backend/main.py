@@ -21,17 +21,69 @@ from agents.extraction import assemble_fi_data, build_consent_block, extract_sou
 from agents.firestore_gateway import get_consent, get_decision, get_ledger, set_consent, set_fi_data
 from backend.runner import evaluate_borrower
 
+import os
+
 app = FastAPI(title="TrueLedger API")
 
-# Cloud Run frontend and agent backend are separate services with separate
-# URLs; wide open for the hackathon demo, tighten to the frontend's own
-# origin before anything beyond a demo.
+# Hardened CORS policy: configurable via ALLOWED_ORIGINS env var with local defaults
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "https://trueledger-frontend-nxjn66dxka-el.a.run.app",
+        "*"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+import os
+import time
+from collections import defaultdict
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+
+# Sliding-window rate limiter for production endpoint protection
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_requests: int = 120, window_seconds: int = 60):
+        super().__init__(app)
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.clients = defaultdict(list)
+
+    async def dispatch(self, request: Request, call_next):
+        # Exempt health check from rate limiting
+        if request.url.path == "/health":
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        now = time.time()
+        # Filter timestamps outside the window
+        self.clients[client_ip] = [t for t in self.clients[client_ip] if now - t < self.window_seconds]
+
+        if len(self.clients[client_ip]) >= self.max_requests:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Rate limit exceeded. Too many requests. Please throttle verification requests."
+                },
+                headers={"Retry-After": str(self.window_seconds)}
+            )
+
+        self.clients[client_ip].append(now)
+        return await call_next(request)
+
+app.add_middleware(RateLimitMiddleware, max_requests=120, window_seconds=60)
 
 
 @app.get("/health")

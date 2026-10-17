@@ -137,7 +137,7 @@ Step 1: Sign In
 - **`activeSession` state contract** — built at Step 2 on `proceedBtn` click; the canonical identity snapshot bridging the wizard into all workspaces: `{ entityName, pan, gstin, loanAmount, industry, state, files, benchmark, timestamp }`. `buildActiveEntity(baseEntity)` overlays it onto `enterpriseData.entity` and **must be called at the top of every workspace render function** so the correct entity renders regardless of which benchmark case was selected.
 - **5 workspace shell + sub-view matrix**: `dashboard` (single view); `client` → `onboarding`/`kyb`/`vault`; `income` → `invoices`/`tds`/`cashflows`; `compliance` → `gst-lifecycle`/`itc`; `assets` → `mf-portfolios`/`capital`. Sub-view state persists per-workspace in module-level `wsActiveViews`.
 - **Dashboard action button routing** — each "Initiate →" button navigates to a workspace+sub-view, e.g. `file_gstr3b_jul26` → compliance/gst-lifecycle, `tds_sync_q2` → income/tds.
-- **Dev portal gate** — hidden behind `/app/dev-login`, `#dev-login`, `Ctrl+Shift+D`, or double-clicking the version tag; validates against a hardcoded `admin` / `TrueLedger2026!` in source. Fine for a hackathon demo gate, but don't treat it as real auth or reuse that pattern for anything beyond keeping judges out of the dev console.
+- **Dev portal gate** — hidden behind `/app/dev-login`, `#dev-login`, `Ctrl+Shift+D`, or double-clicking the version tag; validates against a hardcoded credential check in `frontend/public/app.js` (not documented here on purpose — it's visible in client-side source either way, but there's no reason to make it more searchable). Fine for a hackathon demo gate, but don't treat it as real auth or reuse that pattern for anything beyond keeping judges out of the dev console.
 - **GSTIN state derivation** — `GSTIN_STATE` maps a GSTIN's 2-digit prefix to its Indian state name for display.
 
 ### Key invariants (carried over, still accurate)
@@ -147,5 +147,5 @@ Step 1: Sign In
 - Recorded captures are verbatim API response snapshots (`capturedAt` field) — labeled in the UI as a **"Cached Run"/"Last synced"** (not "Audited Dossier" — that wording overclaims an audit that hasn't happened; see the no-fabrication rule above).
 - Customer login (`customer-login-form`) accepts any valid email format by design — it's a demo gate, not real auth.
 
-### Phase status (as of Oct 16, post-merge)
-Phases 1–3 complete; Phase 4 (demo, polish, submit) is in progress, targeting Oct 17 submission. Open items: demo video (before/after framing — human underwriter turnaround vs. the agentic pipeline's), a PPT→PDF deck, final repo cleanup, and the submission checklist (public repo visibility, live Cloud Run URLs, video/PDF links, team details).
+### Phase status (as of Oct 17, post-merge)
+Phases 1–3 complete; Phase 4 (demo, polish, submit) is in progress, targeting Oct 17/18 submission. The benchmark entities were renamed to clearly fictional names (Annapurna, Trisara, Virelion, Aravind, Nexvara) as part of a second honesty audit pass — screenshots and docs referencing the old names (Kaveri, Deccan, Kalyani, Bharat, Zenith) need re-checking after this merge. Open items: demo video, final repo cleanup, and the submission checklist (public repo visibility, live Cloud Run URLs, video/PDF links, team details).

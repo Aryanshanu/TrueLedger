@@ -27,6 +27,7 @@
     <nav class="landing-nav-links" aria-label="Main Navigation">
       <a href="#ch1">The Problem</a>
       <a href="#ch2">The Solution</a>
+      <a href="#ch-why">Our Story</a>
       <a href="#ch4">Cross-Verification</a>
       <a href="#ch-roi">Enterprise Value</a>
     </nav>
@@ -41,7 +42,7 @@
     <section class="chapter chapter-cold-open" id="ch0" data-chapter="0" aria-label="Executive Overview">
       <p class="chapter-kicker reveal-item">COMMERCIAL CREDIT INTELLIGENCE</p>
       <h1 class="chapter-lead cold-open-line reveal-item">
-        The Blind Spot in Commercial Credit: Financial Data Evaluated in Silos.
+        The Cross-Source Blind Spot in Commercial Credit.
       </h1>
       <p class="chapter-sub reveal-item" style="max-width: 680px; font-size: 15px;">
         Banks evaluate bank statements, GST filings, and liquid assets in silos. Fraudsters and stressed borrowers exploit the uncoordinated space between them. TrueLedger deploys specialized AI agents that cross-examine financial truth in real time—with deterministic rules, dynamic consent decay, and complete transaction-level citations.
@@ -151,10 +152,42 @@
       </div>
     </section>
 
+    <!-- 3: How we chose this problem -->
+    <section class="chapter chapter-business" id="ch-why" data-chapter="3" aria-label="How we chose this problem">
+      <p class="chapter-kicker">Problem Origin</p>
+      <h2 class="chapter-lead">How we chose this problem.</h2>
+
+      <div class="origin-prose reveal-item">
+        <p>We started with BFSI and asked where AI decisions are hardest to defend.</p>
+
+        <p>The data is arriving. India's Account Aggregator network has fulfilled more than 566&nbsp;million consents, and AA-enabled lending reached an estimated ₹3.82&nbsp;lakh crore in FY26 (CRIF–Sahamati). Antler India's partner Nitin Sharma has called the network <a href="https://inc42.com/" target="_blank" rel="noopener">"still very nascent, and the potential is massive."</a></p>
+
+        <p>The pain is explaining decisions. <a href="https://www.ycombinator.com/rfs" target="_blank" rel="noopener">YC's Fall 2026 Requests for Startups</a> calls for AI-native compliance infrastructure with anomaly flagging and audit trails. <a href="https://qedinvestors.com/blog/" target="_blank" rel="noopener">QED Investors has written</a> that regulated work still needs a human to show judgment was exercised. Both point at the same gap: an AI decision is only useful if you can show why.</p>
+
+        <p>So we built around three ideas:</p>
+
+        <ul class="origin-list">
+          <li><strong>Contradiction detection, not aggregation.</strong> Separate agents read bank, GST and investment data. A rules-first orchestrator catches where they disagree — such as rising bank income against falling GST revenue.</li>
+          <li><strong>Consent that expires.</strong> Confidence decays as a borrower's data-sharing consent nears expiry and drops to zero at expiry.</li>
+          <li><strong>The audit trail is the product.</strong> Every step is written to an append-only, replayable ledger with cited evidence.</li>
+        </ul>
+
+        <p class="origin-disclosure">What this is, and isn't. TrueLedger is a hackathon prototype built on synthetic data that follows the real Account Aggregator schema. Live AA access requires RBI, SEBI, IRDAI or PFRDA regulatory status, so none is claimed here. Account Aggregator is our first data adapter, and the engine is designed so other open-finance frameworks could follow.</p>
+      </div>
+
+      <div class="origin-sources reveal-item">
+        <span class="origin-sources-label">Sources</span>
+        <a href="https://www.ycombinator.com/rfs" target="_blank" rel="noopener">YC Requests for Startups, Fall 2026</a>
+        <a href="https://qedinvestors.com/blog/" target="_blank" rel="noopener">QED Investors: AI's Compliance Takeover, 28 Jul 2025</a>
+        <a href="https://inc42.com/" target="_blank" rel="noopener">Inc42: Antler India pre-seed thesis</a>
+        <a href="https://sahamati.org.in/" target="_blank" rel="noopener">CRIF–Sahamati AA Impact Report, FY26</a>
+      </div>
+    </section>
+
     <!-- 4: Act II - Interactive Revenue Divergence Detection -->
     <section class="chapter chapter-act2" id="ch4" data-chapter="4" aria-label="Live Divergence Detection">
       <p class="chapter-kicker">Live Divergence Detection</p>
-      <h2 class="chapter-lead">A real commercial contradiction, caught automatically.</h2>
+      <h2 class="chapter-lead">A recorded contradiction, caught automatically by three AI agents.</h2>
       <div class="landing-chart-card reveal-item">
         <div class="divergence-title" id="landing-chart-title">Loading case file…</div>
         <div class="divergence-chart" id="landing-chart"></div>
@@ -296,6 +329,10 @@
   </main>
 
   <div class="sr-only" id="chapter-announcer" role="status" aria-live="polite"></div>
+
+  <div style="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;border-top:1px solid #333;padding:8px 20px;font-family:monospace;font-size:11px;color:#aaa;text-align:center;">
+    Synthetic data only · No live Account Aggregator / Sahamati / FIP integration · All borrower profiles are fabricated for demonstration purposes
+  </div>
 
   <script src="/landing.js"></script>
 </body>
