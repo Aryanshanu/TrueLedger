@@ -1,347 +1,316 @@
-# TrueLedger
-
 <p align="center">
-  <strong>Institutional Credit Underwriting & Autonomous Forensic Audit Platform</strong><br>
-  <em>Engineered for Credit Officers, Risk Analysts, and Underwriting Committees</em>
+  <img src="docs/assets/banner.svg" alt="TrueLedger — Agentic credit underwriting that cross-examines every financial source and cites every claim it makes" width="100%" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.13-blue.svg" alt="Python 3.13" />
-  <img src="https://img.shields.io/badge/FastAPI-Production-009688.svg" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Node.js-22+-green.svg" alt="Node.js 22+" />
-  <img src="https://img.shields.io/badge/Google_Cloud-Vertex_AI_%26_Cloud_Run-4285F4.svg" alt="Google Cloud" />
-  <img src="https://img.shields.io/badge/ADK-Multi--Agent-orange.svg" alt="Google ADK" />
-  <img src="https://img.shields.io/badge/Tests-41%2F41_Passed-brightgreen.svg" alt="Pytest" />
+  <a href="https://github.com/Aryanshanu/TrueLedger/actions/workflows/ci.yml"><img src="https://github.com/Aryanshanu/TrueLedger/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/Node.js-22+-339933.svg?logo=node.js&logoColor=white" alt="Node.js 22+" />
+  <img src="https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Google_ADK-2.10.0-orange.svg" alt="Google ADK 2.10.0" />
+  <img src="https://img.shields.io/badge/Vertex_AI-Gemini_3.8_%2F_3.1-4285F4.svg?logo=googlecloud&logoColor=white" alt="Vertex AI" />
+  <img src="https://img.shields.io/badge/Cloud_Run-deployed-4285F4.svg?logo=googlecloud&logoColor=white" alt="Cloud Run" />
 </p>
 
-> Built for **Google Cloud AI Builder Cup 2026 (APAC)** — Banking, Financial Services & Insurance track.
-> Team: **The Outliers**.
+<p align="center">
+  Built for the <strong>Google Cloud AI Builder Cup 2026 (APAC)</strong> — BFSI track, by <strong>The Outliers</strong>.
+</p>
+
+<p align="center">
+  <a href="#why-this-exists">Why</a> ·
+  <a href="#see-it-in-action">See it in action</a> ·
+  <a href="#how-it-thinks">How it thinks</a> ·
+  <a href="#the-deterministic-rule-table">Rule table</a> ·
+  <a href="#benchmark-results">Benchmarks</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#repository-map">Repo map</a> ·
+  <a href="#honesty--disclosure">Honesty &amp; disclosure</a>
+</p>
 
 ---
 
-## Executive Summary
+> [!IMPORTANT]
+> **Runs on synthetic data built to the real Account Aggregator / GSTN schema.** Live AA/Sahamati/FIP integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place — see [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md). What *is* real: `POST /borrowers/upload` reads an actual bank statement and GST return live with Gemini and runs them through the unmodified pipeline. No synthetic case is substituted for a real one.
 
-**TrueLedger** is an agentic financial forensics and credit underwriting prototype built against India's **Account Aggregator (AA)** open-finance data model. It replaces opaque "black-box" credit scoring with an **immutable, append-only explainability ledger** where every underwriting decision is traceable to verified primary filings.
+## Why this exists
 
-Multi-source financial data — bank statement feeds, GST returns (GSTR-1 & 3B), Income Tax returns (ITR / 26AS), and investment portfolios — are concurrently routed to dedicated **Specialist AI Agents** running in parallel. An orchestration engine cross-verifies reported revenues against verified banking cash flows to detect **cross-source contradictions** (circular trading, revenue inflation, round-tripping), applies **consent-expiry confidence decay**, and produces a deterministic credit verdict with bidirectional ledger citations.
+A bank evaluating a loan application reads the GST return. Separately, someone reads the bank statement. Separately again, someone looks at the investment portfolio. **Nothing reads all three against each other.**
 
-> **"The audit trail is the product, not a feature bolted on."**
+That gap is exactly where fraud and credit risk hide. In a single quarter (Q2 FY26), GST authorities uncovered [₹15,851 crore in fake input-tax credit across 3,558 shell firms](https://theunderwrittenbyperfios.substack.com/p/the-sme-gold-rush-that-runs-through) — a mismatch between declared revenue and real cash flow that a cross-source check catches instantly, and a single-source review approves without a second look.
 
-The core reasoning engine is designed to be adapter-agnostic (India's AA is the only implemented adapter). The consent-decay model and contradiction rules are not coupled to any single data source format.
+**TrueLedger closes that gap.** Three independent AI agents each read one financial source. An orchestrator cross-examines their findings against each other, applies a formula that decays confidence as a borrower's data-sharing consent nears expiry, and produces a decision with a citation for every number behind it — not a black-box score.
+
+> *"The audit trail is the product, not a feature bolted on."*
+
+The reasoning engine itself is designed to be adapter-agnostic: the consent-decay model and contradiction rules aren't coupled to any single data-source format. India's Account Aggregator is the only adapter actually implemented today.
 
 ---
 
-## Architecture
+## See it in action
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         TRUELEDGER PLATFORM                         │
-├──────────────────────────────┬──────────────────────────────────────┤
-│  Institutional Workspace UI  │  Open-Source Agent Pipeline          │
-├──────────────────────────────┼──────────────────────────────────────┤
-│  • 4-step progressive wizard │  • ADK ParallelAgent swarm           │
-│  • 5-workspace command shell │  • Deterministic contradiction rules  │
-│  • Per-workspace sub-views   │  • Consent expiry decay curve        │
-│  • Dynamic entity routing    │  • Append-only Firestore ledger      │
-│  • Command palette (⌘K)      │  • Bidirectional ledger citations    │
-└──────────────────────────────┴──────────────────────────────────────┘
-```
+<table>
+<tr>
+<td width="50%">
+
+**The business case**
+
+<img src="docs/assets/screenshots/landing-hero.png" alt="TrueLedger landing page hero" width="100%" />
+
+</td>
+<td width="50%">
+
+**Entity intake — pick a benchmark, 3 sources import automatically**
+
+<img src="docs/assets/screenshots/desk-entity-intake.png" alt="Entity intake and benchmark selection screen" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Live cross-source reconciliation**
+
+<img src="docs/assets/screenshots/desk-cross-verification.png" alt="Cross-verification pipeline screen" width="100%" />
+
+</td>
+<td width="50%">
+
+**The dossier — verdict, confidence math, and citations**
+
+<img src="docs/assets/screenshots/desk-dossier.png" alt="Credit assessment dossier screen" width="100%" />
+
+</td>
+</tr>
+</table>
+
+---
+
+## How it thinks
 
 ```mermaid
-flowchart TD
-    subgraph Ingestion["Multi-Channel Data Ingestion"]
-        B[Bank Statement / MFT Feed]
-        G[GST Returns GSTR-1 / 3B]
-        I[Income Tax ITR / 26AS]
+flowchart LR
+    subgraph Sources["Financial sources"]
+        B["Bank statement"]
+        G["GST return<br/>(GSTR-1 / 3B)"]
+        I["Investments /<br/>insurance"]
     end
 
-    subgraph Specialists["ADK Specialist Agents — gemini-3.8-flash"]
-        BA[Bank Statement Agent]
-        GA[GST / Tax Agent]
-        IA[Investment Agent]
+    subgraph Specialists["3 parallel specialist agents — Gemini 3.8 Flash"]
+        BA["Bank agent"]
+        GA["GST / tax agent"]
+        IA["Investment agent"]
     end
 
-    subgraph Engine["Deterministic Core + Reasoning"]
-        Rules["Contradiction Rule Engine\n(agents/rules.py)"]
-        Decay["Consent Decay Model\n(agents/consent.py)"]
-        Orch["Orchestrator Agent\n(gemini-3.1-pro-preview)"]
+    subgraph Orchestrator["Orchestrator agent"]
+        direction TB
+        R["1 · Deterministic rules<br/>(agents/rules.py)"]
+        L["2 · Subtler-reasoning LLM pass<br/>(Gemini 3.1 Pro Preview)"]
+        D["3 · Consent-expiry decay<br/>(agents/consent.py)"]
+        R --> L --> D
     end
 
-    subgraph Persistence["Audit Trail"]
-        Audit["Append-Only Firestore Ledger\n(agents/ledger.py)"]
-        Decision["Underwriting Verdict\nAPPROVE / MANUAL_REVIEW / DECLINE"]
-    end
+    Out["Decision + explainability ledger<br/>APPROVE · MANUAL_REVIEW · DECLINE"]
 
     B --> BA
     G --> GA
     I --> IA
-    BA & GA & IA --> Rules
-    Rules --> Orch
-    Decay --> Orch
-    Orch --> Audit
-    Audit --> Decision
+    BA & GA & IA --> R
+    D --> Out
 ```
 
-### Why the orchestrator is a custom agent, not a plain LlmAgent
+Each specialist writes its findings to its own session-state key; the orchestrator is a custom `BaseAgent` (not a plain `LlmAgent`) specifically so the **highest-stakes checks run as plain, testable Python before any model call** — the LLM pass exists only for the subtler contradictions that fixed rule table doesn't cover, never as a replacement for it.
 
-The orchestrator (`agents/orchestrator_agent.py`) is a `BaseAgent` subclass that runs a hybrid pipeline:
+<details>
+<summary><strong>Sequence of a single <code>/borrowers/upload</code> request</strong> (click to expand)</summary>
 
-1. **Deterministic rule table** (`agents/rules.py`) evaluates the four known contradiction patterns first — no model call, fully auditable.
-2. **Inner LlmAgent** (`orchestrator_subtler_reasoning`) runs a second pass for subtler contradictions the rule table does not cover.
-3. **Consent decay** (`agents/consent.py`) is applied: `c(d) = 1.0` if d > 7 days, `d/7` if 0 < d ≤ 7, `0.0` if expired.
-4. Outcome is decided and written to both the explainability ledger and the final decision document.
+```mermaid
+sequenceDiagram
+    participant U as Underwriter
+    participant API as FastAPI backend
+    participant S as 3 specialist agents (parallel)
+    participant O as Orchestrator
+    participant FS as Firestore
 
-This keeps the highest-stakes checks outside model judgement while still using LLM reasoning for what rules alone cannot catch.
-
----
-
-## Google Cloud Components
-
-| Component | Service | Notes |
-|---|---|---|
-| Agent runtime | ADK 2.10.0 (`google-adk`) | `LlmAgent`, `ParallelAgent`, `SequentialAgent`, custom `BaseAgent` |
-| LLM — specialists | `gemini-3.8-flash` via Vertex AI | `location="global"` |
-| LLM — orchestrator | `gemini-3.1-pro-preview` via Vertex AI | Global endpoint only; no regional option |
-| Data store | Firestore (native mode) | `fi_data`, `consent`, `claims`, `ledger`, `decisions` |
-| Backend | Cloud Run (FastAPI) | `asia-south1`, `min-instances=1` |
-| Frontend | Cloud Run (Express, static) | `asia-south1`, `min-instances=1` |
-
----
-
-## Frontend — 4-Step Progressive Wizard
-
-```
-Step 1: Sign In
-  └── Step 2: Entity Intake + Benchmark Selection
-        └── Step 3: Cross-Verification Telemetry (Agent Swarm)
-              └── Step 4: Credit Assessment Dossier
-                    └── 5-Workspace Command Shell
+    U->>API: POST /borrowers/upload (bank stmt + GST return)
+    API->>S: extract_source() × N, concurrently (asyncio.gather)
+    S-->>API: AgentFindings per source (claims=[] if nothing to cite)
+    API->>API: reject with 422 if a required source has zero claims
+    API->>O: run deterministic rules + empty-specialist guard
+    O->>O: subtler-reasoning LLM pass (Gemini 3.1 Pro)
+    O->>O: apply consent-expiry decay (weakest source caps confidence)
+    O->>FS: write decision + append-only ledger entries
+    O-->>U: APPROVE / MANUAL_REVIEW / DECLINE + full citation trail
 ```
 
-**Step 1 — Customer Authentication Portal**
-- Dark-mode institutional interface. Any valid email + password accepted (demo mode).
-- One-click "⚡ Instant Enterprise Login (Single Sign-On)" for rapid evaluation.
-
-**Step 2 — Entity Intake & Data Channel Ingestion**
-- 5 pre-built sector benchmark cases auto-fill entity name, PAN, GSTIN, and loan facility.
-- Three data channel acknowledgements required before proceeding: GSTN, ITR, Bank Feed.
-- "Proceed" button locked until all channels are active. On click, builds the `activeSession` snapshot that bridges entity identity into all workspaces.
-
-**Step 3 — Agent Swarm Telemetry**
-- Real-time animated progress (0% → 100%) as specialist agents process each channel.
-- Live trace tickers: `[BANK] Parsing MFT feed...`, `[GSTN] Cross-referencing turnover...`, `[DISCREPANCY] Anomaly flagged`.
-- Auto-advances to Step 4 at 100%.
-
-**Step 4 — Credit Assessment Dossier**
-- Persistent anchor bar: active entity, algorithmic verdict, consent decay haircut.
-- Contradiction cards with bidirectional jump links to underlying transaction / filing rows.
-- Export hooks: CSV ledger, PDF audit report.
-- Navigation switches to the full 5-workspace shell.
+</details>
 
 ---
 
-## Frontend — 5-Workspace Command Shell
+## The deterministic rule table
 
-After completing the wizard, the sidebar unlocks five operational workspaces, each with sub-views:
+Four cross-source contradiction rules, plus one structural guard — all plain Python in [`agents/rules.py`](agents/rules.py), none of them an LLM judgment call:
 
-| Workspace | Sub-views |
-|---|---|
-| **Dashboard** | Financial overview KPIs, GST compliance tracker, action queue (each action routes to the relevant sub-view) |
-| **Client Space** | Onboarding profile · KYB verification · Document vault |
-| **Income & Revenue** | Invoice pipeline · TDS / 26AS ledger · Monthly cashflow timeline |
-| **Compliance Matrix** | GST lifecycle (GSTR-1 / 3B) · ITC offset analysis |
-| **Asset Allocations** | Mutual fund portfolios · Capital allocation & pledgeability |
+| # | Rule | Fires when | Action |
+|---|---|---|---|
+| 0 | **Empty-specialist guard** | A specialist's extraction returns zero claims | Force `manual_review` — an unexamined source must never read as a clean approval |
+| 1 | **Income vs. revenue divergence** | Bank income stable/rising while GST revenue declines | Flag contradiction, cap confidence at 0.5 |
+| 2 | **Declared vs. actual mismatch** | GST-declared turnover vs. bank credits diverge beyond 15% | Flag contradiction, force manual review |
+| 3 | **Asset cushion vs. cash-flow volatility** | High cash-flow volatility + a claimed liquid cushion with no drawdown evidence | Flag contradiction |
+| 4 | **Insurance coverage gap** | Coverage falls well short of the requested loan | Note as risk factor (soft, not a hard contradiction) |
 
-All workspaces derive their data from `activeSession` — the entity selected in Step 2 is reflected across every view. Sub-view selections persist when switching between workspaces.
+And the consent-decay formula applied after the rules — one stale source caps the *whole* decision, it isn't averaged away by fresher ones:
+
+$$c(d) = \begin{cases} 1.0 & d > 7 \text{ days remaining} \\ d / 7 & 0 < d \le 7 \\ 0.0 & d \le 0 \text{ (expired)} \end{cases} \qquad \text{final confidence} = \text{model confidence} \times \min_{\text{source}} c(d)$$
 
 ---
 
-## Benchmark Suite
+## Benchmark results
 
-Five sector cases are pre-loaded. The backend additionally carries 8 synthetic borrowers for end-to-end agent testing.
+Five sector cases, pre-loaded in the Desk UI with downloadable sample Excel workbooks — these are the exact figures in [`frontend/public/app.js`](frontend/public/app.js):
 
-| Sector | Verdict | Confidence | Key Signal |
-|---|---|:---:|:---:|
-| Cement & Heavy Building Materials | MANUAL REVIEW | 0.50 | 27.2% GST vs bank revenue divergence |
-| Agriculture & Agro-Trading | APPROVE | 0.95 | Clean ledger, fresh consent |
-| Steel & Metallurgy Manufacturing | MANUAL REVIEW | 0.45 | Circular bank credit pattern |
-| Financial Services & NBFC | APPROVE | 0.88 | Verified ITR + strong MF cushion |
-| Chemicals & Crop Protection | MANUAL REVIEW | 0.43 | Closing consent (3d remaining, 3/7 decay) |
+| Sector | Entity | Verdict | Confidence | Signal |
+|---|---|---|:---:|---|
+| Agriculture & Agro-Trading | Annapurna Agro Commodities Pvt Ltd | ✅ APPROVE | 0.88 | Bank +3.5% ≈ GST +3.1%, 0.4% variance |
+| Cement & Heavy Building Materials | Trisara Cements & Infrastructure Pvt Ltd | ✅ APPROVE | 0.82 | Bank −2.1% ≈ GST −2.4%, coordinated decline, 0.3% variance |
+| Financial Services & NBFC | Aravind Capital & Trade Finance Pvt Ltd | ✅ APPROVE | 0.85 | Bank +1.2% ≈ GST +0.8%, 0.4% variance |
+| Steel & Metallurgy Manufacturing | Virelion Specialty Metals Pvt Ltd | ⚠️ MANUAL REVIEW | 0.14 | Bank +5.4% vs. GST −21.8% — 27.2% divergence; consent 2 days from expiry (×0.29) |
+| Chemicals & Crop Protection | Nexvara Chemicals & Agrochemicals Pvt Ltd | ⚠️ MANUAL REVIEW | 0.15 | Bank +7.8% vs. GST −18.2% — 26.0% divergence; consent 3 days from expiry (×0.31) |
 
-### Backend borrower cases (agent end-to-end)
+All five are clearly fictional entities (not real companies) used to exercise the pipeline against a range of sectors and outcomes.
 
-| Case ID | Outcome | Confidence | Key signal |
-|---|---|:---:|:---|
+Both flagged cases show the *same signature*: bank income rising while GST-declared revenue falls — rule 1 firing exactly as designed, independently caught before any human reconciliation.
+
+<details>
+<summary><strong>Backend's own 8-borrower agent test suite</strong> (independent of the 5 Desk UI cases above)</summary>
+
+| Borrower | Outcome | Confidence | Key signal |
+|---|---|:---:|---|
 | `b_clean` | APPROVE | 0.95 | No contradictions, fresh consent |
-| `b_contradiction` | MANUAL_REVIEW | 0.50 | `income_vs_revenue_divergence` |
-| `b_stale_consent` | DECLINE | 0.00 | Expired consent → decay → 0 |
-| `b_freelancer` | (recorded) | — | Thin file, SIP cushion |
-| `b_roundtrip` | (recorded) | — | Deposit surges vs flat GST |
-| `b_closing_consent` | (recorded) | — | 2d consent remaining |
-| `b_seasonal` | (recorded) | — | Cyclical seasonal dip |
-| `b_double_flag` | (recorded) | — | Turnover divergence + decaying consent |
+| `b_contradiction` | MANUAL_REVIEW | 0.50 | `income_vs_revenue_divergence` (+2.1% bank vs. −11% GST) |
+| `b_stale_consent` | DECLINE | 0.00 | Expired consent → decay multiplier 0.0 |
+| `b_freelancer` | recorded | — | Thin file, regular SIP cushion |
+| `b_roundtrip` | recorded | — | Deposit surges vs. flat GST |
+| `b_closing_consent` | recorded | — | 2 days of consent remaining → decay |
+| `b_seasonal` | recorded | — | Cyclical seasonal dip |
+| `b_double_flag` | recorded | — | Turnover divergence + decaying consent |
 
----
+All 8 run live end-to-end against real Vertex AI + Firestore, both locally and on Cloud Run.
 
-## Repository Structure
-
-```
-TrueLedger/
-├── agents/                     # Google ADK multi-agent pipeline
-│   ├── bank_agent.py           # Bank statement specialist (gemini-3.8-flash)
-│   ├── gst_agent.py            # GST return specialist (gemini-3.8-flash)
-│   ├── investment_agent.py     # Investment / MF specialist (gemini-3.8-flash)
-│   ├── orchestrator_agent.py   # Cross-source contradiction orchestrator (gemini-3.1-pro-preview)
-│   ├── pipeline.py             # ParallelAgent + SequentialAgent wiring
-│   ├── rules.py                # Deterministic contradiction rule table
-│   ├── consent.py              # Linear consent expiry decay model
-│   ├── ledger.py               # Append-only Firestore ledger writer
-│   └── config.py               # Vertex AI client configuration (SPECIALIST_MODEL, ORCHESTRATOR_MODEL)
-├── backend/                    # FastAPI backend service
-│   ├── main.py                 # API routes, CORS, upload endpoints
-│   ├── runner.py               # ADK pipeline runner
-│   ├── extraction.py           # Multimodal document parsing (PDF/XLSX/CSV)
-│   └── pdf.py                  # ReportLab forensic PDF dossier generator
-├── frontend/                   # Express static server + production web assets
-│   ├── server.js               # Express server with dev-login redirect
-│   └── public/
-│       ├── desk.html           # Institutional underwriting desk shell
-│       ├── app.js              # Progressive state machine, all workspace renderers
-│       ├── style.css           # Dark fintech styling
-│       ├── enterprise_live_state.json  # Reference entity data (Kaveri Agro Foods base)
-│       └── recorded/           # Verbatim captured API responses for 8 borrowers
-├── data/synthetic/             # Synthetic borrower data generators
-│   ├── borrowers.py            # 8 borrower definitions
-│   └── generate.py             # AA-schema compliant data generator
-├── infra/                      # Deployment & Firestore infrastructure
-│   ├── seed_firestore.py       # Firestore seeder
-│   ├── deploy_backend.sh       # Cloud Run backend deploy
-│   ├── deploy_frontend.sh      # Cloud Run frontend deploy
-│   └── cloudbuild.ci.*.yaml    # CI/CD triggers (push to main → auto-deploy)
-├── scripts/
-│   └── seed_cases.py           # Seeds all 8 borrowers (idempotent, updates consent timestamps)
-├── docs/                       # Architecture, data models, deployment runbook
-│   ├── ARCHITECTURE.md
-│   ├── DATA_SCHEMA.md
-│   ├── API.md
-│   ├── TASKS.md
-│   ├── DEPLOYMENT.md
-│   └── NON_GOALS.md
-└── tests/                      # Deterministic pytest suite (41/41, no GCP required)
-```
+</details>
 
 ---
 
 ## Quickstart
 
-### Prerequisites
-
-- Python 3.11+ (3.13 tested)
-- Node.js 20+ (22 LTS recommended)
-
-### 1. Clone & set up Python environment
+<details>
+<summary><strong>1 · Clone and install (Python)</strong></summary>
 
 ```bash
 git clone https://github.com/Aryanshanu/TrueLedger.git
 cd TrueLedger
 
 python -m venv .venv
-# Windows PowerShell:
-.\.venv\Scripts\Activate.ps1
-# macOS/Linux:
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 ```
 
-### 2. Run deterministic unit tests (no GCP credentials needed)
+</details>
+
+<details>
+<summary><strong>2 · Run the deterministic test suite — no GCP credentials needed</strong></summary>
 
 ```bash
-pytest tests/ -v
-# Expected: 41 passed in ~3.8s
+PYTHONPATH=. pytest tests/ -v
 ```
 
-### 3. Start the backend API (port 8081)
+Covers the rule engine, consent decay, the ledger, and the upload boundary — all mocked at the extraction/Firestore layer.
+
+</details>
+
+<details>
+<summary><strong>3 · Start the backend (port 8081)</strong></summary>
 
 ```bash
-# Windows PowerShell:
-$env:PYTHONPATH="."
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8081 --reload
+# Needs real Vertex AI + Firestore credentials to actually evaluate a borrower:
+gcloud auth application-default login
+export GOOGLE_CLOUD_PROJECT=<your-project>
+export VERTEX_AI_LOCATION=global
 
-# macOS/Linux:
-PYTHONPATH=. uvicorn backend.main:app --host 127.0.0.1 --port 8081 --reload
+PYTHONPATH=. uvicorn backend.main:app --reload --port 8081
 ```
 
 Verify: `curl http://127.0.0.1:8081/health` → `{"status": "ok"}`
 
-### 4. Start the frontend (port 8080)
+</details>
+
+<details>
+<summary><strong>4 · Start the frontend (port 8080)</strong></summary>
 
 ```bash
-# In a second terminal:
 cd frontend
 npm install
-
-# Windows PowerShell:
-$env:BACKEND_URL="http://127.0.0.1:8081"; $env:PORT="8080"; node server.js
-
-# macOS/Linux:
 BACKEND_URL=http://127.0.0.1:8081 PORT=8080 node server.js
 ```
 
-### 5. Open the platform
+Open **[http://localhost:8080/desk](http://localhost:8080/desk)**, sign in (any email — this is a demo gate, not real auth), pick a benchmark case, and step through the 4-step wizard. The recorded fixtures in `frontend/public/recorded/` power instant first paint with zero GCP credentials required.
 
-Navigate to [http://localhost:8080/desk](http://localhost:8080/desk)
-
-1. Sign in with any valid email address (demo mode — credentials are not validated).
-2. Select a sector benchmark case (Deccan Cements, Kaveri Agro, etc.) — entity fields auto-fill.
-3. Click the three data channel cards to activate them, then click **"Proceed to Cross-Verification →"**.
-4. Watch the agent swarm telemetry animate to 100%.
-5. Review the final dossier: verdict, consent decay haircut, contradiction flags.
-6. Use the sidebar to explore all five workspaces.
-
-> The recorded captures in `frontend/public/recorded/` power instant first paint without any GCP credentials. Click **"Re-evaluate Live"** in the dossier to trigger a real Vertex AI run (requires GCP credentials and a seeded Firestore).
+</details>
 
 ---
 
-## Cloud Run Deployment
+## Repository map
 
-```bash
-# Authenticate
-gcloud auth login
-gcloud auth application-default login
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-
-# Enable required APIs
-gcloud services enable aiplatform.googleapis.com firestore.googleapis.com \
-  run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
-
-# Seed Firestore with synthetic borrower data
-python -m scripts.seed_cases
-
-# Deploy backend (uses cloudbuild.yaml for repo-root context — do not use --source backend/)
-./infra/deploy_backend.sh
-
-# Deploy frontend with live backend URL injected
-BACKEND_URL=$(gcloud run services describe trueledger-backend \
-  --region asia-south1 --format 'value(status.url)') \
-./infra/deploy_frontend.sh
+```
+agents/         ADK specialist agents + the orchestrator (rules.py, consent.py, ledger.py)
+backend/        FastAPI service wrapping the agent pipeline (main.py, extraction.py)
+frontend/       Express server + the Desk UI (desk.html, app.js, style.css)
+data/synthetic/ Planted benchmark borrowers, built to the real AA/GSTN schema
+infra/          Dockerfiles, Cloud Run deploy scripts, Firestore rules
+docs/           Architecture, data schema, API contract, deployment runbook
+tests/          Deterministic-logic test suite (no GCP credentials required)
 ```
 
-See `docs/DEPLOYMENT.md` for the full runbook including service account setup, CI/CD triggers, and cost guardrails.
+---
+
+## Deploying to Cloud Run
+
+```bash
+export GOOGLE_CLOUD_PROJECT=<your-project>
+./infra/deploy_backend.sh
+BACKEND_URL=$(gcloud run services describe trueledger-backend --region asia-south1 --format 'value(status.url)') \
+  ./infra/deploy_frontend.sh
+```
+
+Both services default to `min-instances=0` (scale-to-zero) — pass `MIN_INSTANCES=1` only right before a live demo, then scale back down. An earlier always-on configuration briefly drove the project's GCP billing account to delinquency; see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)'s **Cost and reliability guardrails** section for the full story and the budget-alert setup worth copying.
 
 ---
 
-## Security & Compliance
+## Honesty & disclosure
 
-- **PAN / GSTIN / account masking**: Financial identifiers masked by default (`•••• •••• 4912`). Unmask is audit-logged.
-- **Append-only ledger**: Firestore entries are never updated or deleted; corrections are appended as superseding events.
-- **Consent decay**: The weakest-consent channel caps the entire dossier's confidence score. Expired consent produces `confidence = 0.0` regardless of financial health.
-- **No real AA/Sahamati integration**: Synthetic data follows the real AA/Setu FI schema. No live AA endpoints are called anywhere in this repo.
+This is a hard rule for everything in this repo, not a one-time disclaimer:
+
+- **No real Account Aggregator, Sahamati, or FIP integration anywhere.** Every borrower is synthetic, built to the real AA/GSTN data schema — see [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md).
+- **No invented statistics.** Every number on the landing page traces to a cited, independently verifiable source (two examples: the ₹15,851 Cr GST-fraud figure above, and Sahamati's own FY26 AA-lending report).
+- **No claimed regulatory compliance or certification this project hasn't actually earned.** A BFSI product overclaiming compliance is itself a compliance risk — see [`docs/NON_GOALS.md`](docs/NON_GOALS.md).
+- **What *is* real**: live Gemini-based document extraction on an uploaded bank statement + GST return via `POST /borrowers/upload`, run through the exact same unmodified pipeline as the synthetic cases.
 
 ---
 
-## Authors
+## Tech stack
 
-**Team: The Outliers**
-Competition: Google Cloud AI Builder Cup 2026 (APAC) — BFSI Track
-License: Apache 2.0
+| Layer | Technology |
+|---|---|
+| Frontend | Vanilla HTML/CSS/JS, Express (Node 22+), Cloud Run |
+| Backend | FastAPI (Python 3.11+), Cloud Run |
+| Agent framework | Google ADK 2.10.0 — `ParallelAgent` + a custom `BaseAgent` orchestrator |
+| AI models | Gemini 3.8 Flash (specialists) · Gemini 3.1 Pro Preview (orchestrator reasoning) via Vertex AI |
+| Data | Google Cloud Firestore — `fi_data`, `consent`, `claims`, `ledger`, `decisions` |
+| CI/CD | Cloud Build (GitHub-triggered) · GitHub Actions (lint + 41 automated tests) |
+
+---
+
+<p align="center">
+  <strong>Team: The Outliers</strong><br/>
+  Google Cloud AI Builder Cup 2026 (APAC) — BFSI Track
+</p>

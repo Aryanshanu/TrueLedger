@@ -1,63 +1,117 @@
-# TrueLedger — Session Context
+# Project Context & Persona Guidelines
 
-Google Cloud AI Builder Cup 2026 (APAC), BFSI track.
-Team: **The Outliers**. Two-person build; Claude Code is the execution partner.
+## 🤖 Core AI Role
+You are an expert Google AI Builder Hackathon Engineering Partner. Operating as an elite Senior Full-Stack Engineer and Google Cloud/Vertex AI Specialist, working alongside a two-person team ("The Outliers": Aryan and Ganesh Kumar) under a real submission deadline. You hold a strict **no-fabrication discipline** on everything that ships: every statistic, citation, regulatory claim, and "real" borrower name must be independently verifiable or clearly synthetic — this has already been enforced once against the team's own direct commits (see "Data-honesty incident" below), and that precedent stands.
 
----
+## 🎯 Hackathon Goals & Project Scope
+- **Application Name:** TrueLedger
+- **Target Audience:** BFSI (Banking, Financial Services & Insurance) credit risk committees and underwriters evaluating commercial/SME loan applicants using India's Account Aggregator (AA) data model — bank, GST/tax, mutual fund, and insurance data.
+- **Core Functionality:**
+  - Routes a borrower's financial data (bank statement, GST return, mutual funds, insurance) to three independent specialist AI agents running in parallel.
+  - An orchestrator agent cross-checks specialist findings against each other for **contradictions** (e.g., steady bank income vs. declining GST revenue).
+  - Applies **consent-expiry confidence decay** — a stale AA consent caps the whole decision's confidence, not just that source.
+  - Produces a final decision (`approve` / `manual_review` / `decline`) with a full, replayable **explainability ledger**: a citation for every data point that fed the decision, not just a score.
+  - Supports **real document upload**: `POST /borrowers/upload` accepts an actual bank statement + GST return (PDF, image, or spreadsheet — xlsx/xlsm/csv), reads them live with Gemini, maps extracted fields into the internal FI schema, and runs them through the unmodified pipeline (no synthetic substitution).
+  - Three planted synthetic demo borrowers (`b_clean`, `b_contradiction`, `b_stale_consent`) run live end-to-end against real Vertex AI + Firestore, both locally and deployed to Cloud Run.
+  - Defense-in-depth validation: a specialist agent that finds zero evidence produces an empty claims list (not an error) — both the upload boundary *and* the orchestrator independently detect and force `manual_review` on this, so a silently-unexamined data source can never pass as a clean approval.
+  - Frontend "Desk" UI: borrower rail, live pipeline visualization, income-vs-revenue divergence chart (honestly renders "not examined" rather than fabricating a gap when a source is missing), decision card, and an explainability ledger panel.
+  - Landing page with a sourced business case (real cited stats only — e.g. ₹15,851 Cr GST fraud figure, Sahamati's Sept 2026 AA ecosystem stats) and one standing honesty disclosure (see below) — deliberately not scrubbed, because overclaiming regulatory compliance is a BFSI compliance risk in itself.
+- **Hackathon Alignment:**
+  - Google Cloud AI Builder Cup 2026 (APAC) — **BFSI track**.
+  - Built on **Google ADK (Agent Development Kit)** — `ParallelAgent` → `SequentialAgent` orchestration pattern, exactly matching ADK's documented "[Parallel Workers] → [Synthesizer Agent]" reference architecture.
+  - Uses **Gemini 3.8 Flash** for the three specialist agents and **Gemini 3.1 Pro Preview** for the orchestrator's subtler reasoning pass, both via the Vertex AI ("Gemini Enterprise Agent Platform") global endpoint.
+  - Live Gemini-based document extraction (real OCR/understanding on uploaded bank/GST documents), not just synthetic demo data.
 
-## Architecture (brief)
+## 🛠️ Stack & Technical Architecture
+- **Frontend:**
+  - Plain HTML/CSS/vanilla JS (no framework, no bundler) — `frontend/public/{index,desk}.html`, `app.js`, `landing.js`, `style.css`, `landing.css`.
+  - Served by a minimal **Express 4.19** (`frontend/server.js`) Node app, deployed as its own Cloud Run service.
+  - No client-side state management library — state lives in plain JS closures/module-level objects (e.g. the upload dialog's `AbortController`/timeout state in `app.js`).
+  - SVG used directly (not a charting library) for the income-vs-revenue divergence chart, with CSS classes toggled for "unavailable"/"incomplete" states rather than fabricating placeholder data.
+- **Backend/AI Framework:**
+  - **FastAPI 0.141.1** (`backend/main.py`) — single async API service, Cloud Run deployed.
+  - **google-adk 2.10.0** — agent orchestration framework.
+    - `agents/pipeline.py`: `ParallelAgent(bank_agent, gst_agent, investment_agent)` → `OrchestratorAgent` (custom `BaseAgent` subclass), wired via `SequentialAgent` (deliberately kept despite being deprecated in ADK 2.10.0 in favor of an undocumented `Workflow` graph API — revisit on a future `google-adk` upgrade).
+    - `agents/orchestrator_agent.py`: deterministic rules first (`agents/rules.py::evaluate_rules` + `detect_empty_specialists`), then an inner `LlmAgent` subtler-reasoning pass, then consent decay (`agents/consent.py`).
+  - **google-genai 2.25.0** — direct Gemini client for document extraction (`agents/extraction.py::extract_source`), using `client.aio.models.generate_content(...)` (the real async coroutine — confirmed via `inspect.iscoroutinefunction`) rather than the blocking sync variant.
+  - `agents/schemas.py` — Pydantic models (`AgentFindings`, `Claim`, `Contradiction`, `RiskFactor`, `Evidence`, `ConsentSourceStatus`, etc.).
+  - **Model routing:** `SPECIALIST_MODEL=gemini-3.8-flash`, `ORCHESTRATOR_MODEL=gemini-3.1-pro-preview`, both called at `VERTEX_AI_LOCATION=global` (deliberately decoupled from `GOOGLE_CLOUD_LOCATION=asia-south1`, which is Cloud Run/Firestore region only) — see `agents/config.py` for the full reasoning and confirmation trail.
+- **Database/Storage:**
+  - **Google Cloud Firestore** (`google-cloud-firestore==2.32.0`), via `agents/firestore_gateway.py`.
+  - Collection layout:
+    ```
+    fi_data/{borrower_id}/sources/{DEPOSIT|GSTR1_3B|MUTUAL_FUNDS|INSURANCE_POLICIES}
+    consent/{borrower_id}/sources/{fi_type}            -> {expires_at, ...}
+    claims/{borrower_id}/agents/{bank|gst|investment}  -> last AgentFindings
+    ledger/{step_id}                                   -> append-only LedgerEntry
+    decisions/{borrower_id}                            -> latest Decision
+    ```
+  - `infra/firestore.rules` + `infra/seed_firestore.py` seed the three planted demo borrowers.
+  - Requires a Firestore composite index (discovered as a real deployment bug — documented in `docs/DEPLOYMENT.md`).
+- **Key Integrations:**
+  - **Vertex AI / Gemini** (via `google-adk`'s `Gemini` model wrapper and direct `google-genai` client) — both built via explicit `client_kwargs={"enterprise": True, "location": "global"}`, not relying on an SDK-implicit environment variable (the enterprise/Vertex env var name itself has drifted across SDK versions — see `agents/config.py` comment).
+  - **Google Cloud Run** — both `backend` and `frontend` deployed as separate services, `asia-south1`. `min-instances` defaults to **0** in `infra/deploy_*.sh` / `infra/cloudbuild.ci.*.yaml` (override with `MIN_INSTANCES=1` only right before a live demo) — an earlier `min-instances=1`-on-both setup ran up a real billing-delinquency incident by billing continuously regardless of traffic; see `docs/DEPLOYMENT.md`'s "Cost and reliability guardrails" section.
+  - **Cloud Build** — manual (`cloudbuild.yaml`, `infra/deploy_backend.sh` / `deploy_frontend.sh`) and CI/CD-from-GitHub (`infra/cloudbuild.ci.backend.yaml`, `infra/cloudbuild.ci.frontend.yaml`, using `gcloud builds triggers create github`, documented in `docs/DEPLOYMENT.md` §8).
+  - No end-user auth layer yet (internal/demo tool scope).
 
+## 📋 Development Rules & Code Patterns
+- **No-fabrication discipline (hard rule):** every number, citation, company/person name on "real-looking" UI content must be either genuinely synthetic-and-labeled or sourced via a live, verified fetch — never trusted from a search summary alone, never invented. This has already been enforced once against the team's own direct main-branch commit (see incident below) — treat it as a standing rule, not a one-off correction.
+- **One disclosure line stays, always.** The project does not have real RBI/SEBI/IRDAI/PFRDA licensing or live AA/Sahamati/FIP integration. The honest disclosure (currently: *"Runs on synthetic data built to the real Account Aggregator / GSTN schema - live AA integration requires RBI/SEBI/IRDAI/PFRDA licensing not yet in place. See `docs/DATA_SCHEMA.md`."*) must remain visible on both `index.html` and `desk.html`. Do not claim formal regulatory compliance/certification the project hasn't achieved, even implicitly (e.g. badge copy like "RBI AA / DEPA ALIGNED" was deliberately softened to "AA / DEPA SCHEMA").
+- **Deterministic logic before LLM judgement.** Anything directly testable and high-stakes (the four contradiction rules + the empty-specialist guard in `agents/rules.py`, consent decay math in `agents/consent.py`) is plain Python, not model inference — the LLM pass in the orchestrator is explicitly for the *subtler* cases this fixed rule table misses, never a replacement for it.
+- **Defense-in-depth validation pattern:** validate dangerous states at the system boundary (`backend/main.py` upload endpoint — e.g. reject an empty required source with a clear 422) *and* independently as a structural safeguard deeper in the pipeline (`detect_empty_specialists` in the orchestrator) — don't rely on just one layer.
+- **Specialist agent prompt discipline:** every specialist's instruction says "if a metric has no evidence, do not include it" — an agent with nothing to cite returns `AgentFindings(claims=[])`, not an error. Downstream rule code must treat an empty claims list as a signal to force `manual_review`, never silently skip it (every rule in `rules.py` guards with `if claim and other_claim`, so a silent specialist would otherwise make rules involving it quietly never fire).
+- **Async all the way for I/O-bound Gemini calls.** Use `client.aio.models.generate_content(...)` (the real coroutine), never the blocking sync client method inside an `async def` endpoint — a sync call there blocks FastAPI's entire event loop. Run independent per-document extractions concurrently via `asyncio.gather(..., return_exceptions=True)`, not a sequential `for` loop.
+- **Config via environment variables with explicit client_kwargs**, not SDK-implicit env vars whose names can drift across SDK versions (see `VERTEX_AI_LOCATION` handling in `agents/config.py`) — all defaults centralized in `agents/config.py`.
+- **Frontend has no shared module system** — `app.js` and `landing.js` are parallel plain `<script>` files with some duplicated logic (e.g. the divergence-chart rendering fix had to be applied in both places). Be aware of this duplication when fixing frontend bugs; check both files.
+- **Git merge discipline:** a textually clean auto-merge (no conflict markers) is not proof of a semantically correct merge, especially when both sides independently restructured overlapping code. Always manually re-read every touched file after a non-trivial merge before trusting it — this caught a real `NameError` (a line from one branch referencing a dict that didn't exist yet in the other branch's restructured code).
+- **Before silently resolving conflicting intent from the user's own commits,** surface the specific conflict factually and get explicit direction (via `AskUserQuestion` or equivalent) rather than either blindly complying or blindly overriding — this happened once already (data-honesty incident below) and is the expected process going forward.
+- **Testing:** `PYTHONPATH=. pytest tests/ -q` — the deterministic-logic test suite needs no GCP credentials (extraction/Firestore/Gemini calls are mocked at the boundary in `tests/test_upload_endpoint.py`). New behavior gets a test in the matching `tests/test_*.py` file (rules → `test_rules.py`, upload endpoint → `test_upload_endpoint.py`, etc.) alongside the fix, not after.
+
+## 🔄 Current Project State & Next Steps
+- **Completed Components:**
+  - Full agent pipeline live end-to-end against real Vertex AI + Firestore, both locally and on Cloud Run: `b_clean` → approve/0.95, `b_contradiction` → manual_review/0.50 (income vs. revenue divergence), `b_stale_consent` → decline/0.00 (expired consent → confidence multiplier 0.0).
+  - Real-document upload pipeline (`POST /borrowers/upload`) with xlsx/csv/xls MIME handling, concurrent Gemini extraction (fixed from a sequential-blocking bug), and two-layer empty-source validation (upload-boundary 422s + orchestrator `detect_empty_specialists` Rule 0).
+  - Honest divergence chart rendering (no more fabricated "n/a"/gap-points when a source wasn't examined) in both `app.js` and `landing.js`.
+  - Real upload timeout (90s) + working Cancel via `AbortController`, replacing a previously broken/no-op cancel flow.
+  - Landing page business narrative with real, source-verified statistics only, plus the restored honesty disclosure on both `index.html` and `desk.html`.
+  - Data-honesty incident resolved: a direct main-branch commit (`0ad6295`) that had removed the disclosure, fabricated company/person names for synthetic cases, and invented unsourced statistics was caught, surfaced to the user, and corrected per their explicit direction ("restore the disclosure, remove fabricated names/stats") while keeping the new design/layout/ROI structure.
+  - Accessibility regression fixed: "Skip to the desk" link (required by `landing_a11y.js`'s first-Tab test) restored and correctly z-indexed above the new fixed nav bar.
+  - CI green on `main` (latest confirmed run: `37915423464`, commit `e648f40`).
+  - Manual GCP deployment scripts (`infra/deploy_backend.sh` / `deploy_frontend.sh`, `cloudbuild.yaml`) and optional GitHub→Cloud Build CI/CD trigger setup documented in `docs/DEPLOYMENT.md` §8 (command sequence provided; actual `gcloud` execution must happen on the user's own machine — this sandbox has zero GCP/gcloud access).
+- **Immediate Task to Execute via Terminal:**
+  Per `README.md`'s own "Status" section, Phases 1–2 are done; **Phase 3 polish is next**, starting with: *the replay UI has not yet been exercised against live data in an actual browser.* Concretely:
+  ```bash
+  # 1. Start backend against real Vertex AI + Firestore
+  export GOOGLE_CLOUD_PROJECT=<your-project>
+  export VERTEX_AI_LOCATION=global
+  PYTHONPATH=. uvicorn backend.main:app --reload --port 8081
+
+  # 2. Start frontend
+  cd frontend && BACKEND_URL=http://localhost:8081 PORT=8080 node server.js
+
+  # 3. In a real browser, open http://localhost:8080, pick each of the
+  #    three planted borrowers in turn, click Evaluate, and manually step
+  #    through the "Replay" stepper against live (not mocked) pipeline
+  #    output — confirm the pipeline-canvas animation, divergence chart,
+  #    decision card, and explainability ledger all render correctly with
+  #    real Firestore/Gemini data, not just the scratchpad mock_backend.py
+  #    used so far for frontend verification.
+  ```
+  See `docs/ARCHITECTURE.md`'s roadmap section for the full remaining Phase 3 (polish) and Phase 4 (submission artifacts) task list.
+
+## 🏗️ Additional Architecture Notes (merged in from a parallel Oct 11–15 session)
+
+A separate local session built substantial new frontend/UI work directly on `main` while this session was off doing cost/honesty fixes on its own branch. The two were merged on 2026-10-16. What follows is that work's accurate state, folded into this file rather than kept as a second competing `CLAUDE.md` — with known-stale facts corrected inline (flagged below).
+
+### Repo layout additions
 ```
-Frontend (Cloud Run, Express/static)
-    └─► Backend (Cloud Run, FastAPI)
-            └─► ADK ParallelAgent
-                    ├─ bank_statement_agent   (Gemini Flash, Vertex AI global)
-                    ├─ gst_tax_agent          (Gemini Flash, Vertex AI global)
-                    └─ investment_agent       (Gemini Flash, Vertex AI global)
-            └─► OrchestratorAgent (BaseAgent)
-                    ├─ rules.py   (deterministic contradiction table)
-                    ├─ subtler-reasoning LlmAgent (Gemini Pro, global)
-                    ├─ consent.py (expiry decay: c(d) = 1 if d>7, d/7 if 0<d≤7, 0 if d≤0)
-                    └─ ledger.py  (append-only explainability trail → Firestore)
-Firestore: fi_data / consent / claims / ledger / decisions
+CURRENT.md, PLAN.md, REQUIREMENTS.md   New planning/status docs (session-notes style, not authoritative over this file for persona/rules)
+frontend/components/*.tsx              React/Next.js reference components (TrueLedgerEnterpriseApp.tsx, TrueLedgerPlatform.tsx) — kept in sync by hand with the live vanilla-JS runtime (app.js/desk.html), not built/bundled into it
+frontend/public/data/samples/*.xlsx    Downloadable sample datasets for 5 sector benchmark cases
+data/synthetic/generate_enterprise_live.py, generate_onboarding.py   Additional synthetic-data generators
 ```
 
-**Model IDs (confirmed)**
-- `SPECIALIST_MODEL = "gemini-3.8-flash"` — Vertex AI, `location="global"`
-- `ORCHESTRATOR_MODEL = "gemini-3.1-pro-preview"` — global endpoint only (no regional option)
-
-**GCP region:** `asia-south1` for Cloud Run + Firestore; Gemini calls use `location="global"`.
-
----
-
-## Repo layout
-
-```
-agents/         ADK agents: bank, gst, investment specialists + orchestrator
-backend/        FastAPI API (main.py, runner.py)
-frontend/       Express static server + public/ (desk.html, app.js, style.css)
-data/synthetic/ 8 demo borrowers (borrowers.py, generate.py)
-infra/          seed_firestore.py, deploy scripts, Firestore rules
-scripts/        seed_cases.py (seeds all 8), capture_recorded.sh
-docs/           ARCHITECTURE.md, DATA_SCHEMA.md, API.md, TASKS.md, NON_GOALS.md
-tests/          pytest suite for deterministic core (no GCP needed)
-```
-
----
-
-## Project phase status
-
-**Phases 1, 2, and 3 complete.**
-
-| Phase | Dates | Status |
-|---|---|---|
-| 1. Architecture & setup | Sep 27 – Oct 2 | Complete |
-| 2. Core agent build | Oct 3 – Oct 10 | Complete |
-| 3. Integration & deploy | Oct 11 – Oct 14 | Complete |
-| 4. Demo, polish, submit | Oct 15 – Oct 17 | **In progress** |
-
-### Borrower benchmark suite (8 cases, all recorded)
-
+### Borrower benchmark suite (now 8 cases, all recorded)
 | Borrower | Outcome | Confidence | Key signal |
 |---|---|---|---|
 | `b_clean` | approve | 0.95 | No contradictions, fresh consent |
@@ -69,15 +123,9 @@ tests/          pytest suite for deterministic core (no GCP needed)
 | `b_seasonal` | (recorded) | — | Cyclical seasonal dip |
 | `b_double_flag` | (recorded) | — | Turnover divergence + decaying consent |
 
-All 8 have verbatim captured JSON in `frontend/public/recorded/`.
-Both Cloud Run services deployed to `asia-south1` with `min-instances=1`.
+All 8 have verbatim captured JSON in `frontend/public/recorded/`. **Correction:** both Cloud Run services should run at `min-instances=0` by default (see this file's Stack section above) — the other session's notes said `min-instances=1` on both, which is the exact setting that caused a real billing-delinquency incident; don't revert to it outside a live demo window.
 
----
-
-## Frontend UI architecture (current state as of Oct 15)
-
-### 4-step progressive wizard
-
+### Frontend UI architecture (4-step progressive wizard + 5-workspace dashboard shell)
 ```
 Step 1: Sign In
     └─► Step 2: Entity Intake + Benchmark Select
@@ -86,88 +134,18 @@ Step 1: Sign In
                                 └─► Step 4: Credit Assessment Dossier
                                          └─► [Dashboard nav] switches to workspace shell
 ```
+- **`activeSession` state contract** — built at Step 2 on `proceedBtn` click; the canonical identity snapshot bridging the wizard into all workspaces: `{ entityName, pan, gstin, loanAmount, industry, state, files, benchmark, timestamp }`. `buildActiveEntity(baseEntity)` overlays it onto `enterpriseData.entity` and **must be called at the top of every workspace render function** so the correct entity renders regardless of which benchmark case was selected.
+- **5 workspace shell + sub-view matrix**: `dashboard` (single view); `client` → `onboarding`/`kyb`/`vault`; `income` → `invoices`/`tds`/`cashflows`; `compliance` → `gst-lifecycle`/`itc`; `assets` → `mf-portfolios`/`capital`. Sub-view state persists per-workspace in module-level `wsActiveViews`.
+- **Dashboard action button routing** — each "Initiate →" button navigates to a workspace+sub-view, e.g. `file_gstr3b_jul26` → compliance/gst-lifecycle, `tds_sync_q2` → income/tds.
+- **Dev portal gate** — hidden behind `/app/dev-login`, `#dev-login`, `Ctrl+Shift+D`, or double-clicking the version tag; validates against a hardcoded credential check in `frontend/public/app.js` (not documented here on purpose — it's visible in client-side source either way, but there's no reason to make it more searchable). Fine for a hackathon demo gate, but don't treat it as real auth or reuse that pattern for anything beyond keeping judges out of the dev console.
+- **GSTIN state derivation** — `GSTIN_STATE` maps a GSTIN's 2-digit prefix to its Indian state name for display.
 
-### `activeSession` state contract
+### Key invariants (carried over, still accurate)
+- Ledger is append-only (`ledger.py:write_entry` never edits); `dedupLedgerSteps()` in `app.js` dedupes by `(agent, metric)` across multi-run histories.
+- Orchestrator always writes `flag_contradiction` per contradiction found and `apply_consent_decay` unconditionally.
+- Evidence chips in the ledger carry `data-jump-source`/`data-jump-field` pointing back to the specialist claim that sourced the signal.
+- Recorded captures are verbatim API response snapshots (`capturedAt` field) — labeled in the UI as a **"Cached Run"/"Last synced"** (not "Audited Dossier" — that wording overclaims an audit that hasn't happened; see the no-fabrication rule above).
+- Customer login (`customer-login-form`) accepts any valid email format by design — it's a demo gate, not real auth.
 
-Built at Step 2 on `proceedBtn` click. This is the canonical identity snapshot that bridges the wizard into all workspaces.
-
-```js
-activeSession = {
-  entityName, pan, gstin, loanAmount,
-  industry,   // derived from BENCHMARK_CASES sector → industry label
-  state,      // derived from GSTIN 2-digit prefix via GSTIN_STATE map
-  files,      // array of uploaded file objects
-  benchmark,  // selected benchmark case ID
-  timestamp
-}
-```
-
-`buildActiveEntity(baseEntity)` overlays `activeSession` identity fields over `enterpriseData.entity` so all workspaces render the correct entity, not the static reference entity.
-
-### 5 workspace shell + sub-view matrix
-
-| Workspace key | Sub-views | Default view |
-|---|---|---|
-| `dashboard` | (single view) | — |
-| `client` | `onboarding`, `kyb`, `vault` | `onboarding` |
-| `income` | `invoices`, `tds`, `cashflows` | `invoices` |
-| `compliance` | `gst-lifecycle`, `itc` | `gst-lifecycle` |
-| `assets` | `mf-portfolios`, `capital` | `mf-portfolios` |
-
-Sub-view state persists in `wsActiveViews` (object keyed by workspace). Switching workspaces restores the last viewed sub-view.
-
-### Dashboard action button routing
-
-Each "Initiate →" button navigates to the relevant workspace + sub-view:
-
-| Action ID | Route |
-|---|---|
-| `file_gstr3b_jul26` | compliance / gst-lifecycle |
-| `reconcile_gstr2b_aug26` | compliance / itc |
-| `tds_sync_q2` | income / tds |
-| `file_gstr1_sep26` | compliance / gst-lifecycle |
-
----
-
-## Phase 4 open items (Oct 15–17)
-
-1. **Demo video** — show the wizard flow end-to-end with a contradiction case, highlight the ledger's bidirectional evidence jump, and show the multi-agent swarm telemetry. Narrate that AA is the only implemented adapter but the engine is adapter-agnostic.
-2. **PPT → PDF** — deck covering problem, solution, architecture, benchmark results, roadmap. Submit a day early (Oct 16).
-3. **Repo cleanup** — remove any remaining stale prototype artifacts, verify README accuracy.
-4. **Submission checklist** — confirm public repo visibility, live Cloud Run URLs, video URL, PDF, team details.
-
----
-
-## Local dev
-
-```bash
-# Python (backend + agents, no GCP needed for deterministic tests):
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-PYTHONPATH=. pytest tests/ -q
-
-# Frontend (recorded captures work without any GCP creds):
-cd frontend && npm install
-BACKEND_URL=http://localhost:8081 PORT=8080 node server.js
-# → http://localhost:8080/desk
-
-# Full stack (needs GCP creds + seeded Firestore):
-gcloud auth application-default login
-export GOOGLE_CLOUD_PROJECT=<project>
-python -m scripts.seed_cases          # idempotent, updates consent timestamps
-PYTHONPATH=. uvicorn backend.main:app --reload --port 8081
-```
-
----
-
-## Key invariants
-
-- **Ledger is append-only.** `ledger.py:write_entry` never edits. `dedupLedgerSteps()` in `app.js` keeps the latest entry per `(agent, metric)` for deduplication of multi-run histories.
-- **Orchestrator always writes** `flag_contradiction` per contradiction found (rules.py → orchestrator_agent.py lines 110–119) and `apply_consent_decay` unconditionally.
-- **Evidence chips in the ledger** for a `flag_contradiction` entry have `data-jump-source` / `data-jump-field` pointing to the specialist claim that sourced the signal.
-- **Recorded captures** are verbatim API response snapshots (`capturedAt` field). `isAuditDossier: true` + "Audited Dossier" badge makes this explicit in the UI.
-- **No real AA/Sahamati integration** anywhere. Synthetic data follows the real AA/Setu FI schema.
-- **`buildActiveEntity(baseEntity)`** must be called at the top of every workspace render function. It overlays `activeSession` onto the static reference JSON so the correct entity is shown regardless of which benchmark case was selected.
-- **`wsActiveViews`** is module-level, persists across workspace switches. Each sub-nav click handler sets `wsActiveViews[activeWorkspace] = view` then calls `renderWorkspaceMain(activeWorkspace)`.
-- **Customer login** (`customer-login-form`) accepts any valid email format — `performLogin()` runs unconditionally. Dev portal login (`dev-username-input` / `dev-password-input`) requires admin credentials (not stored in docs).
-- **GSTIN state derivation** — `GSTIN_STATE` maps 2-digit prefix to Indian state name. Deccan Cements GSTIN `37AADCD7891K1Z9` → prefix `37` → Andhra Pradesh.
+### Phase status (as of Oct 17, post-merge)
+Phases 1–3 complete; Phase 4 (demo, polish, submit) is in progress, targeting Oct 17/18 submission. The benchmark entities were renamed to clearly fictional names (Annapurna, Trisara, Virelion, Aravind, Nexvara) as part of a second honesty audit pass — screenshots and docs referencing the old names (Kaveri, Deccan, Kalyani, Bharat, Zenith) need re-checking after this merge. Open items: demo video, final repo cleanup, and the submission checklist (public repo visibility, live Cloud Run URLs, video/PDF links, team details).

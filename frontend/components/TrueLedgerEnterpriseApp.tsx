@@ -471,7 +471,7 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
           </div>
 
           <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight max-w-3xl mb-6">
-            The ₹1.8 Trillion Blind Spot in Commercial Credit.
+            The Blind Spot in Commercial Credit: Financial Data Evaluated in Silos.
           </h1>
 
           <p className="text-base text-slate-400 max-w-2xl leading-relaxed mb-10">
@@ -605,7 +605,7 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
 
           <div className="mt-8 pt-5 border-t border-[#1e293b] text-center">
             <span className="text-[11px] font-mono text-slate-500">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified
+              🔒 Hackathon Prototype · Demo Login Gate (not real authentication)
             </span>
           </div>
         </div>

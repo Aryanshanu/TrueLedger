@@ -1668,6 +1668,51 @@ function updateDecisionAnchor(decision, consentSources) {
   }
 }
 
+// The anchor bar above and the wizard's own cockpit card below it used to be
+// populated by two unrelated code paths: updateDecisionAnchor() reflects
+// whatever borrower the legacy case-rail dashboard last loaded via the API
+// (or its recorded-fixture fallback), while the 4-step wizard's cockpit
+// reads straight from activeSession. Nothing re-synced the anchor bar when
+// a wizard session was built, so it could show a different borrower's
+// consent countdown than the cockpit directly below it - e.g. the anchor
+// bar left over from a stale-consent fixture ("2d left") above a cockpit
+// correctly showing the just-selected benchmark's own fresh consent
+// ("90d left"). Call this whenever activeSession changes so both always
+// agree.
+function syncAnchorBarFromSession() {
+  const s = activeSession;
+  if (!s) return;
+
+  const entityNameEl = $("anchor-entity-name");
+  const entityIdEl = $("anchor-entity-id");
+  if (entityNameEl) entityNameEl.textContent = s.entityName || "Commercial Borrower";
+  if (entityIdEl) {
+    const rawGstin = s.gstin || "—";
+    entityIdEl.dataset.unmasked = rawGstin;
+    entityIdEl.dataset.masked = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";
+    entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
+  }
+
+  const badgeEl = $("anchor-verdict-badge");
+  const textEl = $("anchor-verdict-text");
+  const confEl = $("anchor-confidence-text");
+  if (badgeEl && textEl && confEl && s.verdict) {
+    const cls = s.verdict === "APPROVE" ? "ok" : s.verdict === "DECLINE" ? "bad" : "warn";
+    badgeEl.className = `anchor-verdict-badge ${cls}`;
+    textEl.textContent = s.verdict;
+    confEl.textContent = s.finalConf != null ? `Conf: ${Math.round(s.finalConf * 100)}%` : "—";
+  }
+
+  const fillEl = $("anchor-consent-fill");
+  const consentTextEl = $("anchor-consent-text");
+  if (fillEl && consentTextEl && s.consentMultiplier != null && s.consentDays != null) {
+    const pct = Math.min(100, Math.max(0, Math.round(s.consentMultiplier * 100)));
+    fillEl.style.width = `${pct}%`;
+    fillEl.className = `consent-meter-fill ${pct >= 70 ? "ok" : pct >= 40 ? "warn" : "bad"}`;
+    consentTextEl.textContent = `${s.consentDays}d left (×${s.consentMultiplier}) · ${pct < 100 ? "Haircut applied" : "Full strength"}`;
+  }
+}
+
 function setupEnvironmentToggle() {
   const envToggle = $("env-toggle");
   if (!envToggle) return;
@@ -3870,6 +3915,7 @@ function renderCustomerOnboarding(frame) {
         channels:          { ...enterpriseChannels },
         gstinMasked:       true,
       };
+      syncAnchorBarFromSession();
 
       // Sync credit pipeline structures so the case rail and credit workspace reflect the active entity
       CASES[0] = {
@@ -4028,7 +4074,7 @@ function renderCustomerTelemetry(frame) {
           <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">
             Deterministic Reconciliation &amp; Audit Trail
           </span>
-          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Production Engine · Active Session</span>
+          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Hackathon Prototype · Demo Session</span>
         </div>
 
         <div class="telemetry-trace-stream" id="telemetry-trace-box">
@@ -4131,6 +4177,7 @@ function renderCustomerTelemetry(frame) {
 function renderCustomerFinalVerdict(frame) {
   const currentEntity = (activeSession && activeSession.entityName) || enterpriseEntityName || "Commercial Borrower";
   const s = activeSession || {};
+  syncAnchorBarFromSession();
 
   const rawGstin = s.gstin || enterpriseGstin || "PENDING";
   const maskedGstin = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";

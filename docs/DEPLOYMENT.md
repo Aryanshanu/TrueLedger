@@ -203,15 +203,86 @@ already exists.
 
 ## Cost and reliability guardrails - don't skip these
 
-- Set a budget alert on the GCP project before running anything against
-  real Vertex AI - an agentic pipeline with 4 LLM calls per evaluation adds
-  up faster than a single-prompt app during testing.
+- **Set a budget alert on the GCP project now, not after a surprise bill**
+  (Billing -> Budgets & alerts -> Create budget, e.g. ₹500/day). This is
+  the single highest-leverage five minutes you can spend - it emails you
+  before a billing account goes delinquent instead of after.
+- **Default to `min-instances=0` on both Cloud Run services during
+  development.** `infra/deploy_backend.sh` / `deploy_frontend.sh` and the
+  GitHub CI configs (`infra/cloudbuild.ci.*.yaml`) all pass
+  `--min-instances=0` unless you explicitly set `MIN_INSTANCES=1`. An
+  always-on instance bills continuously whether or not anyone is hitting
+  it - with two services running 24/7 across a multi-day build, this is
+  normally the largest line item on the bill, not Gemini calls or Cloud
+  Build minutes. Only bump to 1 right before a live judged demo:
+  ```bash
+  gcloud run services update trueledger-backend  --region asia-south1 --min-instances=1
+  gcloud run services update trueledger-frontend --region asia-south1 --min-instances=1
+  # ...then scale back down right after:
+  gcloud run services update trueledger-backend  --region asia-south1 --min-instances=0
+  gcloud run services update trueledger-frontend --region asia-south1 --min-instances=0
+  ```
+  (This replaces the earlier version of this doc, which told you to set
+  `min-instances=1` "a day or two before the deadline" - correct in spirit,
+  but it's easy to set it once early and forget it's still billing. If you
+  already did this, check now: `gcloud run services describe <service>
+  --region asia-south1 --format 'value(spec.template.spec.containerConcurrency,
+  metadata.annotations)'` or just look at the service's "Minimum instances"
+  field in the Cloud Run console.)
+- **The GitHub CI triggers (`docs/DEPLOYMENT.md` §8) rebuild and redeploy
+  on every push to `main`.** Each push burns Cloud Build minutes and
+  creates a new Cloud Run revision; `gcloud run deploy` without an explicit
+  `--min-instances` flag *carries over* whatever the previous revision had,
+  so a stray `min-instances=1` can survive across many redeploys without
+  you ever having asked for it again. If a work session means many commits
+  in a row (common with an AI pair-programmer), consider pausing the
+  trigger (`gcloud builds triggers run` is manual-only; disable the
+  trigger in Cloud Build console) and deploying manually once per session
+  instead of on every push.
+- **Use the cheaper model while iterating.** `SPECIALIST_MODEL` and
+  `ORCHESTRATOR_MODEL` are env vars (`agents/config.py`) - set
+  `ORCHESTRATOR_MODEL=gemini-3.8-flash` locally while testing pipeline
+  logic/UI, and only run against the real `gemini-3.1-pro-preview` for
+  verification passes you actually need. Every `/borrowers/upload` or
+  Evaluate click is 4 LLM calls (3 specialists + orchestrator); repeated
+  manual testing against the full-price model adds up fast.
+- **Prefer local dev over live Cloud Run for anything that isn't a final
+  check.** `uvicorn backend.main:app --reload` + `node frontend/server.js`
+  locally still talk to real Vertex AI/Firestore if you export the same
+  env vars - you don't need the Cloud Run deployment live just to iterate.
+  The frontend's scratchpad mock-backend pattern (see this repo's test
+  setup) avoids even the Gemini cost for pure UI work.
 - Never commit credentials - `.gitignore` already covers `.env` and
   `*-service-account*.json` / `*.key.json`; verified clean against this
   repo's git history as of the Phase 1 scaffold (only `.env.example` was
   ever committed).
-- Set `min-instances=1` on both Cloud Run services (`gcloud run services
-  update <service> --min-instances=1`) a day or two before the deadline,
-  not at submission time - scale-to-zero means a judge's first request
-  eats a cold-start delay.
 - Keep the GitHub repo public well before Oct 18, not as a last step.
+
+### If billing is already delinquent
+
+Only the account owner can fix this (it's a payment-method/financial
+action - no CLI tool, including this one, can do it for you):
+
+1. https://console.cloud.google.com/billing -> select the billing account
+   tied to the `truledger` project -> update the payment method or clear
+   the outstanding balance -> wait for status to flip from delinquent to
+   active (usually near-instant once the payment method succeeds).
+2. Once active, redeploy with `./infra/deploy_frontend.sh` /
+   `deploy_backend.sh` as usual (now defaulting to `min-instances=0`, so
+   this won't recreate the same always-on cost).
+3. Check whether the **Google AI Builder Cup** organizers issued a GCP
+   credit code for registered teams (hackathon portal / confirmation
+   email) - most Google-run hackathons do, and applying it to the billing
+   account is the fastest way to both clear a delinquent balance and cover
+   the rest of the build. Worth checking before putting in a personal card.
+
+### What every team is almost certainly doing differently
+
+Nobody else's exact bill is visible from here, but the pattern that keeps
+a hackathon's GCP spend near zero is the same for every team: scale-to-zero
+Cloud Run (no `min-instances` set at all until demo day), iterate against
+`uvicorn --reload` / local Node rather than redeploying per change, use the
+cheaper model tier for day-to-day testing, and rely on the hackathon's
+provided credit grant rather than a personal card for the one or two
+GCP-native services (Cloud Run, Firestore, Vertex AI) that can't be run
+free locally.
