@@ -21,13 +21,13 @@
 
 ## Executive Summary
 
-**TrueLedger** is an enterprise-grade agentic financial forensics and credit underwriting platform built against India's **Account Aggregator (AA)** open-finance data model. It replaces opaque "black-box" credit scoring with an **immutable, append-only explainability ledger** where every underwriting decision is traceable to verified primary filings.
+**TrueLedger** is an agentic financial forensics and credit underwriting prototype built against India's **Account Aggregator (AA)** open-finance data model. It replaces opaque "black-box" credit scoring with an **immutable, append-only explainability ledger** where every underwriting decision is traceable to verified primary filings.
 
 Multi-source financial data — bank statement feeds, GST returns (GSTR-1 & 3B), Income Tax returns (ITR / 26AS), and investment portfolios — are concurrently routed to dedicated **Specialist AI Agents** running in parallel. An orchestration engine cross-verifies reported revenues against verified banking cash flows to detect **cross-source contradictions** (circular trading, revenue inflation, round-tripping), applies **consent-expiry confidence decay**, and produces a deterministic credit verdict with bidirectional ledger citations.
 
 > **"The audit trail is the product, not a feature bolted on."**
 
-The core reasoning engine is built against the general open-finance consent pattern (India's AA, Australia's Consumer Data Right, Singapore's SGFinDex). Swap the data adapter, keep the engine, ship in a new market.
+The core reasoning engine is designed to be adapter-agnostic (India's AA is the only implemented adapter). The consent-decay model and contradiction rules are not coupled to any single data source format.
 
 ---
 
@@ -37,7 +37,7 @@ The core reasoning engine is built against the general open-finance consent patt
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         TRUELEDGER PLATFORM                         │
 ├──────────────────────────────┬──────────────────────────────────────┤
-│  Institutional Workspace UI  │  Proprietary Forensic Engine         │
+│  Institutional Workspace UI  │  Open-Source Agent Pipeline          │
 ├──────────────────────────────┼──────────────────────────────────────┤
 │  • 4-step progressive wizard │  • ADK ParallelAgent swarm           │
 │  • 5-workspace command shell │  • Deterministic contradiction rules  │

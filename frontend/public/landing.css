@@ -753,3 +753,82 @@ body.landing-body {
     padding: 20px;
   }
 }
+
+/* ---------- "How we chose this problem" section ---------- */
+
+.origin-prose {
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--muted, #a0a0a0);
+}
+
+.origin-prose p {
+  margin: 0 0 1.1em;
+}
+
+.origin-prose a {
+  color: #818cf8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.origin-prose a:hover {
+  color: #c4b5fd;
+}
+
+.origin-list {
+  padding-left: 1.4em;
+  margin: 0 0 1.1em;
+}
+
+.origin-list li {
+  margin-bottom: 0.7em;
+  color: var(--muted, #a0a0a0);
+}
+
+.origin-list li strong {
+  color: #e2e8f0;
+}
+
+.origin-disclosure {
+  font-size: 13px !important;
+  font-family: var(--font-mono, monospace);
+  color: #6b7280 !important;
+  border-left: 2px solid #374151;
+  padding-left: 12px;
+  margin-top: 1.4em !important;
+}
+
+.origin-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #222;
+}
+
+.origin-sources-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4b5563;
+  margin-right: 4px;
+}
+
+.origin-sources a {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #6b7280;
+  text-decoration: none;
+  border-bottom: 1px solid #374151;
+  padding-bottom: 1px;
+}
+
+.origin-sources a:hover {
+  color: #9ca3af;
+  border-bottom-color: #6b7280;
+}

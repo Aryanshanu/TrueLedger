@@ -1027,7 +1027,7 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
   if (bench) {
     if (!forceRefetch && cache.has(borrowerId)) {
         const benchName = bench.name || borrowerId;
-        setStatus(`${benchName} · Verified Benchmark Dossier · ${bench.verdict}`);
+        setStatus(`${benchName} · Illustrative Scenario · Not an agent run · ${bench.verdict}`);
         playReveal(borrowerId);
         return;
       }
@@ -1221,8 +1221,9 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
         },
         ledgerSteps,
         consentSources,
-        isAuditDossier: true,
-        capturedAt:     now,
+        isAuditDossier:      false,
+        isIllustrative:      true,
+        capturedAt:          now,
       };
 
       cache.set(borrowerId, syntheticDossier);
@@ -1250,7 +1251,7 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
       }
 
       renderCaseRail();
-      setStatus(`${bench.name} · Verified Benchmark Dossier · ${bench.verdict}`);
+      setStatus(`${bench.name} · Illustrative Scenario · Not an agent run · ${bench.verdict}`);
       playReveal(borrowerId);
       return;
     }
@@ -3177,7 +3178,7 @@ let customerPassword = "";
 const BENCHMARK_CASES = [
   {
     id: "kaveri",
-    name: "Kaveri Agro Commodities Ltd",
+    name: "Annapurna Agro Commodities Pvt Ltd",
     sector: "Agriculture & Agro-Trading",
     pan: "AABCK4812G",
     gstin: "36AABCK4812G1Z2",
@@ -3202,10 +3203,10 @@ const BENCHMARK_CASES = [
   },
   {
     id: "deccan",
-    name: "Deccan Cements & Infrastructure Ltd",
+    name: "Trisara Cements & Infrastructure Pvt Ltd",
     sector: "Cement & Heavy Building Materials",
-    pan: "AADCD7891K",
-    gstin: "37AADCD7891K1Z9",
+    pan: "AATSC4512B",
+    gstin: "37AATSC4512B1Z6",
     loan: "₹14,00,00,000",
     bank_inflows: "₹76,00,00,000",
     gst_turnover: "₹78,50,00,000",
@@ -3227,10 +3228,10 @@ const BENCHMARK_CASES = [
   },
   {
     id: "kalyani",
-    name: "Kalyani Speciality Steels Ltd",
+    name: "Virelion Specialty Metals Pvt Ltd",
     sector: "Steel & Metallurgy Manufacturing",
-    pan: "AABCK9921E",
-    gstin: "27AABCK9921E1Z3",
+    pan: "AAVSP7743M",
+    gstin: "27AAVSP7743M1Z8",
     loan: "₹9,50,00,000",
     bank_inflows: "₹52,00,00,000",
     gst_turnover: "₹38,00,00,000",
@@ -3252,10 +3253,10 @@ const BENCHMARK_CASES = [
   },
   {
     id: "bharat",
-    name: "Bharat Capital & Trade Finance Ltd",
+    name: "Aravind Capital & Trade Finance Pvt Ltd",
     sector: "Financial Services & NBFC",
-    pan: "AABCB6619M",
-    gstin: "27AABCB6619M1Z1",
+    pan: "AAACT8831P",
+    gstin: "27AAACT8831P1Z4",
     loan: "₹6,00,00,000",
     bank_inflows: "₹12,80,00,000",
     gst_turnover: "₹12,50,00,000",
@@ -3277,10 +3278,10 @@ const BENCHMARK_CASES = [
   },
   {
     id: "zenith",
-    name: "Zenith Chemicals & Agrochemicals Ltd",
+    name: "Nexvara Chemicals & Agrochemicals Pvt Ltd",
     sector: "Chemicals & Crop Protection",
-    pan: "AACZ7712Q",
-    gstin: "24AACZ7712Q1Z4",
+    pan: "AANXC3367H",
+    gstin: "24AANXC3367H1Z2",
     loan: "₹7,50,00,000",
     bank_inflows: "₹29,50,00,000",
     gst_turnover: "₹21,00,00,000",
@@ -3471,7 +3472,7 @@ function renderCustomerLogin(frame) {
 
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;text-align:center">
             <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified · Production Underwriting Environment
+              🔒 Demo environment · Synthetic data only · No live AA / FIP integration
             </span>
           </div>
         </div>
@@ -3522,6 +3523,9 @@ function renderCustomerOnboarding(frame) {
         <h2 class="onboarding-title">Commercial Entity Intake &amp; Document Ingestion</h2>
         <p class="onboarding-subtitle">
           Select an industry benchmark profile or input custom entity credentials, then connect or import the 3 primary financial records for deterministic reconciliation.
+        </p>
+        <p style="font-family:monospace;font-size:11px;color:#888;margin-top:6px;padding:6px 10px;background:#1a1a1a;border-radius:4px;border:1px solid #333;">
+          Synthetic data · No live Account Aggregator / Sahamati / FIP integration · All profiles are fabricated for demonstration
         </p>
       </div>
 
@@ -3959,6 +3963,9 @@ function renderCustomerTelemetry(frame) {
           <p style="font-size:13px;color:var(--muted);margin:4px 0 0">
             Reconciling banking transactions, tax returns, and collateral reserves for <strong style="color:#fff">${currentEntity}</strong>.
           </p>
+          <p style="font-family:monospace;font-size:11px;color:#888;margin-top:6px;">
+            Simulated walkthrough · For a live run, use "Re-evaluate Live" on the dossier
+          </p>
         </div>
 
         <div id="telemetry-cta-wrap">
@@ -4061,7 +4068,7 @@ function renderCustomerTelemetry(frame) {
   if (swarmProgress < 100 && !isSwarmRunning) {
     isSwarmRunning = true;
     telemetryLogs = [
-      `[0.00s] Gateway protocol handshake verified (TLS 1.3: secure production cluster)`,
+      `[0.00s] Simulated walkthrough — pipeline logic mirrors real agent execution`,
       `[0.15s] Initializing parallel verification analyzers for ${currentEntity}...`
     ];
 
@@ -4514,7 +4521,7 @@ function renderDevAuth(frame) {
               <input type="password" id="dev-password-input" class="ent-input" placeholder="••••••••••••••••" required autocomplete="current-password" />
             </div>
             <div class="dev-auth-hint">
-              Mock credentials: <code>admin</code> / <code>TrueLedger2026!</code>
+              Contact project administrator for access credentials.
             </div>
           </div>
 
@@ -4550,7 +4557,7 @@ function renderDevAuth(frame) {
       const u = ($("dev-username-input")?.value || "").trim();
       const p = ($("dev-password-input")?.value || "").trim();
 
-      if (u === "admin" && p === "TrueLedger2026!") {
+      if (u === "admin" && p === "TL@Dev#2026") {
         isDevAuthenticated = true;
         devAuthError = null;
         logSystemEvent(

@@ -131,7 +131,7 @@ Each "Initiate →" button navigates to the relevant workspace + sub-view:
 
 ## Phase 4 open items (Oct 15–17)
 
-1. **Demo video** — before/after contrast: "5 days by a human underwriter" vs "8 seconds + full contradiction trail". Narrate the JAPAC reframe (AA is the first data adapter; swap it, keep the engine, ship in a new market).
+1. **Demo video** — show the wizard flow end-to-end with a contradiction case, highlight the ledger's bidirectional evidence jump, and show the multi-agent swarm telemetry. Narrate that AA is the only implemented adapter but the engine is adapter-agnostic.
 2. **PPT → PDF** — deck covering problem, solution, architecture, benchmark results, roadmap. Submit a day early (Oct 16).
 3. **Repo cleanup** — remove any remaining stale prototype artifacts, verify README accuracy.
 4. **Submission checklist** — confirm public repo visibility, live Cloud Run URLs, video URL, PDF, team details.
@@ -169,5 +169,5 @@ PYTHONPATH=. uvicorn backend.main:app --reload --port 8081
 - **No real AA/Sahamati integration** anywhere. Synthetic data follows the real AA/Setu FI schema.
 - **`buildActiveEntity(baseEntity)`** must be called at the top of every workspace render function. It overlays `activeSession` onto the static reference JSON so the correct entity is shown regardless of which benchmark case was selected.
 - **`wsActiveViews`** is module-level, persists across workspace switches. Each sub-nav click handler sets `wsActiveViews[activeWorkspace] = view` then calls `renderWorkspaceMain(activeWorkspace)`.
-- **Customer login** (`customer-login-form`) accepts any valid email format — `performLogin()` runs unconditionally. Dev portal login (`dev-username-input` / `dev-password-input`) requires `admin` / `TrueLedger2026!`.
+- **Customer login** (`customer-login-form`) accepts any valid email format — `performLogin()` runs unconditionally. Dev portal login (`dev-username-input` / `dev-password-input`) requires admin credentials (not stored in docs).
 - **GSTIN state derivation** — `GSTIN_STATE` maps 2-digit prefix to Indian state name. Deccan Cements GSTIN `37AADCD7891K1Z9` → prefix `37` → Andhra Pradesh.
