@@ -3194,7 +3194,7 @@ function renderCustomerLogin(frame) {
 
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;text-align:center">
             <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified · Production Underwriting Environment
+              🔒 Hackathon Prototype · Demo Login Gate (not real authentication)
             </span>
           </div>
         </div>
@@ -3724,7 +3724,7 @@ function renderCustomerTelemetry(frame) {
           <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">
             Deterministic Reconciliation &amp; Audit Trail
           </span>
-          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Production Engine · Active Session</span>
+          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--muted)">Hackathon Prototype · Demo Session</span>
         </div>
 
         <div class="telemetry-trace-stream" id="telemetry-trace-box">
@@ -3764,7 +3764,7 @@ function renderCustomerTelemetry(frame) {
   if (swarmProgress < 100 && !isSwarmRunning) {
     isSwarmRunning = true;
     telemetryLogs = [
-      `[0.00s] Gateway protocol handshake verified (TLS 1.3: secure production cluster)`,
+      `[0.00s] Gateway handshake verified (demo pipeline, synthetic/local data)`,
       `[0.15s] Initializing parallel verification analyzers for ${currentEntity}...`
     ];
 

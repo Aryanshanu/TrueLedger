@@ -605,7 +605,7 @@ SHA-256 BLOCK DIGEST:   ${auditLog[0]?.sha256BlockDigest || "0x8f2ae9c14092b740e
 
           <div className="mt-8 pt-5 border-t border-[#1e293b] text-center">
             <span className="text-[11px] font-mono text-slate-500">
-              🔒 256-Bit TLS Encryption · SOC2 Type II Certified
+              🔒 Hackathon Prototype · Demo Login Gate (not real authentication)
             </span>
           </div>
         </div>
