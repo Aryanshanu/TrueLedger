@@ -55,7 +55,7 @@ flowchart TD
         I[Income Tax ITR / 26AS]
     end
 
-    subgraph Specialists["ADK Specialist Agents — Gemini 3.8 Flash"]
+    subgraph Specialists["ADK Specialist Agents — gemini-3.8-flash"]
         BA[Bank Statement Agent]
         GA[GST / Tax Agent]
         IA[Investment Agent]
@@ -64,7 +64,7 @@ flowchart TD
     subgraph Engine["Deterministic Core + Reasoning"]
         Rules["Contradiction Rule Engine\n(agents/rules.py)"]
         Decay["Consent Decay Model\n(agents/consent.py)"]
-        Orch["Orchestrator Agent\n(Gemini 3.1 Pro Preview)"]
+        Orch["Orchestrator Agent\n(gemini-3.1-pro-preview)"]
     end
 
     subgraph Persistence["Audit Trail"]
@@ -100,8 +100,8 @@ This keeps the highest-stakes checks outside model judgement while still using L
 | Component | Service | Notes |
 |---|---|---|
 | Agent runtime | ADK 2.10.0 (`google-adk`) | `LlmAgent`, `ParallelAgent`, `SequentialAgent`, custom `BaseAgent` |
-| LLM — specialists | Gemini 3.8 Flash via Vertex AI | `location="global"` |
-| LLM — orchestrator | Gemini 3.1 Pro Preview via Vertex AI | Global endpoint only; no regional option |
+| LLM — specialists | `gemini-3.8-flash` via Vertex AI | `location="global"` |
+| LLM — orchestrator | `gemini-3.1-pro-preview` via Vertex AI | Global endpoint only; no regional option |
 | Data store | Firestore (native mode) | `fi_data`, `consent`, `claims`, `ledger`, `decisions` |
 | Backend | Cloud Run (FastAPI) | `asia-south1`, `min-instances=1` |
 | Frontend | Cloud Run (Express, static) | `asia-south1`, `min-instances=1` |
@@ -188,10 +188,10 @@ Five sector cases are pre-loaded. The backend additionally carries 8 synthetic b
 ```
 TrueLedger/
 ├── agents/                     # Google ADK multi-agent pipeline
-│   ├── bank_agent.py           # Bank statement specialist (Gemini 3.8 Flash)
-│   ├── gst_agent.py            # GST return specialist (Gemini 3.8 Flash)
-│   ├── investment_agent.py     # Investment / MF specialist (Gemini 3.8 Flash)
-│   ├── orchestrator_agent.py   # Cross-source contradiction orchestrator (Gemini 3.1 Pro Preview)
+│   ├── bank_agent.py           # Bank statement specialist (gemini-3.8-flash)
+│   ├── gst_agent.py            # GST return specialist (gemini-3.8-flash)
+│   ├── investment_agent.py     # Investment / MF specialist (gemini-3.8-flash)
+│   ├── orchestrator_agent.py   # Cross-source contradiction orchestrator (gemini-3.1-pro-preview)
 │   ├── pipeline.py             # ParallelAgent + SequentialAgent wiring
 │   ├── rules.py                # Deterministic contradiction rule table
 │   ├── consent.py              # Linear consent expiry decay model
