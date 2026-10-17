@@ -276,6 +276,7 @@ body {
   gap: 1px;
   background: var(--border);
   border-bottom: 1px solid var(--border);
+  min-height: calc(100vh - 110px);
 }
 
 .desk > * {
@@ -289,7 +290,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 560px;
+  min-height: 100%;
   overflow-y: auto;
 }
 
@@ -1540,7 +1541,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: 560px;
+  min-height: 100%;
 }
 
 /* ── Workspace top navigator ─────────────────────────────────── */
@@ -2156,6 +2157,7 @@ body {
   min-width: 0;
   overflow-y: auto;
   background: var(--surface);
+  min-height: calc(100vh - 110px);
 }
 
 /* credit mode: show pipeline + decision, hide main frame */
@@ -2976,6 +2978,7 @@ body {
   gap: 1px;
   background: var(--border);
   border-bottom: 1px solid var(--border);
+  min-height: calc(100vh - 110px);
 }
 
 .desk > * {
@@ -2989,7 +2992,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 560px;
+  min-height: 100%;
   overflow-y: auto;
 }
 
@@ -4240,7 +4243,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: 560px;
+  min-height: 100%;
 }
 
 /* ── Workspace top navigator ─────────────────────────────────── */
@@ -4856,6 +4859,7 @@ body {
   min-width: 0;
   overflow-y: auto;
   background: var(--surface);
+  min-height: calc(100vh - 110px);
 }
 
 /* credit mode: show pipeline + decision, hide main frame */

@@ -1019,13 +1019,13 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
   // (which returns 404 for these IDs). forceRefetch is honoured: it
   // falls through to the live-API block so "Re-evaluate Live" still
   // works as expected once a real upload is wired up.
-  if (!forceRefetch) {
-    const bench = (typeof BENCHMARK_CASES !== "undefined")
-      ? BENCHMARK_CASES.find((b) => b.id === borrowerId)
-      : null;
+  // Benchmark fast-path: guaranteed deterministic synthetic dossier (never 404s)
+  const bench = (typeof BENCHMARK_CASES !== "undefined")
+    ? BENCHMARK_CASES.find((b) => b.id === borrowerId)
+    : null;
 
-    if (bench) {
-      if (cache.has(borrowerId)) {
+  if (bench) {
+    if (!forceRefetch && cache.has(borrowerId)) {
         const benchName = bench.name || borrowerId;
         setStatus(`${benchName} · Verified Benchmark Dossier · ${bench.verdict}`);
         playReveal(borrowerId);
@@ -1254,7 +1254,6 @@ async function loadBorrower(borrowerId, { forceRefetch = false } = {}) {
       playReveal(borrowerId);
       return;
     }
-  }
 
   // Instant in-memory cache hit (< 1ms latency)
   if (!forceRefetch && cache.has(borrowerId)) {
@@ -3898,6 +3897,26 @@ function renderCustomerOnboarding(frame) {
         entityIdEl.dataset.unmasked = rawGstin;
         entityIdEl.dataset.masked = rawGstin.length >= 4 ? "•••• •••• " + rawGstin.slice(-4) : "•••• •••• ••••";
         entityIdEl.textContent = isFinancialMasked ? entityIdEl.dataset.masked : entityIdEl.dataset.unmasked;
+      }
+
+      // Synchronize decision anchor bar with benchmark applicant
+      if (b) {
+        const badgeEl = $("anchor-verdict-badge");
+        const textEl = $("anchor-verdict-text");
+        const confEl = $("anchor-confidence-text");
+        if (badgeEl && textEl && confEl) {
+          badgeEl.className = 'anchor-verdict-badge ' + (b.verdict === 'APPROVE' ? 'ok' : b.verdict === 'DECLINE' ? 'bad' : 'warn');
+          textEl.textContent = b.verdict;
+          confEl.textContent = 'Conf: ' + Math.round(b.final_confidence * 100) + '%';
+        }
+        const fillEl = $("anchor-consent-fill");
+        const consentTextEl = $("anchor-consent-text");
+        if (fillEl && consentTextEl) {
+          const pct = Math.round(b.consent_multiplier * 100);
+          fillEl.style.width = pct + '%';
+          fillEl.className = 'consent-meter-fill ' + (pct >= 70 ? 'ok' : pct >= 40 ? 'warn' : 'bad');
+          consentTextEl.textContent = b.consent_days + 'd left (×' + b.consent_multiplier + ') · ' + (pct < 100 ? 'Haircut applied' : 'Full strength');
+        }
       }
 
       // Update sidebar credit nav subtitle
