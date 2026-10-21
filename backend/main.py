@@ -122,7 +122,14 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+from backend.core.tenancy import TenantSecurityMiddleware
+from backend.api.enterprise_router import enterprise_router
+
+app.add_middleware(TenantSecurityMiddleware)
 app.add_middleware(APIKeyMiddleware)
+
+# Include the new Enterprise Multi-Tenant SaaS Router
+app.include_router(enterprise_router)
 
 
 @app.get("/health")
