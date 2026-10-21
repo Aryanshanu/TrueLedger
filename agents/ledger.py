@@ -18,16 +18,27 @@ import json
 import re
 from datetime import datetime, timezone
 
-from agents.firestore_gateway import append_ledger_entry, get_ledger
-from agents.schemas import AgentFindings, LedgerEntry
+from agents.firestore_gateway import (
+    allocate_next_step_id,
+    append_ledger_entry,
+    commit_final_ledger_entry_and_decision,
+)
+from agents.schemas import AgentFindings, Decision, LedgerEntry
 
 
-def _next_step_id(borrower_id: str) -> str:
-    # Demo-scale sequencing: fine for a hackathon's single-pipeline-run-at-a-
-    # time load. A production system would use a Firestore transaction or a
-    # dedicated counter document instead of counting the whole collection.
-    existing = get_ledger(borrower_id)
-    return f"stp_{len(existing) + 1:05d}"
+def _build_entry(*, borrower_id: str, agent: str, action: str, input_refs: list[str], claim: dict,
+                  confidence: float, notes: str) -> LedgerEntry:
+    return LedgerEntry(
+        step_id=allocate_next_step_id(borrower_id),
+        borrower_id=borrower_id,
+        agent=agent,
+        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        action=action,
+        input_refs=input_refs,
+        claim=claim,
+        confidence=confidence,
+        notes=notes,
+    )
 
 
 def write_entry(
@@ -40,18 +51,46 @@ def write_entry(
     confidence: float,
     notes: str = "",
 ) -> LedgerEntry:
+    entry = _build_entry(
+        borrower_id=borrower_id, agent=agent, action=action, input_refs=input_refs,
+        claim=claim, confidence=confidence, notes=notes,
+    )
+    append_ledger_entry(entry.model_dump())
+    return entry
+
+
+def write_final_decision_entry(
+    *,
+    borrower_id: str,
+    agent: str,
+    action: str,
+    input_refs: list[str],
+    confidence: float,
+    notes: str,
+    decision: Decision,
+) -> LedgerEntry:
+    """Same as write_entry, but for the pipeline's last step only: allocates
+    one step_id, stamps it onto `decision.ledger_step_ids`, and commits the
+    ledger entry (whose claim is the now-self-referential decision) and the
+    `decisions/{borrower_id}` document together in one atomic Firestore
+    batch (see firestore_gateway.commit_final_ledger_entry_and_decision) -
+    so the two can never disagree after a partial failure, and the ledger
+    entry's own embedded claim always carries its own step_id instead of
+    the empty list build_entry would otherwise leave on it."""
+    step_id = allocate_next_step_id(borrower_id)
+    decision.ledger_step_ids = [step_id]
     entry = LedgerEntry(
-        step_id=_next_step_id(borrower_id),
+        step_id=step_id,
         borrower_id=borrower_id,
         agent=agent,
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         action=action,
         input_refs=input_refs,
-        claim=claim,
+        claim=decision.model_dump(),
         confidence=confidence,
         notes=notes,
     )
-    append_ledger_entry(entry.model_dump())
+    commit_final_ledger_entry_and_decision(borrower_id, entry.model_dump(), decision.model_dump())
     return entry
 
 

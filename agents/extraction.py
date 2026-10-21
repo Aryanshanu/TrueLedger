@@ -128,11 +128,21 @@ def _client():
     # Imported lazily, same reasoning as firestore_gateway._client: tests
     # that never touch extraction should not need google-genai credentials.
     from google import genai
+    from google.genai import types
 
+    # Same retry policy as agents/config.py's ADK model builders - this
+    # call previously had zero retry, so one transient 429/503 while
+    # extracting an uploaded document failed the whole upload.
+    retry_options = types.HttpRetryOptions(
+        attempts=config.GEMINI_RETRY_ATTEMPTS,
+        initial_delay=config.GEMINI_RETRY_INITIAL_DELAY_SECONDS,
+        max_delay=config.GEMINI_RETRY_MAX_DELAY_SECONDS,
+    )
     return genai.Client(
         vertexai=True,
         project=config.GOOGLE_CLOUD_PROJECT or None,
         location=config.VERTEX_AI_LOCATION,
+        http_options=types.HttpOptions(retry_options=retry_options),
     )
 
 

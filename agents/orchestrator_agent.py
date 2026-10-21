@@ -30,8 +30,8 @@ from google.genai import types
 
 from agents import config, tools
 from agents.consent import apply_decay, build_consent_status
-from agents.firestore_gateway import get_consent, get_fi_data, set_decision
-from agents.ledger import parse_findings_payload, write_entry
+from agents.firestore_gateway import get_consent, get_fi_data
+from agents.ledger import parse_findings_payload, write_entry, write_final_decision_entry
 from agents.rules import detect_empty_specialists, evaluate_rules
 from agents.schemas import AgentFindings, Decision
 
@@ -203,21 +203,19 @@ class OrchestratorAgent(BaseAgent):
             generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
 
-        final_entry = write_entry(
+        write_final_decision_entry(
             borrower_id=borrower_id,
             agent="orchestrator_agent",
             action="final_decision",
             input_refs=[f"claims/{borrower_id}/bank_findings", f"claims/{borrower_id}/gst_findings", f"claims/{borrower_id}/investment_findings"],
-            claim=decision.model_dump(),
             confidence=final_confidence,
             notes=(
                 f"Final outcome: {outcome}. "
                 f"model_confidence={model_confidence:.2f}, final_confidence={final_confidence:.2f}, "
                 f"contradictions={len(contradictions)}, risk_factors={len(risk_factors)}."
             ),
+            decision=decision,
         )
-        decision.ledger_step_ids = [final_entry.step_id]
-        set_decision(borrower_id, decision.model_dump())
 
         contradiction_summary = (
             f"{len(contradictions)} contradiction{'s' if len(contradictions) != 1 else ''}"

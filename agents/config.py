@@ -60,6 +60,22 @@ VERTEX_AI_LOCATION = os.environ.get("VERTEX_AI_LOCATION", "global")
 SPECIALIST_MODEL = os.environ.get("SPECIALIST_MODEL", "gemini-3.8-flash")
 ORCHESTRATOR_MODEL = os.environ.get("ORCHESTRATOR_MODEL", "gemini-3.1-pro-preview")
 
+# --- Gemini call resilience ---
+# Every evaluation makes 4 Gemini calls (3 specialist agents + the
+# orchestrator's inner subtler-reasoning pass), each previously with zero
+# retry - a single transient 429/503 from Vertex AI failed the whole
+# evaluation. google-genai 2.25.0 (pinned in requirements.txt) and
+# google-adk 2.10.0's Gemini model wrapper both take a native
+# `HttpRetryOptions` (ADK's own docstring at
+# google/adk/models/google_llm.py:189 documents passing it as
+# `Gemini(retry_options=...)` directly - confirmed against the installed
+# package, not guessed), so this uses the SDK's built-in retry rather than
+# a hand-rolled wrapper. Exponential backoff, capped attempts so a
+# genuinely-down endpoint still fails instead of hanging the request.
+GEMINI_RETRY_ATTEMPTS = int(os.environ.get("GEMINI_RETRY_ATTEMPTS", "4"))
+GEMINI_RETRY_INITIAL_DELAY_SECONDS = float(os.environ.get("GEMINI_RETRY_INITIAL_DELAY_SECONDS", "1.0"))
+GEMINI_RETRY_MAX_DELAY_SECONDS = float(os.environ.get("GEMINI_RETRY_MAX_DELAY_SECONDS", "20.0"))
+
 # --- Firestore collections ---
 # Layout:
 #   fi_data/{borrower_id}/sources/{DEPOSIT|GSTR1_3B|MUTUAL_FUNDS|INSURANCE_POLICIES}
@@ -81,6 +97,16 @@ INSURANCE_COVERAGE_MIN_RATIO = 0.5  # coverage below 50% of loan => risk flag
 APP_NAME = "trueledger"
 
 
+def _gemini_retry_options():
+    from google.genai import types
+
+    return types.HttpRetryOptions(
+        attempts=GEMINI_RETRY_ATTEMPTS,
+        initial_delay=GEMINI_RETRY_INITIAL_DELAY_SECONDS,
+        max_delay=GEMINI_RETRY_MAX_DELAY_SECONDS,
+    )
+
+
 def build_specialist_model():
     """A Gemini model object pinned to VERTEX_AI_LOCATION, for the three
     specialist sub-agents. See the VERTEX_AI_LOCATION comment above for why
@@ -89,11 +115,19 @@ def build_specialist_model():
     """
     from google.adk.models import Gemini
 
-    return Gemini(model=SPECIALIST_MODEL, client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION})
+    return Gemini(
+        model=SPECIALIST_MODEL,
+        client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION},
+        retry_options=_gemini_retry_options(),
+    )
 
 
 def build_orchestrator_model():
     """Same as build_specialist_model, for the orchestrator's own model tier."""
     from google.adk.models import Gemini
 
-    return Gemini(model=ORCHESTRATOR_MODEL, client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION})
+    return Gemini(
+        model=ORCHESTRATOR_MODEL,
+        client_kwargs={"enterprise": True, "location": VERTEX_AI_LOCATION},
+        retry_options=_gemini_retry_options(),
+    )

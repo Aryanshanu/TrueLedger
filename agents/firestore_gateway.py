@@ -6,6 +6,7 @@ Firestore layout (see agents/config.py):
     consent/{borrower_id}          -> {"bank_findings": {...}, "gst_findings": {...}, "investment_findings": {...}}
     claims/{borrower_id}/agents/{bank_statement_agent|gst_tax_agent|investment_agent}
     ledger/{step_id}
+    ledger_counters/{borrower_id}  -> {"count": <int>}, used only to allocate step_ids
     decisions/{borrower_id}
 """
 
@@ -60,9 +61,80 @@ def write_claims(borrower_id: str, agent: str, findings: dict[str, Any]) -> None
     )
 
 
+def _format_step_id(borrower_id: str, seq: int) -> str:
+    """Pure formatting, split out from allocate_next_step_id so the id
+    shape is unit-testable without mocking Firestore's transaction
+    machinery."""
+    return f"stp_{borrower_id}_{seq:05d}"
+
+
+def allocate_next_step_id(borrower_id: str) -> str:
+    """Atomically allocates the next ledger step_id for `borrower_id`.
+
+    Previously, agents/ledger.py computed this as
+    `f"stp_{len(get_ledger(borrower_id)) + 1:05d}"` - a read-then-compute
+    with no transaction, so (a) two concurrent writes for the SAME
+    borrower could both read the same count and produce the same
+    step_id, and append_ledger_entry's `.set()` would then silently
+    overwrite one entry with the other, and (b) because the id carried no
+    borrower_id and every borrower's count restarts at 0, borrower A's
+    `stp_00001` and borrower B's `stp_00001` collided in the single global
+    `ledger` collection even with no concurrency at all - evaluating a
+    second borrower would silently overwrite the first borrower's step 1.
+    A Firestore transaction on a per-borrower counter document fixes (a);
+    embedding borrower_id in the id fixes (b) even if the transaction were
+    ever bypassed.
+    """
+    from google.cloud import firestore
+
+    client = _client()
+    counter_ref = client.collection("ledger_counters").document(borrower_id)
+
+    @firestore.transactional
+    def _increment(transaction: "firestore.Transaction") -> int:
+        snapshot = counter_ref.get(transaction=transaction)
+        current = snapshot.get("count") if snapshot.exists else 0
+        next_count = (current or 0) + 1
+        transaction.set(counter_ref, {"count": next_count})
+        return next_count
+
+    seq = _increment(client.transaction())
+    return _format_step_id(borrower_id, seq)
+
+
 def append_ledger_entry(entry: dict[str, Any]) -> None:
     """Append-only write: each step_id is its own document, never overwritten."""
     _client().collection(config.FIRESTORE_LEDGER_COLLECTION).document(entry["step_id"]).set(entry)
+
+
+def commit_final_ledger_entry_and_decision(
+    borrower_id: str, ledger_entry: dict[str, Any], decision: dict[str, Any]
+) -> None:
+    """Atomically writes the orchestrator's final-decision ledger entry and
+    the borrower's `decisions/{borrower_id}` document together.
+
+    Previously these were two independent `.set()` calls (append_ledger_entry
+    then set_decision) - if the process died or a call failed in between
+    (a dropped connection, Cloud Run killing the instance mid-request), the
+    ledger would show a "final_decision" entry with no matching
+    `decisions/{borrower_id}` document, or `decisions/{borrower_id}` would
+    hold a stale decision the ledger's own last entry no longer agrees
+    with. A Firestore batched write commits every write together or none
+    at all, which is exactly the guarantee needed here - there is no read
+    in this step, so a (heavier) transaction isn't necessary, just atomic
+    writes.
+    """
+    client = _client()
+    batch = client.batch()
+    batch.set(
+        client.collection(config.FIRESTORE_LEDGER_COLLECTION).document(ledger_entry["step_id"]),
+        ledger_entry,
+    )
+    batch.set(
+        client.collection(config.FIRESTORE_DECISIONS_COLLECTION).document(borrower_id),
+        decision,
+    )
+    batch.commit()
 
 
 def get_ledger(borrower_id: str) -> list[dict[str, Any]]:
