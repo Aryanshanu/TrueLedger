@@ -1,3 +1,4 @@
+import json
 import os
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -5,107 +6,37 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 output_dir = os.path.join("frontend", "public", "data", "samples")
 os.makedirs(output_dir, exist_ok=True)
 
+# Single source of truth for the 5 benchmark entities' identity and
+# financials - also read by data/synthetic/generate_benchmark_js.py, which
+# generates the array app.js's wizard displays. These used to be two
+# hand-typed copies (one here, one in app.js) that had already drifted -
+# PAN/GSTIN differed for 4 of the 5 entities between the on-screen identity
+# and the identity baked into that entity's own downloadable GST return
+# (its ARN reference below is derived from the PAN). `turnover` here is
+# the GST-declared turnover (`gst_turnover` in the shared JSON/app.js).
+with open(os.path.join("data", "benchmark_entities.json"), encoding="utf-8") as f:
+    _entities_src = json.load(f)
 entities = [
     {
-        "id": "kaveri",
-        "name": "Annapurna Agro Commodities Pvt Ltd",
-        "sector": "Agriculture & Commodities",
-        "turnover": 452000000,
-        "bank_inflows": 468000000,
-        "net_profit": 32000000,
-        "pan": "AABCK4812G",
-        "gstin": "36AABCK4812G1Z2",
-        "loan": 85000000,
-        "trend_bank": "+3.5%",
-        "trend_gst": "+3.1%",
-        "variance": "0.4%",
-        "verdict": "APPROVE",
-        "score": 0.88,
-        "confidence": 0.88,
-        "multiplier": 1.0,
-        "color": "10b981",
-        "narrative": "Consistent alignment between Account Aggregator bank deposits (INR 46.8 Cr) and GSTR-3B filings (INR 45.2 Cr). APMC mandi electronic receipt reconciliation validates genuine farmgate grain trade volume without divergence."
-    },
-    {
-        "id": "deccan",
-        "name": "Trisara Cements & Infrastructure Pvt Ltd",
-        "sector": "Cement & Building Materials",
-        "turnover": 785000000,
-        "bank_inflows": 760000000,
-        "net_profit": 64000000,
-        "pan": "AADCD7891K",
-        "gstin": "37AADCD7891K1Z9",
-        "loan": 140000000,
-        "trend_bank": "-2.1%",
-        "trend_gst": "-2.4%",
-        "variance": "0.3%",
-        "verdict": "APPROVE",
-        "score": 0.82,
-        "confidence": 0.82,
-        "multiplier": 1.0,
-        "color": "10b981",
-        "narrative": "Verified rail-freight e-way bill volume matches GSTR-1 inter-state dispatches. Clinker procurement and plant power consumption correlate precisely with filed turnover."
-    },
-    {
-        "id": "kalyani",
-        "name": "Virelion Specialty Metals Pvt Ltd",
-        "sector": "Steel & Heavy Metallurgy",
-        "turnover": 380000000,
-        "bank_inflows": 520000000,
-        "net_profit": 18000000,
-        "pan": "AABCK9921E",
-        "gstin": "27AABCK9921E1Z3",
-        "loan": 95000000,
-        "trend_bank": "+5.4%",
-        "trend_gst": "-21.8%",
-        "variance": "27.2%",
-        "verdict": "MANUAL REVIEW",
-        "score": 0.14,
-        "confidence": 0.50,
-        "multiplier": 0.29,
-        "color": "f59e0b",
-        "narrative": "Flagged RULE_INCOME_REV_DIVERGENCE: Commercial bank deposits indicate INR 52.0 Cr inflows while GSTR-3B tax declarations contract to INR 38.0 Cr. Potential circular routing or unreported scrap liquidation."
-    },
-    {
-        "id": "bharat",
-        "name": "Aravind Capital & Trade Finance Pvt Ltd",
-        "sector": "Financial Services & NBFC",
-        "turnover": 125000000,
-        "bank_inflows": 128000000,
-        "net_profit": 28000000,
-        "pan": "AABCB6619M",
-        "gstin": "27AABCB6619M1Z1",
-        "loan": 60000000,
-        "trend_bank": "+1.2%",
-        "trend_gst": "+0.8%",
-        "variance": "0.4%",
-        "verdict": "APPROVE",
-        "score": 0.85,
-        "confidence": 0.85,
-        "multiplier": 1.0,
-        "color": "10b981",
-        "narrative": "Loan origination fee collection and structured interest cashflow reconcile across AA bank feeds and GSTR-9 annual summary. Liquidity coverage ratio (LCR) exceeds regulatory hurdle."
-    },
-    {
-        "id": "zenith",
-        "name": "Nexvara Chemicals & Agrochemicals Pvt Ltd",
-        "sector": "Chemicals & Allied Products",
-        "turnover": 210000000,
-        "bank_inflows": 295000000,
-        "net_profit": 11000000,
-        "pan": "AACZ7712Q",
-        "gstin": "24AACZ7712Q1Z4",
-        "loan": 75000000,
-        "trend_bank": "+7.8%",
-        "trend_gst": "-18.2%",
-        "variance": "26.0%",
-        "verdict": "MANUAL REVIEW",
-        "score": 0.15,
-        "confidence": 0.50,
-        "multiplier": 0.31,
-        "color": "f59e0b",
-        "narrative": "Critical variance detected between inward e-way bill raw chemical purchases and reported GSTR-3B sales. Primary current account shows unmapped round-tripping transactions."
+        "id": e["id"],
+        "name": e["name"],
+        "sector": e["sector"],
+        "turnover": e["gst_turnover"],
+        "bank_inflows": e["bank_inflows"],
+        "net_profit": e["net_profit"],
+        "pan": e["pan"],
+        "gstin": e["gstin"],
+        "loan": e["loan"],
+        "trend_bank": e["trend_bank"],
+        "trend_gst": e["trend_gst"],
+        "variance": e["variance"],
+        "verdict": e["verdict"],
+        "score": e["final_confidence"],
+        "confidence": e["model_confidence"],
+        "multiplier": e["consent_multiplier"],
+        "narrative": e["narrative"],
     }
+    for e in _entities_src
 ]
 
 header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")

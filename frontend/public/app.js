@@ -3255,133 +3255,21 @@ let customerEmail = "";
 let customerPassword = "";
 
 // 5 Industry Benchmark Use Cases with pre-filled Synthetic Datasets & Excel Files
-const BENCHMARK_CASES = [
-  {
-    id: "kaveri",
-    name: "Annapurna Agro Commodities Pvt Ltd",
-    sector: "Agriculture & Agro-Trading",
-    pan: "AABCK4812G",
-    gstin: "36AABCK4812G1Z2",
-    loan: "₹8,50,00,000",
-    bank_inflows: "₹46,80,00,000",
-    gst_turnover: "₹45,20,00,000",
-    trend_bank: "+3.5%",
-    trend_gst: "+3.1%",
-    variance: "0.4%",
-    verdict: "APPROVE",
-    final_confidence: 0.88,
-    model_confidence: 0.88,
-    consent_multiplier: 1.0,
-    consent_days: 90,
-    badge_class: "ok",
-    files: {
-      gstn: "kaveri_gstr_returns.xlsx",
-      itr: "kaveri_itr_filings.xlsx",
-      bank: "kaveri_bank_statement.xlsx"
-    },
-    narrative: "Consistent alignment between Account Aggregator bank deposits (INR 46.8 Cr) and GSTR-3B filings (INR 45.2 Cr). APMC electronic receipt verification validates genuine farmgate grain trade volume without divergence."
-  },
-  {
-    id: "deccan",
-    name: "Trisara Cements & Infrastructure Pvt Ltd",
-    sector: "Cement & Heavy Building Materials",
-    pan: "AATSC4512B",
-    gstin: "37AATSC4512B1Z6",
-    loan: "₹14,00,00,000",
-    bank_inflows: "₹76,00,00,000",
-    gst_turnover: "₹78,50,00,000",
-    trend_bank: "-2.1%",
-    trend_gst: "-2.4%",
-    variance: "0.3%",
-    verdict: "APPROVE",
-    final_confidence: 0.82,
-    model_confidence: 0.82,
-    consent_multiplier: 1.0,
-    consent_days: 75,
-    badge_class: "ok",
-    files: {
-      gstn: "deccan_gstr_returns.xlsx",
-      itr: "deccan_itr_filings.xlsx",
-      bank: "deccan_bank_statement.xlsx"
-    },
-    narrative: "Verified rail-freight e-way bill volume matches GSTR-1 inter-state dispatches. Clinker procurement and plant power consumption correlate precisely with filed turnover."
-  },
-  {
-    id: "kalyani",
-    name: "Virelion Specialty Metals Pvt Ltd",
-    sector: "Steel & Metallurgy Manufacturing",
-    pan: "AAVSP7743M",
-    gstin: "27AAVSP7743M1Z8",
-    loan: "₹9,50,00,000",
-    bank_inflows: "₹52,00,00,000",
-    gst_turnover: "₹38,00,00,000",
-    trend_bank: "+5.4%",
-    trend_gst: "-21.8%",
-    variance: "27.2%",
-    verdict: "MANUAL REVIEW",
-    final_confidence: 0.14,
-    model_confidence: 0.50,
-    consent_multiplier: 0.29,
-    consent_days: 2,
-    badge_class: "warn",
-    files: {
-      gstn: "kalyani_gstr_returns.xlsx",
-      itr: "kalyani_itr_filings.xlsx",
-      bank: "kalyani_bank_statement.xlsx"
-    },
-    narrative: "Flagged RULE_INCOME_REV_DIVERGENCE: Commercial bank deposits indicate INR 52.0 Cr inflows (+5.4%) while GSTR-3B tax declarations contract to INR 38.0 Cr (-21.8%). Potential circular routing or unreported scrap liquidation."
-  },
-  {
-    id: "bharat",
-    name: "Aravind Capital & Trade Finance Pvt Ltd",
-    sector: "Financial Services & NBFC",
-    pan: "AAACT8831P",
-    gstin: "27AAACT8831P1Z4",
-    loan: "₹6,00,00,000",
-    bank_inflows: "₹12,80,00,000",
-    gst_turnover: "₹12,50,00,000",
-    trend_bank: "+1.2%",
-    trend_gst: "+0.8%",
-    variance: "0.4%",
-    verdict: "APPROVE",
-    final_confidence: 0.85,
-    model_confidence: 0.85,
-    consent_multiplier: 1.0,
-    consent_days: 120,
-    badge_class: "ok",
-    files: {
-      gstn: "bharat_gstr_returns.xlsx",
-      itr: "bharat_itr_filings.xlsx",
-      bank: "bharat_bank_statement.xlsx"
-    },
-    narrative: "Loan origination fee collection and structured interest cashflow reconcile across AA bank feeds and GSTR-9 annual summary. Liquidity coverage ratio (LCR) exceeds regulatory hurdle."
-  },
-  {
-    id: "zenith",
-    name: "Nexvara Chemicals & Agrochemicals Pvt Ltd",
-    sector: "Chemicals & Crop Protection",
-    pan: "AANXC3367H",
-    gstin: "24AANXC3367H1Z2",
-    loan: "₹7,50,00,000",
-    bank_inflows: "₹29,50,00,000",
-    gst_turnover: "₹21,00,00,000",
-    trend_bank: "+7.8%",
-    trend_gst: "-18.2%",
-    variance: "26.0%",
-    verdict: "MANUAL REVIEW",
-    final_confidence: 0.15,
-    model_confidence: 0.50,
-    consent_multiplier: 0.31,
-    consent_days: 3,
-    badge_class: "warn",
-    files: {
-      gstn: "zenith_gstr_returns.xlsx",
-      itr: "zenith_itr_filings.xlsx",
-      bank: "zenith_bank_statement.xlsx"
-    },
-    narrative: "Critical variance detected between inward e-way bill raw chemical purchases and reported GSTR-3B sales. Primary current account shows unmapped round-tripping transactions."
-  }
-];
+//
+// BENCHMARK_CASES itself is NOT defined in this file - it's loaded from
+// data/benchmark_entities.generated.js (a plain <script> tag in desk.html,
+// loaded before this file), generated from the single canonical
+// data/benchmark_entities.json. It used to be hand-typed here AND
+// separately in generate_sample_excels.py; the two copies had already
+// drifted (PAN/GSTIN differed for 4 of the 5 entities, and a pre-rename
+// entity name survived in one copy after being fixed in the other). See
+// data/synthetic/generate_benchmark_js.py for the single source of truth
+// and regeneration instructions. Kept as a plain global (not a fetch) so
+// every synchronous call site below that assumes BENCHMARK_CASES is
+// populated at parse time keeps working unchanged.
+if (typeof BENCHMARK_CASES === "undefined") {
+  console.error("BENCHMARK_CASES is missing - data/benchmark_entities.generated.js must load before app.js.");
+}
 
 let activeBenchmarkId = null; // null means custom applicant mode
 
