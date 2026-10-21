@@ -296,3 +296,32 @@ cheaper model tier for day-to-day testing, and rely on the hackathon's
 provided credit grant rather than a personal card for the one or two
 GCP-native services (Cloud Run, Firestore, Vertex AI) that can't be run
 free locally.
+
+
+## 8. Enterprise Multi-Tenancy & Cryptographic Security Configuration
+
+Before running in production:
+
+1. **Generate and Set Field Encryption Key**:
+   ```bash
+   # Generate 32-byte hex key
+   openssl rand -hex 32
+   # Pass into Cloud Run service
+   gcloud run services update trueledger-backend \
+     --region asia-south1 \
+     --update-env-vars FIELD_ENCRYPTION_KEY=<YOUR_32_BYTE_HEX_KEY>
+   ```
+
+2. **CORS Lock Down**:
+   ```bash
+   gcloud run services update trueledger-backend \
+     --region asia-south1 \
+     --update-env-vars ALLOWED_ORIGINS="https://trueledger-frontend-<hash>.asia-south1.run.app"
+   ```
+
+3. **Multi-Tenant Headers**:
+   Frontend automatically transmits `X-Tenant-ID` and `X-User-Role` with every request. Verify with:
+   ```bash
+   curl -H "X-Tenant-ID: hdfc_commercial" -H "X-User-Role: underwriter" \
+     https://trueledger-backend-<hash>.asia-south1.run.app/v1/enterprise/borrowers/b_clean/ledger
+   ```
