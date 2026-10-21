@@ -25,7 +25,13 @@ import os
 
 app = FastAPI(title="TrueLedger API")
 
-# Hardened CORS policy: configurable via ALLOWED_ORIGINS env var with local defaults
+# Hardened CORS policy: configurable via ALLOWED_ORIGINS env var with local defaults.
+# "*" must never appear alongside explicit origins here: FastAPI/Starlette's
+# CORSMiddleware treats a literal "*" as allow-all, which makes the explicit
+# entries dead code and - combined with allow_credentials=True - opens every
+# endpoint to credentialed cross-origin requests from any site. The frontend
+# never sends credentials (no cookie-based auth exists yet), so credentials
+# stay off rather than carry risk the app doesn't use.
 allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
 if allowed_origins_env:
     allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
@@ -34,19 +40,17 @@ else:
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "https://trueledger-frontend-nxjn66dxka-el.a.run.app",
-        "*"
     ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
-import os
 import time
 from collections import defaultdict
 from fastapi import Request

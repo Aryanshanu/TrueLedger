@@ -1,6 +1,6 @@
 """Generate enterprise_finance_live_state.xlsx + enterprise_live_state.json.
 
-Represents Kaveri Agro Foods Ltd (CLT005) — the primary entity for the
+Represents Varaha Agro Foods Pvt Ltd (CLT005) — the primary entity for the
 TrueLedger Dashboard workspace. Run with:
 
     python -m data.synthetic.generate_enterprise_live
@@ -26,7 +26,7 @@ from openpyxl.utils import get_column_letter
 # ---------------------------------------------------------------------------
 
 ENTITY = {
-    "name": "Kaveri Agro Foods Ltd",
+    "name": "Varaha Agro Foods Pvt Ltd",
     "pan": "AADCK4321D",
     "gstin": "36AADCK4321D1ZT",
     "state": "Telangana",

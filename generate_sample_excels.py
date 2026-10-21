@@ -8,7 +8,7 @@ os.makedirs(output_dir, exist_ok=True)
 entities = [
     {
         "id": "kaveri",
-        "name": "Kaveri Agro Commodities Ltd",
+        "name": "Annapurna Agro Commodities Pvt Ltd",
         "sector": "Agriculture & Commodities",
         "turnover": 452000000,
         "bank_inflows": 468000000,
@@ -28,7 +28,7 @@ entities = [
     },
     {
         "id": "deccan",
-        "name": "Deccan Cements & Infrastructure Ltd",
+        "name": "Trisara Cements & Infrastructure Pvt Ltd",
         "sector": "Cement & Building Materials",
         "turnover": 785000000,
         "bank_inflows": 760000000,
@@ -48,7 +48,7 @@ entities = [
     },
     {
         "id": "kalyani",
-        "name": "Kalyani Speciality Steels Ltd",
+        "name": "Virelion Specialty Metals Pvt Ltd",
         "sector": "Steel & Heavy Metallurgy",
         "turnover": 380000000,
         "bank_inflows": 520000000,
@@ -68,7 +68,7 @@ entities = [
     },
     {
         "id": "bharat",
-        "name": "Bharat Capital & Trade Finance Ltd",
+        "name": "Aravind Capital & Trade Finance Pvt Ltd",
         "sector": "Financial Services & NBFC",
         "turnover": 125000000,
         "bank_inflows": 128000000,
@@ -88,7 +88,7 @@ entities = [
     },
     {
         "id": "zenith",
-        "name": "Zenith Chemicals & Agrochemicals Ltd",
+        "name": "Nexvara Chemicals & Agrochemicals Pvt Ltd",
         "sector": "Chemicals & Allied Products",
         "turnover": 210000000,
         "bank_inflows": 295000000,
