@@ -6,6 +6,7 @@ Gemini - see README.md for local setup.
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from google.adk.runners import Runner
@@ -14,6 +15,8 @@ from google.genai import types
 
 from agents.config import APP_NAME
 from agents.pipeline import build_pipeline
+
+logger = logging.getLogger(__name__)
 
 _session_service = InMemorySessionService()
 _pipeline = None
@@ -49,14 +52,25 @@ async def evaluate_borrower(borrower_id: str) -> dict:
         role="user",
         parts=[types.Part.from_text(text=f"Evaluate borrower {borrower_id} for a credit decision.")],
     )
-    async for _event in runner.run_async(user_id=user_id, session_id=session_id, new_message=trigger):
-        pass  # Every step's side effects (ledger writes) already happened via callbacks/orchestrator.
+    logger.info("ADK run starting for borrower_id=%s session_id=%s", borrower_id, session_id)
+    try:
+        async for _event in runner.run_async(user_id=user_id, session_id=session_id, new_message=trigger):
+            pass  # Every step's side effects (ledger writes) already happened via callbacks/orchestrator.
+    except Exception:
+        logger.exception("ADK run raised for borrower_id=%s session_id=%s", borrower_id, session_id)
+        raise
 
     session = await _session_service.get_session(app_name=APP_NAME, user_id=user_id, session_id=session_id)
     decision = session.state.get("decision") if session else None
     if decision is None:
+        logger.error(
+            "Pipeline finished for borrower_id=%s session_id=%s with no decision in session state - "
+            "one of the three specialist agents or the orchestrator did not run to completion.",
+            borrower_id, session_id,
+        )
         raise RuntimeError(
             f"Pipeline finished for {borrower_id!r} without producing a decision - "
             "check that all three specialist agents and the orchestrator ran."
         )
+    logger.info("ADK run complete for borrower_id=%s session_id=%s", borrower_id, session_id)
     return decision

@@ -11,17 +11,22 @@ Endpoints (per the build brief's API contract sketch):
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from agents import config
 from agents.consent import build_consent_status
 from agents.extraction import assemble_fi_data, build_consent_block, extract_source
 from agents.firestore_gateway import get_consent, get_decision, get_ledger, set_consent, set_fi_data
 from backend.runner import evaluate_borrower
 
 import os
+
+config.configure_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TrueLedger API")
 
@@ -76,6 +81,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.clients[client_ip] = [t for t in self.clients[client_ip] if now - t < self.window_seconds]
 
         if len(self.clients[client_ip]) >= self.max_requests:
+            logger.warning(
+                "Rate limit exceeded for client_ip=%s on %s (%d requests in the last %ds).",
+                client_ip, request.url.path, len(self.clients[client_ip]), self.window_seconds,
+            )
             return JSONResponse(
                 status_code=429,
                 content={
@@ -97,10 +106,20 @@ def health() -> dict:
 
 @app.post("/borrowers/{borrower_id}/evaluate")
 async def evaluate(borrower_id: str) -> dict:
+    logger.info("Starting pipeline evaluation for borrower_id=%s", borrower_id)
     try:
-        return await evaluate_borrower(borrower_id)
+        result = await evaluate_borrower(borrower_id)
     except KeyError as exc:
+        logger.warning("Evaluation for borrower_id=%s failed - no data found: %s", borrower_id, exc)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Evaluation for borrower_id=%s failed unexpectedly", borrower_id)
+        raise
+    logger.info(
+        "Pipeline evaluation complete for borrower_id=%s: outcome=%s final_confidence=%.2f",
+        borrower_id, result.get("outcome"), result.get("final_confidence", 0.0),
+    )
+    return result
 
 
 @app.get("/borrowers/{borrower_id}/ledger")
@@ -143,6 +162,14 @@ async def upload_documents(
     """
     if loan_amount_requested <= 0:
         raise HTTPException(status_code=422, detail="loan_amount_requested must be greater than 0.")
+
+    logger.info(
+        "Starting document upload: loan_amount_requested=%s bank_statement=%s gst_return=%s "
+        "mutual_fund_statement=%s insurance_policy=%s",
+        loan_amount_requested, bank_statement.filename, gst_return.filename,
+        mutual_fund_statement.filename if mutual_fund_statement else None,
+        insurance_policy.filename if insurance_policy else None,
+    )
 
     uploads: dict[str, UploadFile | None] = {
         "DEPOSIT": bank_statement,
@@ -222,7 +249,12 @@ async def upload_documents(
             # Boundary of the system: an arbitrary user-supplied file read by
             # an LLM can fail in ways we can't enumerate (unreadable scan,
             # wrong document type, model returned malformed JSON) - turn any
-            # of them into one honest 4xx rather than a 500.
+            # of them into one honest 4xx rather than a 500. Still log it
+            # server-side with the doc_type and the real exception, since the
+            # 422's detail message is the only thing the client sees and a
+            # bare "could not read" with no stack trace isn't enough to
+            # diagnose a recurring extraction failure after the fact.
+            logger.warning("Extraction failed for doc_type=%s: %s", doc_type, result, exc_info=result)
             raise HTTPException(
                 status_code=422, detail=f"Could not read the uploaded {doc_type} document: {result}"
             ) from result
@@ -256,6 +288,7 @@ async def upload_documents(
     borrower_id = f"upload_{uuid.uuid4().hex[:10]}"
     set_fi_data(borrower_id, fi_data)
     set_consent(borrower_id, build_consent_block())
+    logger.info("Upload complete: borrower_id=%s ready for evaluation", borrower_id)
     return {"borrower_id": borrower_id}
 
 
@@ -297,6 +330,7 @@ async def ingest_onboarding(workbook: UploadFile = File(...)) -> dict:
     try:
         wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
     except Exception as exc:
+        logger.warning("Could not open onboarding workbook %r: %s", workbook.filename, exc, exc_info=exc)
         raise HTTPException(status_code=422, detail=f"Could not open workbook: {exc}") from exc
 
     sheets = wb.worksheets

@@ -21,6 +21,7 @@ What the model is and is not allowed to do:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal, Optional
@@ -28,6 +29,8 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from agents import config
+
+logger = logging.getLogger(__name__)
 
 # --- Extraction schemas (one per FI source type) ---
 # Deliberately separate from agents/schemas.py's Claim/AgentFindings - those
@@ -162,14 +165,21 @@ async def extract_source(doc_type: str, file_bytes: bytes, mime_type: str) -> di
     schema = _SCHEMA_BY_SOURCE[doc_type]
     prompt = _PROMPT_BY_SOURCE[doc_type] + RESPONSE_PROMPT_SUFFIX
 
-    response = await _client().aio.models.generate_content(
-        model=config.SPECIALIST_MODEL,
-        contents=[prompt, types.Part.from_bytes(data=file_bytes, mime_type=mime_type)],
-        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema),
-    )
+    logger.info("Extracting %s document (%d bytes, %s)", doc_type, len(file_bytes), mime_type)
+    try:
+        response = await _client().aio.models.generate_content(
+            model=config.SPECIALIST_MODEL,
+            contents=[prompt, types.Part.from_bytes(data=file_bytes, mime_type=mime_type)],
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema),
+        )
+    except Exception:
+        logger.exception("Gemini extraction call failed for a %s document", doc_type)
+        raise
     if not response.text:
+        logger.warning("Gemini returned no extractable content for a %s document", doc_type)
         raise ValueError(f"Gemini returned no extractable content for a {doc_type} document.")
     extracted = schema.model_validate_json(response.text)
+    logger.info("Extraction succeeded for %s document", doc_type)
     return _to_source_shape(doc_type, extracted.model_dump())
 
 

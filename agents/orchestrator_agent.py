@@ -19,8 +19,11 @@ brief's `[Parallel Workers] -> [Synthesizer Agent]` pattern.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import AsyncGenerator
+
+logger = logging.getLogger(__name__)
 
 from google.adk.agents import LlmAgent
 from google.adk.agents.base_agent import BaseAgent
@@ -107,6 +110,11 @@ class OrchestratorAgent(BaseAgent):
             bank_findings, gst_findings, investment_findings, gap, loan_amount_requested
         )
         empty_specialist_findings = detect_empty_specialists(bank_findings, gst_findings, investment_findings)
+        if empty_specialist_findings:
+            logger.warning(
+                "borrower_id=%s has %d specialist(s) with zero claims - forcing manual_review.",
+                borrower_id, len(empty_specialist_findings),
+            )
         risk_factors.extend(empty_specialist_findings)
 
         for c in contradictions:
@@ -215,6 +223,12 @@ class OrchestratorAgent(BaseAgent):
                 f"contradictions={len(contradictions)}, risk_factors={len(risk_factors)}."
             ),
             decision=decision,
+        )
+        logger.info(
+            "Orchestrator finished for borrower_id=%s: outcome=%s final_confidence=%.2f "
+            "model_confidence=%.2f contradictions=%d risk_factors=%d weakest_consent_source=%s",
+            borrower_id, outcome, final_confidence, model_confidence,
+            len(contradictions), len(risk_factors), weakest.source if weakest else None,
         )
 
         contradiction_summary = (

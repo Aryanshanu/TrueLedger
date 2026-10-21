@@ -96,6 +96,30 @@ INSURANCE_COVERAGE_MIN_RATIO = 0.5  # coverage below 50% of loan => risk flag
 
 APP_NAME = "trueledger"
 
+# --- Logging ---
+# Previously nothing in this codebase configured Python's logging module at
+# all, so a production failure (Gemini error, Firestore error, a borrower
+# with no decision) was only visible as whatever FastAPI's default
+# exception path happened to print - a raw traceback, with no request
+# context, and nothing at all for an error that was already caught and
+# turned into a clean 4xx (the client sees why; the server logs don't).
+# This is deliberately plain `logging` to stdout, not the
+# `google-cloud-logging` client library: Cloud Run's log driver captures
+# container stdout/stderr and Cloud Logging's severity parser already
+# recognizes the standard `LEVELNAME` text this format produces, so a
+# second GCP-specific client/dependency isn't needed just to get leveled,
+# attributable log lines.
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+
+
+def configure_logging() -> None:
+    import logging
+
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL.upper(), 20),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
 
 def _gemini_retry_options():
     from google.genai import types
