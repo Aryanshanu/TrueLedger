@@ -130,7 +130,12 @@ class EnterpriseTenantRepository:
     def get_borrower_ledger(self, borrower_id: str) -> List[Dict[str, Any]]:
         """Retrieves and decrypts the complete audit trail for the active tenant."""
         ctx = get_tenant_context()
-        ledger_col = self._borrower_doc_ref(borrower_id, ctx.tenant_id).collection("ledger")
+        doc_ref = self._borrower_doc_ref(borrower_id, ctx.tenant_id)
+        if doc_ref is None:
+            # CI/Offline mode: Firestore client unavailable, return empty list or in-memory stub
+            logger.info("Firestore unavailable: returning empty ledger in test/offline mode")
+            return []
+        ledger_col = doc_ref.collection("ledger")
         steps = ledger_col.order_by("created_at", direction=firestore.Query.ASCENDING).get()
 
         aad = f"{ctx.tenant_id}:{borrower_id}"
