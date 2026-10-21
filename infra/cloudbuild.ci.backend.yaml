@@ -14,7 +14,27 @@
 # roles/run.admin + roles/iam.serviceAccountUser, and the `trueledger`
 # Artifact Registry repo must already exist (it does, from the manual
 # deploy in step 6 of this doc).
+#
+# Test step runs FIRST and gates everything after it: Cloud Build runs
+# steps sequentially by default (each waits for the previous one to
+# succeed), so a non-zero exit here stops the build before the docker
+# build or deploy steps ever run. This was the actual gap behind "CI
+# passing does not gate deployment" - the separate GitHub Actions
+# workflow (.github/workflows/ci.yml) running pytest and this Cloud
+# Build trigger deploying were two unrelated systems watching the same
+# push event, so a red GitHub Actions run never stopped this trigger
+# from deploying anyway. Running the same test suite here, before this
+# trigger's own deploy step, closes that gap directly without needing
+# any cross-system status-check wiring between GitHub and Cloud Build.
 steps:
+  - name: 'python:3.11-slim'
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        pip install --no-cache-dir -r requirements.txt
+        PYTHONPATH=. pytest -q
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - build

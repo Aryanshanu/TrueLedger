@@ -139,6 +139,16 @@ rebuilds and redeploys both services automatically - no more running
 (separate from the manual-deploy configs so this can never break the
 already-verified manual path).
 
+**CI actually gates this deploy.** The backend trigger's first step runs
+the full `pytest` suite (`pip install -r requirements.txt && pytest -q`,
+same as `.github/workflows/ci.yml`) before the docker-build and
+`gcloud run deploy` steps - Cloud Build runs steps sequentially by
+default, so a failing test stops the build there and nothing deploys.
+This closes a real gap: GitHub Actions' own CI run and this Cloud Build
+trigger both fire on the same push but are otherwise two unrelated
+systems, so a red GitHub Actions run never used to stop this trigger
+from deploying anyway.
+
 **One step here can't be scripted**: connecting Cloud Build to your GitHub
 account requires authorizing the Google Cloud Build GitHub App in a
 browser - `gcloud builds repositories create` prints a URL for this and
