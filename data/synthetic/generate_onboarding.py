@@ -88,27 +88,27 @@ CLIENTS = [
     },
 ]
 
-# Realistic invoice counterparties
+# Realistic synthetic invoice counterparties (clearly fictionalized for hackathon safety)
 COUNTERPARTIES = [
-    ("Infosys Ltd", "29AABCI1682H1ZB"),
-    ("TCS Ltd", "27AAACT2727Q1ZM"),
-    ("HDFC Bank Ltd", "27AAACH2702H1ZC"),
-    ("Reliance Industries", "27AACCR4849R1Z9"),
-    ("Wipro Ltd", "29AABCW0050A1ZP"),
-    ("Bajaj Finance", "27AAACB2894F1Z4"),
-    ("ICICI Bank", "27AAACI2859G1ZW"),
-    ("L&T Finance", "27AAACU6390Q1Z5"),
+    ("Indus Cloud Solutions Pvt Ltd", "29AAACI1682H1ZB"),
+    ("TechNova Systems India Ltd", "27AAACT2727Q1ZM"),
+    ("Horizon Commercial Credit Corp", "27AAACH2702H1ZC"),
+    ("Apex Industrial Supplies Ltd", "27AACCR4849R1Z9"),
+    ("Zenith Digital Networks Ltd", "29AABCW0050A1ZP"),
+    ("Synergy Capital Partners Ltd", "27AAACB2894F1Z4"),
+    ("Pinnacle Commerce Gateway Ltd", "27AAACI2859G1ZW"),
+    ("Omni Logistics Infrastructure Ltd", "27AAACU6390Q1Z5"),
 ]
 
 FUND_NAMES = [
-    ("HDFC Mid Cap Opportunities Fund", "Equity", "HDFC AMC"),
-    ("Axis Long Term Equity Fund", "ELSS", "Axis AMC"),
-    ("Mirae Asset Large Cap Fund", "Equity", "Mirae Asset"),
-    ("SBI Liquid Fund", "Liquid", "SBI Funds"),
-    ("ICICI Prudential Balanced Advantage", "Hybrid", "ICICI Pru AMC"),
-    ("Parag Parikh Flexi Cap Fund", "Equity", "PPFAS AMC"),
-    ("Kotak Gilt Fund", "Debt", "Kotak AMC"),
-    ("DSP Tax Saver Fund", "ELSS", "DSP AMC"),
+    ("Illustrative Mid Cap Growth Fund", "Equity", "Illustrative AMC"),
+    ("Illustrative Long Term Equity Fund", "ELSS", "Illustrative AMC"),
+    ("Illustrative Large Cap Fund", "Equity", "Illustrative AMC"),
+    ("Illustrative Liquid Reserve Fund", "Liquid", "Illustrative AMC"),
+    ("Illustrative Balanced Advantage Fund", "Hybrid", "Illustrative AMC"),
+    ("Illustrative Flexi Cap Fund", "Equity", "Illustrative AMC"),
+    ("Illustrative Gilt & Sovereign Fund", "Debt", "Illustrative AMC"),
+    ("Illustrative Tax Saver ELSS Fund", "ELSS", "Illustrative AMC"),
 ]
 
 EXPENSE_CATEGORIES = [
