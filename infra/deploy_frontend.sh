@@ -17,8 +17,12 @@ gcloud run deploy "$SERVICE" \
   --image "$IMAGE" \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars "BACKEND_URL=${BACKEND_URL}" \
+  --set-env-vars "BACKEND_URL=${BACKEND_URL}${BACKEND_API_KEY:+,BACKEND_API_KEY=${BACKEND_API_KEY}}" \
   --min-instances "${MIN_INSTANCES:-0}"
+# BACKEND_API_KEY (optional): must match the backend's own API_KEY
+# (see deploy_backend.sh) - the frontend injects it into the browser via
+# /config.js so app.js can send it as the X-API-Key header on every
+# backend call. Leave both unset for the previous fully-open behavior.
 
 echo "Frontend deployed. URL:"
 gcloud run services describe "$SERVICE" --project "$GOOGLE_CLOUD_PROJECT" --region "$REGION" --format 'value(status.url)'

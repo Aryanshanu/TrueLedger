@@ -7,10 +7,19 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 8080;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8081";
+// Optional shared key for the backend's auth gate (see backend/main.py's
+// API_KEY env var). Server-side injection, same mechanism as BACKEND_URL -
+// never baked into app.js at build time. This is NOT real secrecy (it
+// ships to the browser via /config.js, visible in dev tools like
+// BACKEND_URL already is); it's friction against anonymous bot/scanner
+// traffic hitting the Gemini-calling endpoints, which is the threat this
+// is meant to raise the cost of, not a real access-control boundary.
+// undefined when unset, which the backend treats as "auth disabled".
+const BACKEND_API_KEY = process.env.BACKEND_API_KEY || "";
 
 app.get("/config.js", (_req, res) => {
   res.type("application/javascript");
-  res.send(`window.__CONFIG__ = ${JSON.stringify({ BACKEND_URL })};`);
+  res.send(`window.__CONFIG__ = ${JSON.stringify({ BACKEND_URL, BACKEND_API_KEY })};`);
 });
 
 // The Desk moved from "/" to "/desk" (the landing page now owns "/").

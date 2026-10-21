@@ -33,7 +33,13 @@ steps:
       - '--region=${_REGION}'
       - --platform=managed
       - --allow-unauthenticated
-      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION}'
+      # _API_KEY defaults to empty below, which sets API_KEY= (present but
+      # empty) rather than omitting it - agents/config.py's
+      # os.environ.get("API_KEY", "") treats both the same way (auth
+      # disabled), so this trigger stays fully-open until _API_KEY is set
+      # on the trigger itself (gcloud builds triggers update ... or the
+      # Cloud Build console) to match the backend's chosen shared key.
+      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},API_KEY=${_API_KEY}'
       # 0, not 1: a trigger that redeploys on every push to main must not
       # silently keep an always-on billed instance running between pushes.
       - --min-instances=0
@@ -41,5 +47,6 @@ images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-backend:${SHORT_SHA}'
 substitutions:
   _REGION: asia-south1
+  _API_KEY: ""
 options:
   logging: CLOUD_LOGGING_ONLY

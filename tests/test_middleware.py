@@ -90,3 +90,47 @@ def test_rate_limit_does_not_apply_to_health_check(client):
     for _ in range(130):
         resp = client.get("/health")
         assert resp.status_code == 200
+
+
+def test_api_key_disabled_by_default(client):
+    """No API_KEY env var configured (the default) must mean no auth at
+    all - this must never lock out a deploy that never set one up."""
+    with patch("backend.main.get_decision", return_value={"outcome": "approve"}):
+        resp = client.get("/borrowers/b_clean/decision")
+    assert resp.status_code != 401
+
+
+def test_api_key_rejects_missing_or_wrong_key(client, monkeypatch):
+    # Patch the already-imported config module's attribute directly rather
+    # than the env var + reload dance the other tests use: the middleware
+    # reads config.API_KEY live on every request, and agents.config (unlike
+    # backend.main) is never reloaded here, so an env var set after it was
+    # first imported in this test session would silently have no effect.
+    import backend.main as main_module
+
+    monkeypatch.setattr(main_module.config, "API_KEY", "secret123")
+
+    resp = client.get("/borrowers/b_clean/decision")
+    assert resp.status_code == 401
+
+    resp = client.get("/borrowers/b_clean/decision", headers={"X-API-Key": "wrong"})
+    assert resp.status_code == 401
+
+
+def test_api_key_accepts_correct_key(client, monkeypatch):
+    import backend.main as main_module
+
+    monkeypatch.setattr(main_module.config, "API_KEY", "secret123")
+
+    with patch("backend.main.get_decision", return_value={"outcome": "approve"}):
+        resp = client.get("/borrowers/b_clean/decision", headers={"X-API-Key": "secret123"})
+    assert resp.status_code == 200
+
+
+def test_api_key_exempts_health_check_even_when_configured(client, monkeypatch):
+    import backend.main as main_module
+
+    monkeypatch.setattr(main_module.config, "API_KEY", "secret123")
+
+    resp = client.get("/health")
+    assert resp.status_code == 200

@@ -96,6 +96,21 @@ INSURANCE_COVERAGE_MIN_RATIO = 0.5  # coverage below 50% of loan => risk flag
 
 APP_NAME = "trueledger"
 
+# --- Backend auth ---
+# Both Cloud Run services deploy with --allow-unauthenticated (see
+# infra/deploy_*.sh) - intentional, since neither has real user accounts
+# yet, but it also means anyone on the internet can hit the Gemini-calling
+# endpoints directly, not just through the frontend. API_KEY is a shared
+# key, not real per-user auth (there are no user accounts to attach it to)
+# - it exists to raise the cost of anonymous bot/scanner traffic hitting
+# POST /borrowers/upload or /evaluate and running up a Gemini bill, not to
+# keep out a motivated person (the frontend ships the key to the browser
+# via /config.js - see frontend/server.js - so it's visible in dev tools
+# the same way BACKEND_URL already is). Empty string (the default) means
+# auth is disabled entirely, so local dev and a demo deploy with no key
+# configured both keep working exactly as before this was added.
+API_KEY = os.environ.get("API_KEY", "")
+
 # --- Logging ---
 # Previously nothing in this codebase configured Python's logging module at
 # all, so a production failure (Gemini error, Firestore error, a borrower

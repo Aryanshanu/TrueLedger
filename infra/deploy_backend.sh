@@ -40,7 +40,14 @@ DEPLOY_ARGS=(
   # environment variable whose name has already changed once
   # (GOOGLE_GENAI_USE_VERTEXAI -> GOOGLE_GENAI_USE_ENTERPRISE). Set
   # VERTEX_AI_LOCATION below only to override the "global" default.
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_LOCATION=${REGION}${VERTEX_AI_LOCATION:+,VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}}"
+  #
+  # API_KEY (optional): a shared key the backend's auth middleware checks
+  # on every request except /health - see agents/config.py's own comment
+  # for exactly what this does and doesn't protect against. Leave unset
+  # for the previous fully-open behavior; set it here AND pass the same
+  # value as BACKEND_API_KEY to deploy_frontend.sh so the frontend can
+  # actually reach the now-gated backend.
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_LOCATION=${REGION}${VERTEX_AI_LOCATION:+,VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}}${API_KEY:+,API_KEY=${API_KEY}}"
 )
 if [[ -n "${SERVICE_ACCOUNT:-}" ]]; then
   DEPLOY_ARGS+=(--service-account "$SERVICE_ACCOUNT")

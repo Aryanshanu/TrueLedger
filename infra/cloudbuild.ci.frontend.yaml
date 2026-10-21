@@ -25,17 +25,25 @@ steps:
         set -euo pipefail
         BACKEND_URL=$(gcloud run services describe trueledger-backend \
           --project=${PROJECT_ID} --region=${_REGION} --format='value(status.url)')
+        # _BACKEND_API_KEY defaults to empty below (see substitutions:) -
+        # that sets BACKEND_API_KEY= (present but empty) on the service,
+        # which frontend/server.js's `process.env.BACKEND_API_KEY || ""`
+        # treats the same as unset, so this trigger stays fully-open until
+        # _BACKEND_API_KEY is set on the trigger itself to match whatever
+        # API_KEY the backend trigger was given.
+        BACKEND_API_KEY="${_BACKEND_API_KEY}"
         gcloud run deploy trueledger-frontend \
           --project=${PROJECT_ID} \
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA} \
           --region=${_REGION} \
           --platform=managed \
           --allow-unauthenticated \
-          --set-env-vars=BACKEND_URL=$$BACKEND_URL \
+          --set-env-vars=BACKEND_URL=$$BACKEND_URL,BACKEND_API_KEY=$$BACKEND_API_KEY \
           --min-instances=0
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/trueledger/trueledger-frontend:${SHORT_SHA}'
 substitutions:
   _REGION: asia-south1
+  _BACKEND_API_KEY: ""
 options:
   logging: CLOUD_LOGGING_ONLY

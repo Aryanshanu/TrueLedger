@@ -99,6 +99,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RateLimitMiddleware, max_requests=120, window_seconds=60)
 
 
+# Shared-key auth gate - see agents/config.py's API_KEY comment for exactly
+# what this does and doesn't protect against. No-op entirely when API_KEY
+# is unset (local dev, or a deploy that hasn't set one), so this can never
+# lock anyone out of a configuration that previously had no auth at all.
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not config.API_KEY:
+            return await call_next(request)
+        # CORS preflight carries no custom headers by design (browsers
+        # don't attach them until the actual request) - let it through so
+        # CORSMiddleware can answer it; /health stays open for Cloud Run's
+        # own liveness probe, which has no way to send a header either.
+        if request.method == "OPTIONS" or request.url.path == "/health":
+            return await call_next(request)
+
+        if request.headers.get("X-API-Key") != config.API_KEY:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.warning("Rejected request to %s from client_ip=%s: missing or wrong X-API-Key.", request.url.path, client_ip)
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid X-API-Key header."})
+
+        return await call_next(request)
+
+
+app.add_middleware(APIKeyMiddleware)
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}

@@ -191,8 +191,25 @@ let currentBorrowerId = null;
 let loadToken = 0; // guards against a stale, slow response landing after a newer click
 let currentController = null; // aborts any in-flight live fetch the moment it's superseded
 
+// Shared API key for the backend's optional auth gate (agents/config.py /
+// backend/main.py - a lightweight friction-against-anonymous-bot-traffic
+// measure, not real secrecy: it ships in this static JS, visible to anyone
+// who opens dev tools, same as BACKEND_URL itself. Injected server-side by
+// frontend/server.js via /config.js from the BACKEND_API_KEY env var, same
+// mechanism BACKEND_URL already uses, rather than baked into this file at
+// build time. Absent entirely (undefined) when no key is configured, which
+// the backend treats as "auth disabled" - this never breaks local dev.
+function withBackendAuthHeaders(extraHeaders) {
+  const key = window.__CONFIG__ && window.__CONFIG__.BACKEND_API_KEY;
+  return key ? { ...(extraHeaders || {}), "X-API-Key": key } : (extraHeaders || {});
+}
+
 async function fetchJSON(path, options) {
-  const res = await fetch(`${BACKEND_URL}${path}`, options);
+  const opts = options || {};
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    ...opts,
+    headers: withBackendAuthHeaders(opts.headers),
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}: ${body}`);
@@ -2932,6 +2949,7 @@ async function handleWorkbookUpload(file) {
     const res = await fetch(`${BACKEND_URL}/ingest/onboarding`, {
       method: "POST",
       body: form,
+      headers: withBackendAuthHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -3387,7 +3405,7 @@ async function runLiveForensicAudit(frame) {
     form.append("bank_statement", blobs.bankBlob, blobs.bankName);
     form.append("gst_return", blobs.gstBlob, blobs.gstName);
 
-    const uploadRes = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body: form });
+    const uploadRes = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body: form, headers: withBackendAuthHeaders() });
     if (!uploadRes.ok) {
       const err = await uploadRes.json().catch(() => ({}));
       throw new Error(err.detail || `Document upload failed (HTTP ${uploadRes.status}).`);
@@ -3395,7 +3413,7 @@ async function runLiveForensicAudit(frame) {
     const { borrower_id } = await uploadRes.json();
 
     setStatus("Running the real multi-agent pipeline (3 specialist agents + orchestrator) - this can take 10-30s...", false);
-    const evalRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/evaluate`, { method: "POST" });
+    const evalRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/evaluate`, { method: "POST", headers: withBackendAuthHeaders() });
     if (!evalRes.ok) {
       const err = await evalRes.json().catch(() => ({}));
       throw new Error(err.detail || `Pipeline evaluation failed (HTTP ${evalRes.status}).`);
@@ -3404,7 +3422,7 @@ async function runLiveForensicAudit(frame) {
 
     let consentSources = [];
     try {
-      const consentRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/consent-status`);
+      const consentRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/consent-status`, { headers: withBackendAuthHeaders() });
       if (consentRes.ok) consentSources = (await consentRes.json()).sources || [];
     } catch (_e) {
       // Non-fatal: the decision itself is the important part, consent detail is supplementary.
