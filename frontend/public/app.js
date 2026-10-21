@@ -1735,12 +1735,37 @@ function setupMaskToggle() {
   }
 }
 
+// The wizard's "custom_" session keys (built from the applicant's typed
+// name, see proceedBtn above) are never real Firestore borrower_ids - only
+// BENCHMARK_CASES ids and the legacy recorded cases (b_clean, b_contradiction,
+// b_stale_consent) resolve server-side. Re-running the pipeline against a
+// "custom_" id with no prior upload would just 404. If the wizard's own
+// "Run Live Forensic Audit" (Step 4) already ran a real upload+evaluate for
+// this entity, liveRunResult holds the real borrower_id to re-run against;
+// otherwise there is nothing real to re-run yet, and the caller should say so
+// instead of firing a call that can only fail.
+function resolveForensicAuditTarget() {
+  const target = currentBorrowerId || DEFAULT_CASE;
+  const isCustomSessionKey = typeof target === "string" && target.startsWith("custom_");
+  if (isCustomSessionKey) {
+    if (liveRunResult && liveRunResult.borrowerId) return liveRunResult.borrowerId;
+    return null;
+  }
+  return target;
+}
+
 function setupDecisionAnchorActions() {
   const auditBtn = $("anchor-audit-btn");
   if (auditBtn) {
     auditBtn.addEventListener("click", () => {
+      const targetCase = resolveForensicAuditTarget();
+      if (!targetCase) {
+        if (typeof showToast === "function") {
+          showToast("No real data uploaded yet for this applicant - use \"Run Live Forensic Audit\" in Step 4 first.");
+        }
+        return;
+      }
       switchWorkspace("credit");
-      const targetCase = currentBorrowerId || DEFAULT_CASE;
       loadBorrower(targetCase, { forceRefetch: true });
       if (typeof showToast === "function") {
         showToast(`Running forensic audit for ${targetCase}...`);
@@ -1756,7 +1781,17 @@ const COMMAND_ITEMS = [
   { group: "Customer Audit Flow", icon: "🛡", label: "Step 4: Credit Assessment & Decision Dossier", action: () => { switchWorkspace("customer_wizard"); switchCustomerStep(4); } },
   { group: "Audit Outputs", icon: "📊", label: "Export Reconciliation Ledger (.CSV)", action: () => exportAuditCSV() },
   { group: "Audit Outputs", icon: "📑", label: "Download Decision Audit Report (.PDF)", action: () => downloadAuditPDF() },
-  { group: "Forensic Actions", icon: "⚡", label: "Run Forensic Audit (Active Dossier)", action: () => { switchWorkspace("credit"); loadBorrower(currentBorrowerId || DEFAULT_CASE, { forceRefetch: true }); } },
+  { group: "Forensic Actions", icon: "⚡", label: "Run Forensic Audit (Active Dossier)", action: () => {
+      const targetCase = resolveForensicAuditTarget();
+      if (!targetCase) {
+        if (typeof showToast === "function") {
+          showToast("No real data uploaded yet for this applicant - use \"Run Live Forensic Audit\" in Step 4 first.");
+        }
+        return;
+      }
+      switchWorkspace("credit");
+      loadBorrower(targetCase, { forceRefetch: true });
+    } },
   { group: "Forensic Actions", icon: "🔒", label: "Toggle Financial Data Masking", action: () => toggleFinancialMask() },
   { group: "Forensic Actions", icon: "↻", label: "Re-animate Decision & Ledger Stepper", action: () => { $("replay-btn")?.click(); } },
   { group: "Forensic Actions", icon: "📁", label: "+ New Credit Submission (Upload Statement/GST)", action: () => { $("upload-open-btn")?.click(); } },
@@ -3367,6 +3402,14 @@ let enterpriseUploadedFiles = {
   itr: null,
   bank: null,
 };
+// Real File/Blob objects for user-chosen uploads, keyed the same way as
+// enterpriseUploadedFiles (which only holds display filenames). Populated by
+// setupChannelUpload's change handler; consumed by resolveLiveUploadBlobs.
+let enterpriseUploadedFileBlobs = {
+  gstn: null,
+  itr: null,
+  bank: null,
+};
 
 // Canonical session snapshot built at Step 2 commit. All Steps 3, 4, the
 // credit pipeline, anchor bar, and case rail read from this — not from the
@@ -3391,6 +3434,113 @@ function deriveRiskTier(varianceStr, verdict) {
 let swarmProgress = 0;
 let telemetryLogs = [];
 let isSwarmRunning = false;
+
+// Holds the result of an actual live run (real Gemini extraction + real
+// pipeline evaluation) against the backend, separate from the illustrative
+// BENCHMARK_CASES data in activeSession so the two are never confused.
+// null until "Run Live Forensic Audit" succeeds; reset on New Assessment.
+let liveRunResult = null;
+let isLiveRunInProgress = false;
+
+// ── LIVE FORENSIC AUDIT: real upload + real pipeline run ───────────────
+// Resolves the two files a live run needs (bank statement + GST return) as
+// real Blobs - either the pre-generated sample workbook for the selected
+// benchmark entity, or a file the user actually chose via the channel file
+// inputs. Returns null if neither source has both required files, so the
+// caller can fail honestly instead of silently sending nothing.
+async function resolveLiveUploadBlobs() {
+  const b = activeBenchmarkId ? BENCHMARK_CASES.find((x) => x.id === activeBenchmarkId) : null;
+  if (b && b.files && b.files.bank && b.files.gstn) {
+    const [bankRes, gstRes] = await Promise.all([
+      fetch(`/data/samples/${b.files.bank}`),
+      fetch(`/data/samples/${b.files.gstn}`),
+    ]);
+    if (!bankRes.ok || !gstRes.ok) {
+      throw new Error("Could not load the sample documents for this benchmark entity.");
+    }
+    const [bankBlob, gstBlob] = await Promise.all([bankRes.blob(), gstRes.blob()]);
+    return { bankBlob, bankName: b.files.bank, gstBlob, gstName: b.files.gstn };
+  }
+  const bankFile = enterpriseUploadedFileBlobs.bank;
+  const gstFile = enterpriseUploadedFileBlobs.gstn;
+  if (bankFile && gstFile) {
+    return { bankBlob: bankFile, bankName: bankFile.name, gstBlob: gstFile, gstName: gstFile.name };
+  }
+  return null;
+}
+
+async function runLiveForensicAudit(frame) {
+  if (isLiveRunInProgress) return;
+  const btn = $("btn-run-live-audit");
+  const statusEl = $("live-audit-status");
+  const setStatus = (text, isError) => {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.style.color = isError ? "#f87171" : "var(--muted)";
+  };
+
+  isLiveRunInProgress = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Running live pipeline..."; }
+  setStatus("Loading source documents...", false);
+
+  try {
+    const blobs = await resolveLiveUploadBlobs();
+    if (!blobs) {
+      throw new Error(
+        "No real bank statement / GST return is available for a live run. " +
+        "Select a benchmark entity, or upload your own bank statement and GST return in Step 2."
+      );
+    }
+
+    setStatus("Uploading documents - Gemini is extracting bank and GST data live...", false);
+    const loanAmount = parseLoanAmount(enterpriseLoanAmount || (activeSession && activeSession.loanAmount) || "0") || 1000000;
+    const form = new FormData();
+    form.append("loan_amount_requested", String(loanAmount));
+    form.append("bank_statement", blobs.bankBlob, blobs.bankName);
+    form.append("gst_return", blobs.gstBlob, blobs.gstName);
+
+    const uploadRes = await fetch(`${BACKEND_URL}/borrowers/upload`, { method: "POST", body: form });
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      throw new Error(err.detail || `Document upload failed (HTTP ${uploadRes.status}).`);
+    }
+    const { borrower_id } = await uploadRes.json();
+
+    setStatus("Running the real multi-agent pipeline (3 specialist agents + orchestrator) - this can take 10-30s...", false);
+    const evalRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/evaluate`, { method: "POST" });
+    if (!evalRes.ok) {
+      const err = await evalRes.json().catch(() => ({}));
+      throw new Error(err.detail || `Pipeline evaluation failed (HTTP ${evalRes.status}).`);
+    }
+    const decision = await evalRes.json();
+
+    let consentSources = [];
+    try {
+      const consentRes = await fetch(`${BACKEND_URL}/borrowers/${borrower_id}/consent-status`);
+      if (consentRes.ok) consentSources = (await consentRes.json()).sources || [];
+    } catch (_e) {
+      // Non-fatal: the decision itself is the important part, consent detail is supplementary.
+    }
+
+    liveRunResult = { borrowerId: borrower_id, decision, consentSources, ranAt: new Date().toISOString() };
+    logSystemEvent(
+      "LIVE_FORENSIC_AUDIT_COMPLETE",
+      "ORCHESTRATOR_ENGINE",
+      "live:borrowers-evaluate",
+      `Real pipeline run complete for borrower ${borrower_id}: ${decision.outcome} (confidence ${decision.final_confidence}).`,
+      "SUCCESS"
+    );
+    if (typeof showToast === "function") showToast("Live pipeline run complete");
+    renderCustomerFinalVerdict(frame);
+  } catch (e) {
+    setStatus(`Live run failed: ${e.message}`, true);
+    if (btn) { btn.disabled = false; btn.textContent = "▶ Run Live Forensic Audit"; }
+    if (typeof showToast === "function") showToast("Live run failed - see dossier for details");
+    logSystemEvent("LIVE_FORENSIC_AUDIT_FAILED", "ORCHESTRATOR_ENGINE", "live:borrowers-evaluate", e.message, "ERROR");
+  } finally {
+    isLiveRunInProgress = false;
+  }
+}
 
 let isDevAuthenticated = false;
 let devAuthError = null;
@@ -3819,6 +3969,10 @@ function renderCustomerOnboarding(frame) {
         itr: b.files.itr,
         bank: b.files.bank
       };
+      // Switching to a benchmark entity means any previously-chosen real
+      // upload no longer matches the entity on screen - drop it so a live
+      // run falls back to the benchmark's own sample files, not a stale blob.
+      enterpriseUploadedFileBlobs = { gstn: null, itr: null, bank: null };
 
       if (typeof showToast === "function") {
         showToast(`Loaded benchmark dataset: ${b.name}`);
@@ -3838,6 +3992,7 @@ function renderCustomerOnboarding(frame) {
       enterpriseLoanAmount = "";
       enterpriseChannels = { gstn: false, itr: false, bank: false };
       enterpriseUploadedFiles = { gstn: null, itr: null, bank: null };
+      enterpriseUploadedFileBlobs = { gstn: null, itr: null, bank: null };
       if (typeof showToast === "function") {
         showToast("Switched to Custom Applicant mode");
       }
@@ -3860,6 +4015,7 @@ function renderCustomerOnboarding(frame) {
       const file = e.target.files && e.target.files[0];
       if (file) {
         enterpriseUploadedFiles[channelKey] = file.name;
+        enterpriseUploadedFileBlobs[channelKey] = file;
         enterpriseChannels[channelKey] = true;
         if (typeof showToast === "function") {
           showToast(`Imported ${file.name} for ${channelKey.toUpperCase()}`);
@@ -4230,6 +4386,10 @@ function renderCustomerFinalVerdict(frame) {
         </div>
 
         <div class="cockpit-banner-actions">
+          <button class="btn-ent-action" id="btn-run-live-audit" type="button" style="border-color:rgba(52,211,153,0.4)" ${isLiveRunInProgress ? "disabled" : ""}>
+            <span style="color:#34d399">▶</span>
+            <span>${isLiveRunInProgress ? "Running live pipeline..." : "Run Live Forensic Audit"}</span>
+          </button>
           <button class="btn-ent-action" id="ent-export-csv-btn" type="button">
             <span style="color:#34d399">📊</span>
             <span>Export Ledger (.CSV)</span>
@@ -4244,6 +4404,45 @@ function renderCustomerFinalVerdict(frame) {
           </button>
         </div>
       </div>
+
+      <div style="padding:4px 24px 0" id="live-audit-status-row">
+        <span id="live-audit-status" style="font-size:12px;color:var(--muted)">
+          ${liveRunResult
+            ? `Last live run: borrower ${liveRunResult.borrowerId} · ${new Date(liveRunResult.ranAt).toLocaleString()}`
+            : "No live run yet for this session - click \"Run Live Forensic Audit\" to send the real documents through the real Gemini + ADK pipeline."}
+        </span>
+      </div>
+
+      ${liveRunResult ? `
+      <div class="cockpit-metrics-grid" style="margin-top:8px">
+        <div class="cockpit-metric-card" style="grid-column: 1 / -1; border-color: rgba(52,211,153,0.35)">
+          <span class="metric-title">🟢 Live Pipeline Result (real Gemini extraction + real ADK run, borrower ${liveRunResult.borrowerId})</span>
+          <div class="metric-value" style="font-size:20px">${liveRunResult.decision.outcome.toUpperCase()}</div>
+          <div class="metric-sub-row">
+            <span>Final confidence: ${Number(liveRunResult.decision.final_confidence).toFixed(2)} · Model confidence: ${Number(liveRunResult.decision.model_confidence).toFixed(2)}</span>
+          </div>
+          ${liveRunResult.decision.weakest_consent_source ? `
+          <div class="metric-sub-row"><span>Weakest consent source: ${liveRunResult.decision.weakest_consent_source}</span></div>
+          ` : ""}
+          ${(liveRunResult.decision.contradictions || []).length ? `
+          <div style="margin-top:8px">
+            <strong style="font-size:12px;color:#f87171">Contradictions found:</strong>
+            <ul style="margin:4px 0 0 18px;font-size:12px;color:var(--muted)">
+              ${liveRunResult.decision.contradictions.map(c => `<li>${c.finding}</li>`).join("")}
+            </ul>
+          </div>
+          ` : ""}
+          ${(liveRunResult.decision.risk_factors || []).length ? `
+          <div style="margin-top:8px">
+            <strong style="font-size:12px;color:#fbbf24">Risk factors:</strong>
+            <ul style="margin:4px 0 0 18px;font-size:12px;color:var(--muted)">
+              ${liveRunResult.decision.risk_factors.map(r => `<li>${r.finding}</li>`).join("")}
+            </ul>
+          </div>
+          ` : ""}
+        </div>
+      </div>
+      ` : ""}
 
       <div class="cockpit-metrics-grid">
         <div class="cockpit-metric-card">
@@ -4370,6 +4569,9 @@ function renderCustomerFinalVerdict(frame) {
   const pdfBtn = $("ent-download-pdf-btn");
   if (pdfBtn) pdfBtn.addEventListener("click", downloadAuditPDF);
 
+  const liveAuditBtn = $("btn-run-live-audit");
+  if (liveAuditBtn) liveAuditBtn.addEventListener("click", () => runLiveForensicAudit(frame));
+
   const restartBtn = $("btn-restart-flow");
   if (restartBtn) {
     restartBtn.addEventListener("click", () => {
@@ -4383,6 +4585,9 @@ function renderCustomerFinalVerdict(frame) {
       enterpriseGstinMasked = true;
       enterpriseChannels = { gstn: false, itr: false, bank: false };
       enterpriseUploadedFiles = { gstn: null, itr: null, bank: null };
+      enterpriseUploadedFileBlobs = { gstn: null, itr: null, bank: null };
+      liveRunResult = null;
+      isLiveRunInProgress = false;
       swarmProgress = 0;
       isSwarmRunning = false;
       telemetryLogs = [];
