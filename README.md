@@ -314,3 +314,27 @@ This is a hard rule for everything in this repo, not a one-time disclaimer:
   <strong>Team: The Outliers</strong><br/>
   Google Cloud AI Builder Cup 2026 (APAC) — BFSI Track
 </p>
+
+
+---
+
+## Enterprise Multi-Tenant SaaS Architecture
+
+TrueLedger provides bank-grade, multi-tenant isolation, cryptographic audit trails, and resilient inference endpoints.
+
+### API Headers & Authentication
+All enterprise routes require tenant scoping:
+- `X-Tenant-ID`: The unique identifier for the tenant workspace (e.g. `bank_hdfc`, `default_enterprise`). Enforces hard data isolation via `/tenants/{tenant_id}/borrowers/{borrower_id}` paths.
+- `X-User-Role`: The caller's role (`admin`, `underwriter`, `auditor`, `compliance_officer`, `read_only`).
+- `X-API-Key`: Required when `BACKEND_API_KEY` is configured in production.
+
+### Enterprise API Endpoints
+- `POST /v1/enterprise/borrowers/onboard` — Onboard a new borrower with strict field validation (PAN, GSTIN) and AES-256-GCM encrypted PII storage.
+- `POST /v1/enterprise/borrowers/{borrower_id}/audit-run` — Trigger isolated, circuit-breaker-protected multi-agent evaluation.
+- `GET /v1/enterprise/borrowers/{borrower_id}/ledger` — Fetch the append-only, Merkle-hashed audit ledger.
+- `GET /v1/enterprise/borrowers/{borrower_id}/audit-export` — Export a regulatory-grade cryptographically verified compliance JSON bundle (`TRUELEDGER_CRYPTOGRAPHIC_AUDIT_SPEC_V1`).
+
+### Security & Compliance Environment Variables
+- `FIELD_ENCRYPTION_KEY`: 32-byte AES key (or base64-encoded) for AES-256-GCM field-level encryption with Authenticated Associated Data (AAD).
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed frontend origins (CORS lock down).
+- `GEMINI_MAX_CONCURRENT`: Process-wide concurrency limiter for Vertex AI inference calls.

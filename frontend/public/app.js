@@ -199,9 +199,33 @@ let currentController = null; // aborts any in-flight live fetch the moment it's
 // mechanism BACKEND_URL already uses, rather than baked into this file at
 // build time. Absent entirely (undefined) when no key is configured, which
 // the backend treats as "auth disabled" - this never breaks local dev.
+// Multi-Tenant Context: Read active tenant from URL, localStorage, or fallback
+let currentTenantId = (new URLSearchParams(window.location.search).get("tenant") || localStorage.getItem("trueledger_tenant_id") || "default_enterprise").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+if (!currentTenantId) currentTenantId = "default_enterprise";
+
+function getActiveTenantId() {
+  return currentTenantId;
+}
+
+function setActiveTenantId(newTenantId) {
+  const sanitized = (newTenantId || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (sanitized && sanitized.length >= 3) {
+    currentTenantId = sanitized;
+    localStorage.setItem("trueledger_tenant_id", sanitized);
+    const tenantBadge = document.getElementById("tenant-active-badge");
+    if (tenantBadge) tenantBadge.textContent = sanitized.toUpperCase();
+    if (typeof showToast === "function") showToast("Switched active tenant to: " + sanitized);
+  }
+}
+
 function withBackendAuthHeaders(extraHeaders) {
   const key = window.__CONFIG__ && window.__CONFIG__.BACKEND_API_KEY;
-  return key ? { ...(extraHeaders || {}), "X-API-Key": key } : (extraHeaders || {});
+  const baseHeaders = {
+    "X-Tenant-ID": getActiveTenantId(),
+    "X-User-Role": "underwriter"
+  };
+  if (key) baseHeaders["X-API-Key"] = key;
+  return Object.assign({}, baseHeaders, extraHeaders || {});
 }
 
 async function fetchJSON(path, options) {

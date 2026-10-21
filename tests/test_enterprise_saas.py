@@ -125,3 +125,23 @@ def test_enterprise_onboard_api_endpoint():
     assert data["status"] == "success"
     assert data["tenant_id"] == "tenant_test_bank"
     assert "intake_block_digest" in data
+
+
+def test_export_verifiable_audit_bundle():
+    from fastapi.testclient import TestClient
+    from backend.main import app
+
+    client = TestClient(app)
+    # Test unauthenticated / missing tenant defaults cleanly or handles tenant context
+    headers = {
+        "X-Tenant-ID": "test_enterprise_tenant",
+        "X-User-Role": "auditor"
+    }
+    res = client.get("/v1/enterprise/borrowers/b_clean/audit-export", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["standard"] == "TRUELEDGER_CRYPTOGRAPHIC_AUDIT_SPEC_V1"
+    assert data["tenant_id"] == "test_enterprise_tenant"
+    assert data["borrower_id"] == "b_clean"
+    assert "chain_integrity_verified" in data
+    assert "total_ledger_steps" in data

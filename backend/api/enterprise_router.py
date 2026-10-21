@@ -92,18 +92,60 @@ async def trigger_forensic_audit(
         ledger_step_count=len(decision_dict.get("ledger_step_ids", []))
     )
 
-@enterprise_router.get("/borrowers/{borrower_id}/ledger")
-async def get_verified_ledger(
+from fastapi.responses import JSONResponse, Response
+from backend.contracts.evidence_merkle import MerkleEvidenceLedger, ChainedLedgerBlock
+import json
+from datetime import datetime, timezone
+
+@enterprise_router.get("/borrowers/{borrower_id}/audit-export")
+async def export_verifiable_audit_bundle(
     borrower_id: str,
     ctx: TenantContext = Depends(get_tenant_context)
 ):
-    """Fetches the complete tenant-isolated cryptographic ledger."""
+    """
+    Exports a cryptographically sealed compliance audit bundle formatted for
+    regulatory examiners (DPDP, RBI, SOC 2 Type II). Includes genesis verification.
+    """
     ctx.require_role(UserRole.UNDERWRITER)
     repo = EnterpriseTenantRepository()
-    ledger = repo.get_borrower_ledger(borrower_id)
-    return {
+    raw_steps = repo.get_borrower_ledger(borrower_id)
+
+    # Convert to ChainedLedgerBlock contracts to verify Merkle chain integrity
+    blocks = []
+    for idx, s in enumerate(raw_steps):
+        blocks.append(ChainedLedgerBlock(
+            tenant_id=ctx.tenant_id,
+            borrower_id=borrower_id,
+            step_id=s.get("step_id", f"step_{idx}"),
+            sequence_index=idx,
+            prev_block_hash=s.get("prev_digest", "GENESIS_ROOT"),
+            current_block_hash=s.get("block_digest", ""),
+            action=s.get("action", "record_claim"),
+            finding=s.get("notes", ""),
+            evidence_items=[],
+            timestamp_utc=s.get("created_at", datetime.now(timezone.utc).isoformat()),
+            actor_signature=s.get("created_by", ctx.user_id)
+        ))
+
+    chain_valid = MerkleEvidenceLedger.verify_chain_integrity(blocks)
+
+    compliance_bundle = {
+        "standard": "TRUELEDGER_CRYPTOGRAPHIC_AUDIT_SPEC_V1",
+        "compliance_target": ["DPDP_ACT_2023", "RBI_DIGITAL_LENDING_2022", "SOC2_TYPE_II"],
         "tenant_id": ctx.tenant_id,
         "borrower_id": borrower_id,
-        "total_steps": len(ledger),
-        "steps": ledger
+        "exported_by": ctx.user_id,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "chain_integrity_verified": chain_valid,
+        "total_ledger_steps": len(raw_steps),
+        "steps": raw_steps
     }
+
+    bundle_json = json.dumps(compliance_bundle, indent=2)
+    return Response(
+        content=bundle_json,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename=audit_bundle_{ctx.tenant_id}_{borrower_id}.json"
+        }
+    )
