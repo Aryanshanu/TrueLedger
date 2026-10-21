@@ -167,11 +167,16 @@ async def extract_source(doc_type: str, file_bytes: bytes, mime_type: str) -> di
 
     logger.info("Extracting %s document (%d bytes, %s)", doc_type, len(file_bytes), mime_type)
     try:
-        response = await _client().aio.models.generate_content(
-            model=config.SPECIALIST_MODEL,
-            contents=[prompt, types.Part.from_bytes(data=file_bytes, mime_type=mime_type)],
-            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema),
-        )
+        # Bounds total concurrent Gemini calls across every in-flight
+        # request this process is handling, not just per-client (see
+        # config.GEMINI_MAX_CONCURRENCY) - several uploads landing at once
+        # each fan out up to 4 of these via asyncio.gather already.
+        async with config.get_gemini_semaphore():
+            response = await _client().aio.models.generate_content(
+                model=config.SPECIALIST_MODEL,
+                contents=[prompt, types.Part.from_bytes(data=file_bytes, mime_type=mime_type)],
+                config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema),
+            )
     except Exception:
         logger.exception("Gemini extraction call failed for a %s document", doc_type)
         raise

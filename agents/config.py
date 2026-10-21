@@ -76,6 +76,35 @@ GEMINI_RETRY_ATTEMPTS = int(os.environ.get("GEMINI_RETRY_ATTEMPTS", "4"))
 GEMINI_RETRY_INITIAL_DELAY_SECONDS = float(os.environ.get("GEMINI_RETRY_INITIAL_DELAY_SECONDS", "1.0"))
 GEMINI_RETRY_MAX_DELAY_SECONDS = float(os.environ.get("GEMINI_RETRY_MAX_DELAY_SECONDS", "20.0"))
 
+# --- Gemini concurrency cap ---
+# RateLimitMiddleware (backend/main.py) is per-process, per-client-IP - it
+# does nothing to cap TOTAL concurrent Gemini calls across every client at
+# once (a burst of requests from many different IPs, e.g. several judges
+# testing simultaneously, or a single bot spread across IPs, sails
+# straight through it). This is the "real concurrency cap on Gemini calls
+# (a semaphore in the pipeline runner, not just the per-instance rate
+# limiter)" the PDR asked for - a single process-wide asyncio.Semaphore
+# shared by every path that calls Gemini (backend/runner.py's full
+# pipeline evaluations, agents/extraction.py's document extraction),
+# bounding how many of either can be in flight at once regardless of how
+# many distinct clients triggered them.
+GEMINI_MAX_CONCURRENCY = int(os.environ.get("GEMINI_MAX_CONCURRENCY", "5"))
+
+_gemini_semaphore = None
+
+
+def get_gemini_semaphore():
+    """Lazily creates the shared semaphore on first use, inside whatever
+    event loop is actually running - creating an asyncio.Semaphore at
+    import time would bind it to no loop (or the wrong one, under a test
+    runner that creates a fresh loop per test)."""
+    global _gemini_semaphore
+    import asyncio
+
+    if _gemini_semaphore is None:
+        _gemini_semaphore = asyncio.Semaphore(GEMINI_MAX_CONCURRENCY)
+    return _gemini_semaphore
+
 # --- Firestore collections ---
 # Layout:
 #   fi_data/{borrower_id}/sources/{DEPOSIT|GSTR1_3B|MUTUAL_FUNDS|INSURANCE_POLICIES}

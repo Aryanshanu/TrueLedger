@@ -13,7 +13,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from agents.config import APP_NAME
+from agents.config import APP_NAME, get_gemini_semaphore
 from agents.pipeline import build_pipeline
 
 logger = logging.getLogger(__name__)
@@ -54,8 +54,14 @@ async def evaluate_borrower(borrower_id: str) -> dict:
     )
     logger.info("ADK run starting for borrower_id=%s session_id=%s", borrower_id, session_id)
     try:
-        async for _event in runner.run_async(user_id=user_id, session_id=session_id, new_message=trigger):
-            pass  # Every step's side effects (ledger writes) already happened via callbacks/orchestrator.
+        # Bounds how many full evaluations (each up to 4 Gemini calls - 3
+        # parallel specialists + the orchestrator's pass) can be in flight
+        # across every request this process is handling at once - a real
+        # concurrency cap, not just RateLimitMiddleware's per-client-IP
+        # count (see config.GEMINI_MAX_CONCURRENCY).
+        async with get_gemini_semaphore():
+            async for _event in runner.run_async(user_id=user_id, session_id=session_id, new_message=trigger):
+                pass  # Every step's side effects (ledger writes) already happened via callbacks/orchestrator.
     except Exception:
         logger.exception("ADK run raised for borrower_id=%s session_id=%s", borrower_id, session_id)
         raise
